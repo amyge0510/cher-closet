@@ -55,7 +55,9 @@ export function useAuth() {
 export function friendlyError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
   const code = (err as { code?: string })?.code ?? "";
-  if (/provider/i.test(msg) || /provider_disabled/.test(code)) return "TEXT SIGN-IN ISN'T SWITCHED ON YET.";
+  console.error("sign-in failed:", code, msg); // the full reason, for debugging
+  if (code === "phone_provider_disabled" || /unsupported phone provider/i.test(msg)) return "TEXT SIGN-IN ISN'T SWITCHED ON YET.";
+  if (code === "sms_send_failed") return "THE TEXT COULDN'T BE SENT. TRY AGAIN LATER.";
   if (/expired|invalid/i.test(msg) && /token|otp|code/i.test(msg + code)) return "THAT CODE DIDN'T WORK. TRY AGAIN.";
   if (/rate|security purposes|too many/i.test(msg)) return "TOO MANY TRIES. WAIT A MINUTE, THEN TRY AGAIN.";
   if (/phone/i.test(msg)) return "CHECK THE PHONE NUMBER AND TRY AGAIN.";
