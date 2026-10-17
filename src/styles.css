@@ -74,3 +74,14 @@ body,
 .fade-in {
   animation: fade-in 0.5s steps(6) both;
 }
+
+.cursor {
+  animation: blink 1s steps(1) infinite;
+  flex: none;
+}
+
+.menu-row:hover,
+.menu-row:focus-visible {
+  background: #dedee8 !important;
+  outline: none;
+}

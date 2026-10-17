@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, type Dispatch } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from "react";
+import type { Category } from "../closet/categories";
 import { judge, matchingPairs } from "../closet/match";
 import type { Garment, Slot } from "../closet/types";
 import { PixelImage } from "../pixel/PixelImage";
@@ -6,7 +7,8 @@ import { PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
 import { L, type Box } from "../stage/layout";
 import type { Action, State } from "../state/machine";
-import { Bevel, ButtonLabel, CategoryBar, ControlStrip, Header, Leopard, pos } from "./Parts";
+import { Inventory, MoreMenu } from "./Inventory";
+import { Bevel, ButtonLabel, CategoryBar, ControlStrip, Header, Leopard, overflowCategories, pos } from "./Parts";
 import { Reveal } from "./Reveal";
 
 const MATCH_HOLD_MS = 1400; // black panels stay up this long before the reveal
@@ -22,10 +24,31 @@ function GarmentPanel({ box, garment, matched }: { box: Box; garment?: Garment; 
   );
 }
 
-export function Wardrobe({ state, dispatch, tops, bottoms }: {
-  state: State; dispatch: Dispatch<Action>; tops: Garment[]; bottoms: Garment[];
+type Popup = { kind: "closet"; category: string } | { kind: "more" } | null;
+
+export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut }: {
+  state: State;
+  dispatch: Dispatch<Action>;
+  closet: Garment[];
+  categories: Category[];
+  title: string;
+  onSignOut?: () => void;
 }) {
   const { screen } = state;
+  const tops = useMemo(() => closet.filter((g) => g.slot === "top"), [closet]);
+  const bottoms = useMemo(() => closet.filter((g) => g.slot === "bottom"), [closet]);
+  const [popup, setPopup] = useState<Popup>(null);
+  const closePopup = useCallback(() => setPopup(null), []);
+  const wear = useCallback(
+    (g: Garment) => {
+      if (!g.slot) return;
+      const list = g.slot === "top" ? tops : bottoms;
+      dispatch({ type: "PICK", slot: g.slot, index: list.indexOf(g) });
+      setPopup(null);
+    },
+    [dispatch, tops, bottoms],
+  );
+  const showRack = useCallback(() => dispatch({ type: "SHOW_RACK" }), [dispatch]);
   const top = tops[state.top];
   const bottom = bottoms[state.bottom];
   const scanTimer = useRef(0);
@@ -72,6 +95,8 @@ export function Wardrobe({ state, dispatch, tops, bottoms }: {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && popup) return setPopup(null);
+      if (popup || e.target instanceof HTMLInputElement) return;
       if (e.key === "Enter") dressMe();
       else if (e.key === "Escape") dispatch({ type: "BROWSE" });
       else if (e.key === "ArrowLeft") step("top", -1);
@@ -81,7 +106,7 @@ export function Wardrobe({ state, dispatch, tops, bottoms }: {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [dressMe, step, dispatch]);
+  }, [dressMe, step, dispatch, popup]);
 
   const matched = screen === "match";
   const fullBody = screen === "reveal" || screen === "dressed";
@@ -89,7 +114,7 @@ export function Wardrobe({ state, dispatch, tops, bottoms }: {
 
   return (
     <div className="fade-in" style={{ position: "absolute", inset: 0, background: C.frameDark }}>
-      <Header />
+      <Header title={title} />
       <Leopard box={L.leopardLeft} />
       <Leopard box={L.leopardRight} />
       <div style={{ ...pos(L.center), background: C.frameDark, borderLeft: `2px solid ${C.frame}`, borderRight: `2px solid ${C.frame}`, boxSizing: "border-box" }} />
@@ -128,7 +153,24 @@ export function Wardrobe({ state, dispatch, tops, bottoms }: {
         <ButtonLabel lines={["DRESS", "ME"]} />
       </Bevel>
 
-      <CategoryBar />
+      <CategoryBar
+        categories={categories}
+        active={popup?.kind === "closet" ? popup.category : popup?.kind}
+        onPick={(id) => setPopup({ kind: "closet", category: id })}
+        onMore={() => setPopup(popup?.kind === "more" ? null : { kind: "more" })}
+      />
+
+      {popup?.kind === "closet" && (
+        <Inventory category={popup.category} categories={categories} closet={closet} onClose={closePopup} onWear={wear} onDragStart={showRack} />
+      )}
+      {popup?.kind === "more" && (
+        <MoreMenu
+          categories={overflowCategories(categories)}
+          onPick={(id) => setPopup({ kind: "closet", category: id })}
+          onSignOut={onSignOut}
+          onClose={closePopup}
+        />
+      )}
     </div>
   );
 }

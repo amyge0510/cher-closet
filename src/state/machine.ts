@@ -3,6 +3,7 @@ import type { Slot, Verdict } from "../closet/types";
 //  splash ─▶ browse ─[dress me]─▶ mismatch ─[browse]─▶ browse
 //                       └────────▶ match ─(timer)─▶ reveal ─(anim)─▶ dressed
 //  dressed ─[dress me]─▶ browse        match/dressed ─[auto dress]─▶ match
+//  any screen but splash ─[pick from the closet pop-up]─▶ browse
 export type Screen = "splash" | "browse" | "mismatch" | "match" | "reveal" | "dressed";
 
 export type State = {
@@ -18,6 +19,8 @@ export type Action =
   | { type: "DRESS_ME"; verdict: Verdict }
   | { type: "BROWSE" }
   | { type: "AUTO_DRESS"; top: number; bottom: number }
+  | { type: "PICK"; slot: Slot; index: number }
+  | { type: "SHOW_RACK" }
   | { type: "MATCH_SHOWN" }
   | { type: "REVEAL_DONE" }
   | { type: "GOTO"; screen: Screen }; // dev overlay only
@@ -44,6 +47,11 @@ export function reducer(s: State, a: Action): State {
       if (s.screen === "match" || s.screen === "dressed")
         return { ...s, screen: "match", top: a.top, bottom: a.bottom, verdict: { match: true, reason: "auto dress" } };
       return s;
+    case "PICK":
+      if (s.screen === "splash") return s;
+      return { ...s, screen: "browse", verdict: null, [a.slot]: a.index };
+    case "SHOW_RACK":
+      return s.screen === "splash" || s.screen === "browse" ? s : { ...s, screen: "browse", verdict: null };
     case "MATCH_SHOWN":
       return s.screen === "match" ? { ...s, screen: "reveal" } : s;
     case "REVEAL_DONE":

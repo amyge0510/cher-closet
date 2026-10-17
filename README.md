@@ -16,6 +16,18 @@ npm run build    # production build in dist/
 Controls: click the on-screen buttons, or use the keyboard. ← → flip tops,
 ↑ ↓ flip bottoms, Enter is Dress Me, Esc is Browse.
 
+**Sign-in.** People sign in with their phone number: a code arrives by text,
+then they give their first name, and the header becomes "AMY'S WARDROBE".
+Browsers remember the sign-in, so returning visitors go straight to the
+hangers. When running locally, a SKIP (DEV) button bypasses sign-in.
+
+**The closet pop-up.** Click any category on the bottom bar (TOPS, BOTTOMS
+and SKIRTS always come first) to open that part of the closet as a grid of
+inventory slots. Overflow categories, and any category a user makes up, are
+under MORE, along with SIGN OUT. Click a top or bottom to put it on the rack,
+or drag it onto the top or bottom panel. Bottoms and skirts both go on the
+bottom panel. The search box searches the whole closet.
+
 ## Matching the film: the ghost overlay
 
 In dev mode, press **`** (backtick) to lay a film frame over the live screen.
@@ -66,10 +78,15 @@ design, so the file is committed. Never put the database password or a
 secret / `service_role` key there: anything in a `VITE_` variable ends up in
 the browser.
 
-The app runs on the demo closet until sign-in and upload are built.
+Run every file in `supabase/migrations/`, oldest first.
+
+Phone sign-in also needs text messaging switched on. In Supabase, go to
+**Authentication → Sign In / Providers → Phone**, turn it on, and connect an
+SMS service such as Twilio.
+
+Until someone uploads their own clothes, they see the demo closet.
 
 ## Next
 
-1. Sign-in, and loading each user's closet from Supabase.
-2. Upload pipeline: background removal or garment segmentation, tagging, and a confirm screen.
-3. Full-body photo upload, with anchor placement for the reveal.
+1. Upload pipeline: background removal or garment segmentation, tagging, and a confirm screen.
+2. Full-body photo upload, with anchor placement for the reveal.

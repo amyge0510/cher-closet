@@ -47,6 +47,12 @@ const G: Record<string, string[]> = {
   "?": [".###.", "#...#", "....#", "...#.", "..#..", ".....", "..#.."],
   "/": ["....#", "...#.", "...#.", "..#..", ".#...", ".#...", "#...."],
   " ": ["...", "...", "...", "...", "...", "...", "..."],
+  "+": [".....", "..#..", "..#..", "#####", "..#..", "..#..", "....."],
+  "_": ["....", "....", "....", "....", "....", "....", "####"],
+  "(": [".#", "#.", "#.", "#.", "#.", "#.", ".#"],
+  ")": ["#.", ".#", ".#", ".#", ".#", ".#", "#."],
+  "&": [".##..", "#..#.", "#.#..", ".#...", "#.#.#", "#..#.", ".##.#"],
+  "@": [".###.", "#...#", "#.###", "#.#.#", "#.###", "#....", ".###."],
   "[": ["...#...#.#", "..##..##.#", ".###.###.#", "########.#", ".###.###.#", "..##..##.#", "...#...#.#"],
   ">": ["#...", "##..", "###.", "####", "###.", "##..", "#..."],
   "]": ["#.#...#...", "#.##..##..", "#.###.###.", "#.########", "#.###.###.", "#.##..##..", "#.#...#..."],
@@ -78,4 +84,19 @@ export function layoutText(text: string, opts: { bold?: boolean; spacing?: numbe
     x += w + (opts.bold ? 1 : 0) + spacing;
   }
   return { cells, width: Math.max(0, x - spacing), height: GLYPH_ROWS };
+}
+
+// Splits text into lines no wider than maxWidth font pixels, breaking at spaces.
+export function wrapText(text: string, maxWidth: number, opts: { bold?: boolean } = {}): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && layoutText(next, opts).width > maxWidth) {
+      lines.push(line);
+      line = word;
+    } else line = next;
+  }
+  if (line) lines.push(line);
+  return lines;
 }

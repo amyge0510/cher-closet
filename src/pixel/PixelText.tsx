@@ -1,5 +1,5 @@
 import { useMemo, type CSSProperties } from "react";
-import { layoutText } from "./font";
+import { layoutText, wrapText } from "./font";
 
 type Props = {
   text: string;
@@ -41,5 +41,22 @@ export function PixelText({ text, color, sx = 1, sy = sx, bold, shadow, outline,
       {shadow && <path d={pathFor(cells, 1, 1)} fill={shadow} />}
       <path d={pathFor(cells)} fill={color} />
     </svg>
+  );
+}
+
+// Word-wrapped, centered lines of bitmap text.
+export function PixelLines({ text, maxWidth, color, sx = 1, sy = sx, gap = 0.6, align = "center", ...rest }: Props & {
+  /** in stage pixels */
+  maxWidth: number;
+  gap?: number;
+  align?: "center" | "left";
+}) {
+  const lines = wrapText(text, maxWidth / sx, { bold: rest.bold });
+  return (
+    <div style={{ display: "grid", justifyItems: align === "center" ? "center" : "start", rowGap: sy * 7 * gap }}>
+      {lines.map((l, i) => (
+        <PixelText key={i} text={l} color={color} sx={sx} sy={sy} {...rest} />
+      ))}
+    </div>
   );
 }

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { DEMO_SPECS } from "./demo";
+import { slotFor } from "./categories";
 import { judge, matchingPairs } from "./match";
 import type { Garment } from "./types";
 
 const g = (id: string): Garment => {
   const { shape, fill, band, ...rest } = DEMO_SPECS.find((s) => s.id === id)!;
-  return { ...rest, image: "" };
+  return { ...rest, slot: slotFor(rest.category), image: "" };
 };
 
 describe("judge", () => {
@@ -29,8 +30,8 @@ describe("judge", () => {
 
 describe("matchingPairs", () => {
   it("finds at least one outfit for Auto Dress in the demo closet", () => {
-    const tops = DEMO_SPECS.filter((s) => s.slot === "top").map((s) => g(s.id));
-    const bottoms = DEMO_SPECS.filter((s) => s.slot === "bottom").map((s) => g(s.id));
+    const tops = DEMO_SPECS.filter((s) => slotFor(s.category) === "top").map((s) => g(s.id));
+    const bottoms = DEMO_SPECS.filter((s) => slotFor(s.category) === "bottom").map((s) => g(s.id));
     expect(matchingPairs(tops, bottoms).length).toBeGreaterThan(2);
   });
 });

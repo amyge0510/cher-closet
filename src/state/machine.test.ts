@@ -38,4 +38,15 @@ describe("reducer", () => {
     const s = reducer({ ...browse, screen: "dressed" }, { type: "AUTO_DRESS", top: 2, bottom: 3 });
     expect(s).toMatchObject({ screen: "match", top: 2, bottom: 3 });
   });
+
+  it("picking from the closet puts the item on the rack from any screen", () => {
+    const s = reducer({ ...browse, screen: "dressed" }, { type: "PICK", slot: "bottom", index: 3 });
+    expect(s).toMatchObject({ screen: "browse", bottom: 3, verdict: null });
+    expect(reducer(initialState, { type: "PICK", slot: "top", index: 1 })).toBe(initialState);
+  });
+
+  it("brings the carousels back so an item can be dropped on them", () => {
+    expect(reducer({ ...browse, screen: "match" }, { type: "SHOW_RACK" }).screen).toBe("browse");
+    expect(reducer(browse, { type: "SHOW_RACK" })).toBe(browse);
+  });
 });

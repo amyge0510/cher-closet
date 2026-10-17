@@ -37,14 +37,25 @@ export const L = {
 
   categoryBar: { x: 0, y: 450, w: 640, h: 30 },
   categoryText: { sx: 1.5, sy: 2, y: 459 },
-  categories: [
-    { label: "SHOES", x: 9 },
-    { label: "JEWELRY", x: 66 },
-    { label: "SCARVES", x: 148 },
-    { label: "PANTYHOSE", x: 224 },
-    { label: "UNDERWEAR", x: 315 },
-    { label: "PANTS", x: 412 },
-    { label: "SWEATERS", x: 466 },
-  ],
+  // labels are placed left to right from `start`; ones that don't fit before
+  // `end` go under MORE
+  categoryRun: { start: 9, end: 552, gap: 14 },
   more: { x: 562, y: 453, w: 62, h: 24 },
+
+  // the closet pop-up (Minecraft-style inventory), over everything but the bar
+  inventory: { x: 136, y: 50, w: 368, h: 392 },
+  invPad: 10,
+  invHeader: 26,
+  invSlot: 36,
+  invCols: 9,
+  invRows: 8,
+  invScrollW: 16,
+  moreMenu: { x: 446, w: 184, rowH: 22 }, // grows upward from the bar
+
+  // sign-in, laid out inside the center column
+  signTitle: { y: 52, sx: 3, sy: 3.4 },
+  signLabel: { y: 196, sx: 1.6, sy: 2 },
+  signField: { x: 216, y: 218, w: 216, h: 34 },
+  signHint: { y: 266, sx: 1.4, sy: 1.8 },
+  signError: { y: 316, sx: 1.4, sy: 1.8 },
 } as const;

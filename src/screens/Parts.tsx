@@ -1,5 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { leopardTile } from "../pixel/leopard";
+import { splitForBar, type Category } from "../closet/categories";
+import { layoutText } from "../pixel/font";
 import { PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
 import { L, type Box } from "../stage/layout";
@@ -55,13 +57,13 @@ export function Leopard({ box }: { box: Box }) {
   );
 }
 
-export function Header() {
+export function Header({ title, season = "FALL FASHIONS" }: { title: string; season?: string }) {
   const { sx, sy } = L.seasonText;
   return (
     <>
       <div style={{ ...pos(L.header), background: C.navy }} />
       <div style={{ position: "absolute", left: L.title.x, top: L.title.y }}>
-        <PixelText text="CHER'S WARDROBE" color={C.lavender} sx={L.title.sx} sy={L.title.sy} shadow={C.frameDark} />
+        <PixelText text={title} color={C.lavender} sx={L.title.sx} sy={L.title.sy} shadow={C.frameDark} />
       </div>
       <div
         style={{
@@ -74,36 +76,73 @@ export function Header() {
           placeItems: "center",
         }}
       >
-        <PixelText text="FALL FASHIONS" color={C.lavender} sx={sx} sy={sy} />
+        <PixelText text={season} color={C.lavender} sx={sx} sy={sy} />
       </div>
     </>
   );
 }
 
-export function CategoryBar() {
+const labelWidth = (label: string) => layoutText(label).width * L.categoryText.sx;
+
+// The bottom bar. Clicking a category opens the closet pop-up on it; whatever
+// doesn't fit goes under MORE. Without handlers it is just decoration.
+export function CategoryBar({ categories, active, onPick, onMore }: {
+  categories: Category[];
+  /** highlighted label: a category id, or "more" */
+  active?: string | null;
+  onPick?: (id: string) => void;
+  onMore?: () => void;
+}) {
   const { sx, sy, y } = L.categoryText;
+  const { start, end, gap } = L.categoryRun;
+  const { shown, more } = splitForBar(categories, labelWidth, start, end, gap);
+  const moreActive = active === "more" || (!!active && more.some((c) => c.id === active));
+  const label = (text: string, on: boolean) => <PixelText text={text} color={on ? C.navy : C.lavender} sx={sx} sy={sy} />;
+  const hit = (on: boolean): CSSProperties => ({
+    position: "absolute",
+    padding: "4px 3px",
+    margin: "-4px -3px",
+    background: on ? C.lavender : "transparent",
+    border: 0,
+    cursor: onPick ? "pointer" : "default",
+    font: "inherit",
+  });
   return (
     <>
       <div style={{ ...pos(L.categoryBar), background: C.navy, borderTop: `2px solid ${C.frame}`, boxSizing: "border-box" }} />
-      {L.categories.map((c) => (
-        <div key={c.label} style={{ position: "absolute", left: c.x, top: y }}>
-          <PixelText text={c.label} color={C.lavender} sx={sx} sy={sy} />
-        </div>
+      {shown.map(({ cat, x }) => (
+        <button key={cat.id} type="button" aria-label={cat.label} disabled={!onPick} onClick={() => onPick?.(cat.id)}
+          style={{ ...hit(active === cat.id), left: x, top: y }}>
+          {label(cat.label, active === cat.id)}
+        </button>
       ))}
-      <div
+      <button
+        type="button"
+        aria-label="More categories"
+        disabled={!onMore}
+        onClick={onMore}
         style={{
           ...pos(L.more),
           boxSizing: "border-box",
+          border: 0,
           borderLeft: `2px solid ${C.lavender}`,
           borderTop: `2px solid ${C.lavender}`,
+          background: moreActive ? C.lavender : "transparent",
           display: "grid",
           placeItems: "center",
+          cursor: onMore ? "pointer" : "default",
+          padding: 0,
         }}
       >
-        <PixelText text="MORE" color={C.lavender} sx={sx * 1.2} sy={sy * 1.1} />
-      </div>
+        <PixelText text="MORE" color={moreActive ? C.navy : C.lavender} sx={sx * 1.2} sy={sy * 1.1} />
+      </button>
     </>
   );
+}
+
+export function overflowCategories(categories: Category[]) {
+  const { start, end, gap } = L.categoryRun;
+  return splitForBar(categories, labelWidth, start, end, gap).more;
 }
 
 const ICONS = ["[", ">", "]"] as const;

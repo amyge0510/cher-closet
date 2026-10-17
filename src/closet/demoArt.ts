@@ -1,5 +1,6 @@
 import { makeCanvas } from "../pixel/raster";
 import { DEMO_SPECS, type DemoSpec, type Fill, type Shape } from "./demo";
+import { slotFor } from "./categories";
 import type { Garment } from "./types";
 
 // Outlines on a 100x100 grid. Tops hang from the shoulders, bottoms from the waist.
@@ -73,7 +74,7 @@ let cache: Garment[] | null = null;
 export function demoCloset(): Garment[] {
   cache ??= DEMO_SPECS.map((spec) => {
     const { shape, fill, band, ...garment } = spec;
-    return { ...garment, image: drawDemo(spec) };
+    return { ...garment, slot: slotFor(garment.category), image: drawDemo(spec) };
   });
   return cache;
 }
