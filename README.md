@@ -61,9 +61,10 @@ To apply it, either:
 - paste the file into **Dashboard → SQL Editor** and run it, or
 - run `supabase db push` with the Supabase CLI.
 
-Then copy `.env.example` to `.env` and fill in the anon key from
-**Project Settings → API**. Never put the database password or the
-`service_role` key in a `VITE_` variable: those end up in the browser.
+The project address and publishable key live in `.env`. Both are public by
+design, so the file is committed. Never put the database password or a
+secret / `service_role` key there: anything in a `VITE_` variable ends up in
+the browser.
 
 The app runs on the demo closet until sign-in and upload are built.
 
