@@ -20,8 +20,10 @@ const CODE_LENGTH = 6;
 
 // Sign-in, dressed as the wardrobe screen: phone number, texted code, then a
 // first name that goes on the header.
-export function SignIn({ needsName, sendCode, verifyCode, saveName, onSkip }: {
+export function SignIn({ needsName, sendCode, verifyCode, saveName, onSkip, preview }: {
   needsName: boolean;
+  /** the pretend sign-in (?preview=...): says plainly that no text is sent */
+  preview?: boolean;
   sendCode: (phone: string) => Promise<void>;
   verifyCode: (phone: string, code: string) => Promise<void>;
   saveName: (name: string) => Promise<void>;
@@ -77,8 +79,11 @@ export function SignIn({ needsName, sendCode, verifyCode, saveName, onSkip }: {
   const panel = L.revealPanel;
   const inner = panel.w - 24;
   const copy = COPY[step];
-  const hint =
-    step === "phone"
+  const hint = preview
+    ? step === "name"
+      ? "PREVIEW ONLY. NOTHING IS SAVED."
+      : "PREVIEW ONLY. NO TEXT IS SENT. ANY 6 DIGITS WORK."
+    : step === "phone"
       ? "WE'LL TEXT YOU A CODE. NO PASSWORDS."
       : step === "code"
         ? `SENT TO ${e164 ?? phone}. WRONG NUMBER? HIT BACK.`
@@ -87,7 +92,7 @@ export function SignIn({ needsName, sendCode, verifyCode, saveName, onSkip }: {
 
   return (
     <div className="fade-in" style={{ position: "absolute", inset: 0, background: C.frameDark }}>
-      <Header title={step === "name" ? wardrobeTitle(name) : "YOUR WARDROBE"} season="SIGN IN" />
+      <Header title={step === "name" ? wardrobeTitle(name) : "YOUR WARDROBE"} season={preview ? "PREVIEW" : "SIGN IN"} />
       <Leopard box={L.leopardLeft} />
       <Leopard box={L.leopardRight} />
       <div style={{ ...pos(L.center), background: C.frameDark, borderLeft: `2px solid ${C.frame}`, borderRight: `2px solid ${C.frame}`, boxSizing: "border-box" }} />

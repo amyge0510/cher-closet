@@ -29,6 +29,7 @@ function SignInPreview({ onDone = () => (window.location.search = "") }: { onDon
   const pause = () => new Promise<void>((done) => setTimeout(done, 600));
   return (
     <SignIn
+      preview
       needsName={named}
       sendCode={pause}
       verifyCode={async () => {
