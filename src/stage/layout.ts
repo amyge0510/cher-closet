@@ -42,13 +42,13 @@ export const L = {
   categoryRun: { start: 9, end: 552, gap: 14 },
   more: { x: 562, y: 453, w: 62, h: 24 },
 
-  // the closet pop-up (Minecraft-style inventory), over everything but the bar
-  inventory: { x: 136, y: 50, w: 368, h: 392 },
+  // the closet pop-up (Minecraft-style inventory), sitting just above the bar
+  inventory: { x: 136, y: 250, w: 368, h: 196 },
   invPad: 10,
   invHeader: 26,
   invSlot: 36,
   invCols: 9,
-  invRows: 8,
+  invRows: 3,
   invScrollW: 16,
   moreMenu: { x: 446, w: 184, rowH: 22 }, // grows upward from the bar
 

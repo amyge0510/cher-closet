@@ -156,7 +156,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       <CategoryBar
         categories={categories}
         active={popup?.kind === "closet" ? popup.category : popup?.kind}
-        onPick={(id) => setPopup({ kind: "closet", category: id })}
+        onPick={(id) => setPopup(popup?.kind === "closet" && popup.category === id ? null : { kind: "closet", category: id })}
         onMore={() => setPopup(popup?.kind === "more" ? null : { kind: "more" })}
       />
 

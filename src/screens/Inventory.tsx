@@ -20,6 +20,8 @@ const bevelIn: CSSProperties = {
   borderColor: `${C.invSlotShadow} ${C.white} ${C.white} ${C.invSlotShadow}`,
 };
 
+const searchText = (g: Garment) => [g.name, ...g.colors, g.pattern, ...g.styles].join(" ").toLowerCase();
+
 type Press = { g: Garment; x0: number; y0: number; dragging: boolean };
 
 // The closet pop-up: every garment in a category as a grid of inventory slots.
@@ -41,11 +43,13 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
 
   const cat = categories.find((c) => c.id === category);
   const q = query.trim().toLowerCase();
+  // search stays inside the open category, and matches tags as well as names
   const items = useMemo(
-    () => (q ? closet.filter((g) => g.name.toLowerCase().includes(q)) : closet.filter((g) => g.category === category)),
+    () => closet.filter((g) => g.category === category && (!q || searchText(g).includes(q))),
     [closet, category, q],
   );
 
+  useEffect(() => setQuery(""), [category]);
   useEffect(() => setScroll(0), [category, q]);
 
   const { invPad: pad, invHeader, invSlot: S, invCols: cols, invRows: rows, invScrollW } = L;
@@ -103,7 +107,7 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
   const gridX = box.x + pad;
   const gridY = box.y + pad + invHeader + 6;
   const footerY = gridY + rows * S + 8;
-  const title = q ? "SEARCH" : (cat?.label ?? category.toUpperCase());
+  const title = cat?.label ?? category.toUpperCase();
   const status = hover
     ? hover.name + (hover.slot ? "" : " - CAN'T WEAR YET")
     : items.length
@@ -142,10 +146,10 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
         </div>
         <PixelField
           box={{ x: box.x + 150, y: box.y + pad, w: 168, h: invHeader }}
-          label="Search your closet"
+          label={`Search ${title.toLowerCase()}`}
           value={query}
           onChange={setQuery}
-          placeholder="SEARCH"
+          placeholder={`SEARCH ${title}`}
           maxLength={24}
           inputMode="search"
           sx={1.4}
