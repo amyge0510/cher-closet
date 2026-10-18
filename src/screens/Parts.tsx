@@ -36,13 +36,13 @@ export function Bevel({ box, tone, children, onClick, label, title, style }: {
 // `sub` is a small extra line underneath, e.g. the saved style on AUTO DRESS.
 export function ButtonLabel({ lines, sub }: { lines: string[]; sub?: string }) {
   const { sx, sy } = L.buttonText;
-  const s = sub ? 0.74 : 1; // make room for the extra line
+  const s = sub ? 0.8 : 1; // make room for the extra line
   return (
-    <div style={{ display: "grid", justifyItems: "center", gap: sub ? 1 : sy }}>
+    <div style={{ display: "grid", justifyItems: "center", gap: sub ? 2 : sy }}>
       {lines.map((l) => (
         <PixelText key={l} text={l} color={C.ink} sx={sx * s} sy={sy * s} bold shadow={C.btnBlueLight} />
       ))}
-      {sub && <PixelText text={sub} color={C.white} sx={1.1} sy={1.4} />}
+      {sub && <PixelText text={sub} color={C.white} sx={0.85} sy={1.1} />}
     </div>
   );
 }
@@ -60,12 +60,17 @@ export function Leopard({ box }: { box: Box }) {
   );
 }
 
-export function Header({ title, season = "FALL FASHIONS", onStyle, styleHint }: {
+export function Header({ title, season = "FALL FASHIONS", onStyle, styleHint, onSaveLook, saveLabel = "SAVE LOOK", onLooks, looksHint }: {
   title: string;
   season?: string;
   onStyle?: () => void;
   /** tiny explainer under MY STYLE */
   styleHint?: string;
+  onSaveLook?: () => void;
+  saveLabel?: string;
+  onLooks?: () => void;
+  /** tab under SAVE LOOK, e.g. MY LOOKS (3) */
+  looksHint?: string;
 }) {
   const { sx, sy } = L.seasonText;
   return (
@@ -94,6 +99,21 @@ export function Header({ title, season = "FALL FASHIONS", onStyle, styleHint }: 
             <PixelText text="~" color={C.ink} sx={1.5} sy={1.8} />
           </div>
         </Bevel>
+      )}
+      {onSaveLook && (
+        <Bevel box={L.saveButton} tone="gray" onClick={onSaveLook} label="Save look" style={{ borderWidth: 2 }}>
+          <PixelText text={saveLabel} color={C.ink} sx={1.5} sy={1.8} bold />
+        </Bevel>
+      )}
+      {onLooks && looksHint && (
+        <button
+          type="button"
+          onClick={onLooks}
+          aria-label="My saved looks"
+          style={{ ...pos(L.saveHint), padding: 0, border: 0, background: C.navy, display: "grid", placeItems: "center", cursor: "pointer", zIndex: 4 }}
+        >
+          <PixelText text={looksHint} color={C.lavender} sx={1} sy={1.4} />
+        </button>
       )}
       {onStyle && styleHint && (
         <button

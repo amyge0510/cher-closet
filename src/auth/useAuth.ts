@@ -1,6 +1,7 @@
 import type { User } from "@supabase/supabase-js";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import type { Look } from "../closet/types";
 import type { MyStyle } from "../style/styles";
 
 export type AuthState =
@@ -10,6 +11,7 @@ export type AuthState =
   // no backend configured, or skipped in dev: runs on the demo closet
   | { status: "guest"; name: string };
 
+export const looksOf = (user: User): Look[] => (user.user_metadata?.looks as Look[] | undefined) ?? [];
 export const styleOf = (user: User): MyStyle | null => (user.user_metadata?.style as MyStyle | undefined) ?? null;
 
 const nameOf = (user: User): string | null => (user.user_metadata?.display_name as string | undefined)?.trim() || null;
@@ -49,6 +51,11 @@ export function useAuth() {
     await supabase?.auth.updateUser({ data: { style } });
   }, []);
 
+  // saved outfits, kept with the account
+  const saveLooks = useCallback(async (looks: Look[]) => {
+    await supabase?.auth.updateUser({ data: { looks } });
+  }, []);
+
   const signOut = useCallback(async () => {
     setState({ status: "signedOut" });
     await supabase?.auth.signOut();
@@ -56,7 +63,7 @@ export function useAuth() {
 
   const skip = useCallback(() => setState({ status: "guest", name: "Cher" }), []);
 
-  return { state, sendCode, verifyCode, saveName, saveStyle, signOut, skip };
+  return { state, sendCode, verifyCode, saveName, saveStyle, saveLooks, signOut, skip };
 }
 
 // Turns Supabase errors into something short the pixel font can draw.

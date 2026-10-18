@@ -20,3 +20,6 @@ export type Garment = {
 };
 
 export type Verdict = { match: boolean; reason: string };
+
+// A saved outfit, by garment id (accessories by category).
+export type Look = { id: string; top: string; bottom: string; extras: Record<string, string> };

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from "react";
 import type { Category } from "../closet/categories";
-import { judge, matchingPairs } from "../closet/match";
-import type { Garment, Slot } from "../closet/types";
+import { judgeOutfit, matchingPairs } from "../closet/match";
+import type { Garment, Look, Slot } from "../closet/types";
 import { PixelImage } from "../pixel/PixelImage";
 import { PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
@@ -10,6 +10,7 @@ import type { Action, State } from "../state/machine";
 import { accessoriesFor, rankPairs, type BoardItem } from "../style/quiz";
 import { leaf, type MyStyle } from "../style/styles";
 import { Inventory, MoreMenu } from "./Inventory";
+import { SavedLooks } from "./SavedLooks";
 import { StyleQuiz } from "./StyleQuiz";
 import { Bevel, ButtonLabel, CategoryBar, ControlStrip, Header, Leopard, overflowCategories, pos } from "./Parts";
 import { Reveal } from "./Reveal";
@@ -44,9 +45,12 @@ function ExtraSticker({ garment, onTakeOff }: { garment: Garment; onTakeOff: () 
   );
 }
 
-type Popup = { kind: "closet"; category: string } | { kind: "more" } | { kind: "style" } | null;
+type Popup = { kind: "closet"; category: string } | { kind: "more" } | { kind: "style" } | { kind: "looks" } | null;
 
-export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut, myStyle, onSaveStyle }: {
+const MAX_LOOKS = 48;
+const SAVED_FLASH_MS = 1500;
+
+export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut, myStyle, onSaveStyle, looks, onSaveLooks }: {
   state: State;
   dispatch: Dispatch<Action>;
   closet: Garment[];
@@ -55,6 +59,8 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   onSignOut?: () => void;
   myStyle: MyStyle | null;
   onSaveStyle: (s: MyStyle) => void;
+  looks: Look[];
+  onSaveLooks: (l: Look[]) => void;
 }) {
   const { screen } = state;
   const tops = useMemo(() => closet.filter((g) => g.slot === "top"), [closet]);
@@ -92,6 +98,31 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   const bottom = bottoms[state.bottom];
   const scanTimer = useRef(0);
 
+  // SAVE LOOK: remember what's on right now (skipping exact repeats)
+  const [justSaved, setJustSaved] = useState(false);
+  const saveLook = useCallback(() => {
+    if (!top || !bottom) return;
+    const look: Look = { id: `look-${Date.now()}`, top: top.id, bottom: bottom.id, extras: state.extras };
+    const same = (l: Look) => l.top === look.top && l.bottom === look.bottom && JSON.stringify(l.extras) === JSON.stringify(look.extras);
+    if (!looks.some(same)) onSaveLooks([look, ...looks].slice(0, MAX_LOOKS));
+    setJustSaved(true);
+  }, [top, bottom, state.extras, looks, onSaveLooks]);
+  useEffect(() => {
+    if (!justSaved) return;
+    const t = window.setTimeout(() => setJustSaved(false), SAVED_FLASH_MS);
+    return () => clearTimeout(t);
+  }, [justSaved]);
+  const wearLook = useCallback(
+    (look: Look) => {
+      const t = tops.findIndex((g) => g.id === look.top);
+      const b = bottoms.findIndex((g) => g.id === look.bottom);
+      if (t < 0 || b < 0) return;
+      dispatch({ type: "SET_OUTFIT", top: t, bottom: b, extras: look.extras });
+      setPopup(null);
+    },
+    [dispatch, tops, bottoms],
+  );
+
   const step = useCallback(
     (slot: Slot, delta: number) => dispatch({ type: "STEP", slot, delta, count: slot === "top" ? tops.length : bottoms.length }),
     [dispatch, tops.length, bottoms.length],
@@ -113,8 +144,8 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
 
   const dressMe = useCallback(() => {
     if (!top || !bottom) return;
-    dispatch({ type: "DRESS_ME", verdict: judge(top, bottom) });
-  }, [dispatch, top, bottom]);
+    dispatch({ type: "DRESS_ME", verdict: judgeOutfit(top, bottom, worn) });
+  }, [dispatch, top, bottom, worn]);
 
   const autoDress = useCallback(() => {
     const pairs = rankPairs(matchingPairs(tops, bottoms), tops, bottoms, myStyle);
@@ -143,7 +174,8 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && popup) return setPopup(null);
-      if (popup || e.target instanceof HTMLInputElement) return;
+      // leave typing, and Enter/space on a focused button, to the element itself
+      if (popup || e.target instanceof HTMLInputElement || e.target instanceof HTMLButtonElement) return;
       if (e.key === "Enter") dressMe();
       else if (e.key === "Escape") dispatch({ type: "BROWSE" });
       else if (e.key === "ArrowLeft") step("top", -1);
@@ -160,7 +192,15 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
 
   return (
     <div className="fade-in" style={{ position: "absolute", inset: 0, background: C.frameDark }}>
-      <Header title={title} onStyle={() => setPopup({ kind: "style" })} styleHint={myStyle ? "TWEAK YOUR STYLE" : "FIND YOUR STYLE"} />
+      <Header
+        title={title}
+        onStyle={() => setPopup({ kind: "style" })}
+        styleHint={myStyle ? "TWEAK YOUR STYLE" : "FIND YOUR STYLE"}
+        onSaveLook={saveLook}
+        saveLabel={justSaved ? "SAVED!" : "SAVE LOOK"}
+        onLooks={() => setPopup({ kind: "looks" })}
+        looksHint={`MY LOOKS (${looks.length})`}
+      />
       <Leopard box={L.leopardLeft} />
       <Leopard box={L.leopardRight} />
       <div style={{ ...pos(L.center), background: C.frameDark, borderLeft: `2px solid ${C.frame}`, borderRight: `2px solid ${C.frame}`, boxSizing: "border-box" }} />
@@ -186,6 +226,11 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
             <PixelText text="MIS-MATCH!" color={C.ink} sx={L.bannerText.sx} sy={L.bannerText.sy} shadow={C.bannerLight} />
           </div>
         </Bevel>
+      )}
+      {screen === "mismatch" && state.verdict && (
+        <div role="status" style={{ ...pos(L.bannerReason), background: C.navy, display: "grid", placeItems: "center", zIndex: 5 }}>
+          <PixelText text={state.verdict.reason} color={C.lavender} sx={1.4} sy={1.8} />
+        </div>
       )}
 
       <Bevel box={L.leftButton} tone="blue" onClick={autoDress} label="Auto dress">
@@ -214,6 +259,15 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
             wearBoard(board);
             setPopup(null);
           }}
+          onClose={closePopup}
+        />
+      )}
+      {popup?.kind === "looks" && (
+        <SavedLooks
+          looks={looks}
+          closet={closet}
+          onWear={wearLook}
+          onDelete={(id) => onSaveLooks(looks.filter((l) => l.id !== id))}
           onClose={closePopup}
         />
       )}

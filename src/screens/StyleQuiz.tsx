@@ -10,7 +10,7 @@ import { Bevel } from "./Parts";
 
 const pad = 10;
 
-function Board({ items, bg, w, h, onPick, label }: { items: BoardItem[]; bg: string; w: number; h: number; onPick?: () => void; label: string }) {
+export function Board({ items, bg, w, h, onPick, label }: { items: BoardItem[]; bg: string; w: number; h: number; onPick?: () => void; label: string }) {
   const [hover, setHover] = useState(false);
   const Tag = onPick ? "button" : "div";
   return (

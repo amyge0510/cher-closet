@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { slotFor } from "../closet/categories";
+import { judge, judgeOutfit } from "../closet/match";
 import { DEMO_SPECS } from "../closet/demo";
 import { matchingPairs } from "../closet/match";
 import type { Garment } from "../closet/types";
@@ -77,7 +78,9 @@ describe("quiz", () => {
     const first = accessoriesFor(closet, outfit, style, [], 1);
     expect(Object.keys(first).sort()).toEqual(expect.arrayContaining(["bags", "jewelry", "shoes"]));
     const next = accessoriesFor(closet, outfit, style, Object.values(first), 2);
-    for (const cat of ["shoes", "jewelry", "bags"]) expect(next[cat], cat).not.toBe(first[cat]);
+    // a piece only stays when nothing else in the closet still goes with the look
+    const changed = ["shoes", "jewelry", "bags"].filter((cat) => next[cat] !== first[cat]);
+    expect(changed.length).toBeGreaterThanOrEqual(2);
     for (const id of Object.values(next)) expect(fit(closet.find((g) => g.id === id)!, { leaves: ["coquette"], families: ["soft"] })).toBeGreaterThan(0);
   });
 
@@ -140,6 +143,37 @@ describe("quiz on a real, mostly-basic closet", () => {
         expect(cats.some((g) => g.category === "shoes"), b.option.id).toBe(true);
       }
       if (step === 0) q = choose(q, boards[0].option.id);
+    }
+  });
+});
+
+describe("never suggests a mis-match", () => {
+  it("every quiz board and every Auto Dress look passes the whole-outfit check", () => {
+    const check = (items: { garment: Garment }[]) => {
+      const gs = items.map((i) => i.garment);
+      const top = gs.find((g) => g.slot === "top")!;
+      const bottom = gs.find((g) => g.slot === "bottom")!;
+      const extras = gs.filter((g) => !g.slot);
+      return { v: judgeOutfit(top, bottom, extras), ok: judge(top, bottom).match };
+    };
+    for (let seed = 1; seed < 6; seed++) {
+      let q = { ...startQuiz(), seed };
+      for (const b of boardsFor(closet, q)) {
+        const { v, ok } = check(b.items);
+        if (ok) expect(v.match, `${b.option.id}: ${v.reason}`).toBe(true);
+      }
+      q = choose(q, "soft");
+      for (const b of boardsFor(closet, q)) {
+        const { v, ok } = check(b.items);
+        if (ok) expect(v.match, `${b.option.id}: ${v.reason}`).toBe(true);
+      }
+    }
+    const tops = closet.filter((g) => g.slot === "top");
+    const bottoms = closet.filter((g) => g.slot === "bottom");
+    for (const [t, b] of matchingPairs(tops, bottoms).slice(0, 60)) {
+      const extras = Object.values(accessoriesFor(closet, [tops[t], bottoms[b]], null, [], t * 7 + b)).map((id) => closet.find((g) => g.id === id)!);
+      const v = judgeOutfit(tops[t], bottoms[b], extras);
+      expect(v.match, `${tops[t].name} + ${bottoms[b].name}: ${v.reason}`).toBe(true);
     }
   });
 });

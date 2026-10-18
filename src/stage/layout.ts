@@ -67,6 +67,9 @@ export const L = {
   // MY STYLE button in the header, and the style quiz pop-up
   styleButton: { x: 512, y: 6, w: 122, h: 21 },
   styleHint: { x: 512, y: 32, w: 122, h: 13 }, // a tab hanging under it saying what it does
+  saveButton: { x: 402, y: 6, w: 104, h: 21 }, // SAVE LOOK, with MY LOOKS (n) hanging under it
+  saveHint: { x: 402, y: 32, w: 104, h: 13 },
+  bannerReason: { x: 80, y: 276, w: 490, h: 24 }, // why it's a mis-match
   styleQuiz: { x: 8, y: 36, w: 624, h: 410 },
   quizBoard: { y: 80, w: 145, h: 290, gap: 8 },
 
