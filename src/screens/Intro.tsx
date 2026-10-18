@@ -17,7 +17,7 @@ import { Bevel, Leopard } from "./Parts";
 const CLIP_SRC = "/intro.mp4";
 const PHRASE_MS = 2000;
 const NO_CLIP_BREW_MS = 4500;
-const MAX_CLIP_MS = 15000; // in case the clip never reports that it ended
+const MAX_CLIP_MS = 20000; // in case the clip never reports that it ended
 const SWIRL_MS = 2800;
 const WELCOME_MS = 2600;
 const FADE_MS = 600;

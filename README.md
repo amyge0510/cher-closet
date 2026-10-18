@@ -14,8 +14,12 @@ npm run build    # production build in dist/
 ```
 
 Controls: click the on-screen buttons, or use the keyboard. ← → flip tops,
-↑ ↓ flip bottoms, Enter is Dress Me, Esc clears MIS-MATCH! early. The left
-button is always AUTO DRESS (the film's BROWSE was just a mode indicator).
+↑ ↓ flip bottoms, Enter is Dress Me, Esc clears MIS-MATCH! early.
+
+As in the film, the left button is **BROWSE** while you're picking. It flicks
+through the tops on its own (the row's ▶▶ lights up), then the bottoms, and
+settles on an outfit; press it again to stop. Once you're dressed, it becomes
+**AUTO DRESS**.
 
 **Sign-in.** People sign in with their phone number: a code arrives by text,
 then they give their first name, and the header becomes "AMY'S WARDROBE".
@@ -31,8 +35,10 @@ whirlpool of sparkles sucks the TV and captions away and reveals "WELCOME TO
 AMY'S CLOSET", then it fades into the hangers. It plays once per account and
 has a SKIP button. Add `?preview=intro` to the address to watch it again.
 
-The clip lives at `public/intro.mp4`. A 10-second H.264 MP4 plays in every
-modern browser. Until the file is added, the TV shows static and the
+The clip lives at `public/intro.mp4`: about 11 seconds of the film's
+computer scene (hangers → browsing → MIS-MATCH! → Cher's reaction), cut from
+7.5s to 18.75s of the source and scaled down to 640px wide. An H.264 MP4
+plays in every modern browser. Until the file is added, the TV shows static and the
 captions run for a few seconds before the whirlpool.
 
 **The closet pop-up.** Click any category on the bottom bar (TOPS, BOTTOMS

@@ -198,15 +198,16 @@ const STRIPES: CSSProperties = {
   backgroundImage: `repeating-linear-gradient(to right, transparent 0 2px, ${C.btnGrayDark}55 2px 3px)`,
 };
 
-export function ControlStrip({ box, onPrev, onNext, onScan, disabled }: {
-  box: Box; onPrev: () => void; onNext: () => void; onScan: () => void; disabled?: boolean;
+// `lit` lights one button blue, e.g. ▶▶ while the row flicks by on its own.
+export function ControlStrip({ box, onPrev, onNext, onScan, disabled, lit }: {
+  box: Box; onPrev: () => void; onNext: () => void; onScan: () => void; disabled?: boolean; lit?: number;
 }) {
   const handlers = [onPrev, onNext, onScan];
   const labels = ["previous", "next", "scan"];
   return (
     <div style={{ ...pos(box), background: C.navyMid }}>
       {L.controlButtons.map((b, i) => (
-        <Bevel key={i} box={b} tone="gray" onClick={disabled ? undefined : handlers[i]} label={labels[i]} style={STRIPES}>
+        <Bevel key={i} box={b} tone={lit === i ? "blue" : "gray"} onClick={disabled ? undefined : handlers[i]} label={labels[i]} style={STRIPES}>
           <PixelText text={ICONS[i]} color={C.ink} sx={3} sy={2.4} shadow={C.btnGrayLight} />
         </Bevel>
       ))}

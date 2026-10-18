@@ -17,7 +17,7 @@ import { Reveal } from "./Reveal";
 
 const MATCH_HOLD_MS = 1400; // black panels stay up this long before the reveal
 const MISMATCH_MS = 3000; // MIS-MATCH! clears itself after this long
-const SCAN_STEP_MS = 70;
+const SCAN_STEP_MS = 110;
 
 function GarmentPanel({ box, garment, matched }: { box: Box; garment?: Garment; matched: boolean }) {
   return (
@@ -128,18 +128,36 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
     [dispatch, tops.length, bottoms.length],
   );
 
-  // fast-forward: flick through the rack and land somewhere random
+  // fast-forward: flick through one row and land somewhere random; `then`
+  // runs once it settles. The row's ▶▶ button lights up while it flicks.
+  const [scanning, setScanning] = useState<Slot | null>(null);
   const scan = useCallback(
-    (slot: Slot) => {
+    (slot: Slot, then?: () => void) => {
       clearInterval(scanTimer.current);
+      setScanning(slot);
       let left = 6 + Math.floor(Math.random() * 8);
       scanTimer.current = window.setInterval(() => {
         step(slot, 1);
-        if (--left <= 0) clearInterval(scanTimer.current);
+        if (--left > 0) return;
+        clearInterval(scanTimer.current);
+        setScanning(null);
+        then?.();
       }, SCAN_STEP_MS);
     },
     [step],
   );
+  const stopScan = useCallback(() => {
+    clearInterval(scanTimer.current);
+    setScanning(null);
+  }, []);
+
+  // BROWSE, as in the film: the tops flick by on their own, then the
+  // bottoms, then it settles on an outfit. Pressing it again stops it.
+  const browse = useCallback(() => {
+    if (scanning) return stopScan();
+    dispatch({ type: "BROWSE" });
+    scan("top", () => scan("bottom"));
+  }, [scanning, stopScan, dispatch, scan]);
   useEffect(() => () => clearInterval(scanTimer.current), []);
 
   const dressMe = useCallback(() => {
@@ -212,9 +230,9 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       ) : (
         <>
           <GarmentPanel box={L.topPanel} garment={top} matched={matched} />
-          <ControlStrip box={L.topControls} onPrev={() => step("top", -1)} onNext={() => step("top", 1)} onScan={() => scan("top")} disabled={matched} />
+          <ControlStrip box={L.topControls} onPrev={() => step("top", -1)} onNext={() => step("top", 1)} onScan={() => scan("top")} lit={scanning === "top" ? 2 : undefined} disabled={matched} />
           <GarmentPanel box={L.bottomPanel} garment={bottom} matched={matched} />
-          <ControlStrip box={L.bottomControls} onPrev={() => step("bottom", -1)} onNext={() => step("bottom", 1)} onScan={() => scan("bottom")} disabled={matched} />
+          <ControlStrip box={L.bottomControls} onPrev={() => step("bottom", -1)} onNext={() => step("bottom", 1)} onScan={() => scan("bottom")} lit={scanning === "bottom" ? 2 : undefined} disabled={matched} />
         </>
       )}
 
@@ -233,9 +251,16 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
         </div>
       )}
 
-      <Bevel box={L.leftButton} tone="blue" onClick={autoDress} label="Auto dress">
-        <ButtonLabel lines={["AUTO", "DRESS"]} sub={myStyle ? leaf(myStyle.leaf)?.label : undefined} />
-      </Bevel>
+      {/* as in the film: BROWSE while browsing, AUTO DRESS once you're dressed */}
+      {screen === "browse" || screen === "mismatch" ? (
+        <Bevel box={L.leftButton} tone="blue" onClick={browse} label="Browse" style={scanning ? { filter: "brightness(1.25)" } : undefined}>
+          <ButtonLabel lines={["BROWSE"]} />
+        </Bevel>
+      ) : (
+        <Bevel box={L.leftButton} tone="blue" onClick={autoDress} label="Auto dress">
+          <ButtonLabel lines={["AUTO", "DRESS"]} sub={myStyle ? leaf(myStyle.leaf)?.label : undefined} />
+        </Bevel>
+      )}
       <Bevel box={L.rightButton} tone="blue" onClick={dressMe} label="Dress me">
         <ButtonLabel lines={["DRESS", "ME"]} />
       </Bevel>
