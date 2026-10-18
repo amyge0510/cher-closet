@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanName, closetTitle, toE164, wardrobeTitle } from "./names";
+import { cleanName, closetHeadline, closetTitle, toE164, wardrobeTitle } from "./names";
 
 describe("wardrobeTitle", () => {
   it("makes the header possessive", () => {
@@ -7,6 +7,7 @@ describe("wardrobeTitle", () => {
     expect(wardrobeTitle("Dionne")).toBe("DIONNE'S WARDROBE");
     expect(wardrobeTitle("James")).toBe("JAMES' WARDROBE");
     expect(wardrobeTitle("")).toBe("YOUR WARDROBE");
+    expect(closetHeadline("Amy")).toBe("AMY'S CLOSET");
   });
 
   it("names the browser tab too", () => {

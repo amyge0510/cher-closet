@@ -4,9 +4,18 @@ export const NAME_MAX = 14;
 
 // "Cher" -> "CHER'S WARDROBE", "James" -> "JAMES' WARDROBE"
 export function wardrobeTitle(name: string | null | undefined) {
+  return possessiveTitle(name, "WARDROBE");
+}
+
+// "Amy" -> "AMY'S CLOSET", for the welcome screen
+export function closetHeadline(name: string | null | undefined) {
+  return possessiveTitle(name, "CLOSET");
+}
+
+function possessiveTitle(name: string | null | undefined, thing: string) {
   const n = (name ?? "").trim().toUpperCase();
-  if (!n) return "YOUR WARDROBE";
-  return `${n}${n.endsWith("S") ? "'" : "'S"} WARDROBE`;
+  if (!n) return `YOUR ${thing}`;
+  return `${n}${n.endsWith("S") ? "'" : "'S"} ${thing}`;
 }
 
 // For the browser tab: "Cher's Closet"

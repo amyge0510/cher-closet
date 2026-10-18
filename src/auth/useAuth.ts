@@ -11,6 +11,8 @@ export type AuthState =
   // no backend configured, or skipped in dev: runs on the demo closet
   | { status: "guest"; name: string };
 
+// whether the welcome intro has played for this account
+export const introSeenOf = (user: User): boolean => !!user.user_metadata?.intro_seen;
 export const looksOf = (user: User): Look[] => (user.user_metadata?.looks as Look[] | undefined) ?? [];
 export const styleOf = (user: User): MyStyle | null => (user.user_metadata?.style as MyStyle | undefined) ?? null;
 
@@ -56,6 +58,10 @@ export function useAuth() {
     await supabase?.auth.updateUser({ data: { looks } });
   }, []);
 
+  const markIntroSeen = useCallback(async () => {
+    await supabase?.auth.updateUser({ data: { intro_seen: true } });
+  }, []);
+
   const signOut = useCallback(async () => {
     setState({ status: "signedOut" });
     await supabase?.auth.signOut();
@@ -63,7 +69,7 @@ export function useAuth() {
 
   const skip = useCallback(() => setState({ status: "guest", name: "Cher" }), []);
 
-  return { state, sendCode, verifyCode, saveName, saveStyle, saveLooks, signOut, skip };
+  return { state, sendCode, verifyCode, saveName, saveStyle, saveLooks, markIntroSeen, signOut, skip };
 }
 
 // Turns Supabase errors into something short the pixel font can draw.

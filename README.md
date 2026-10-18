@@ -24,6 +24,17 @@ hangers. When running locally, a SKIP (DEV) button bypasses sign-in.
 To look at the sign-in screens while signed in, add `?preview=signin` to the
 address: every step works without sending a text or saving anything.
 
+**Welcome intro.** Right after someone's first sign-in, a leopard screen plays
+the movie clip on a little TV. Under it, captions alternate between
+"BREWING..." and closet phrases every two seconds. When the clip ends, a
+whirlpool of sparkles sucks the TV and captions away and reveals "WELCOME TO
+AMY'S CLOSET", then it fades into the hangers. It plays once per account and
+has a SKIP button. Add `?preview=intro` to the address to watch it again.
+
+The clip lives at `public/intro.mp4`. A 10-second H.264 MP4 plays in every
+modern browser. Until the file is added, the TV shows static and the
+captions run for a few seconds before the whirlpool.
+
 **The closet pop-up.** Click any category on the bottom bar (TOPS, BOTTOMS
 and SKIRTS always come first) to open that part of the closet as a grid of
 inventory slots. Overflow categories, and any category a user makes up, are
