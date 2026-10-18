@@ -30,6 +30,24 @@ under MORE, along with SIGN OUT. Click a top or bottom to put it on the rack,
 or drag it onto the top or bottom panel. Bottoms and skirts both go on the
 bottom panel. The search box searches the whole closet.
 
+**MY STYLE.** The pencil button in the header opens a three-step style quiz.
+Each step shows four outfit boards built from the user's own closet:
+
+1. a family (preppy, edgy, soft, easy)
+2. a specific style inside it (e.g. goth, punk, grunge, moto)
+3. today's color mood (dark, light, bold, earthy)
+
+SHUFFLE rebuilds the boards and BACK steps out. The result is saved with the
+account, and Auto Dress then prefers outfits that fit it. The style map lives
+in `src/style/styles.ts`, and the quiz and board logic in `src/style/quiz.ts`.
+
+**The demo closet.** About 80 drawn pieces across every category, plus a
+BAGS category to show how custom categories land under MORE. Every piece is
+tagged with styles, colors and a pattern, so the quiz and matching have
+something to work with until real uploads exist.
+
+MIS-MATCH! clears itself after three seconds.
+
 ## Matching the film: the ghost overlay
 
 In dev mode, press **`** (backtick) to lay a film frame over the live screen.

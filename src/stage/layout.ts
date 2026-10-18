@@ -52,6 +52,11 @@ export const L = {
   invScrollW: 16,
   moreMenu: { x: 446, w: 184, rowH: 22 }, // grows upward from the bar
 
+  // MY STYLE button in the header, and the style quiz pop-up
+  styleButton: { x: 512, y: 6, w: 122, h: 21 },
+  styleQuiz: { x: 8, y: 36, w: 624, h: 410 },
+  quizBoard: { y: 80, w: 145, h: 290, gap: 8 },
+
   // sign-in, laid out inside the center column
   signTitle: { y: 52, sx: 3, sy: 3.4 },
   signLabel: { y: 196, sx: 1.6, sy: 2 },

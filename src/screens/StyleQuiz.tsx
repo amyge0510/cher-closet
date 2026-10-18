@@ -1,0 +1,160 @@
+import { useMemo, useState } from "react";
+import type { Garment } from "../closet/types";
+import { PixelImage } from "../pixel/PixelImage";
+import { PixelLines, PixelText } from "../pixel/PixelText";
+import { back, boardsFor, buildBoard, choose, result, startQuiz, STEP_TITLES, targetFor, type BoardItem, type QuizState } from "../style/quiz";
+import { family, leaf, palette, type MyStyle } from "../style/styles";
+import { C } from "../stage/palette";
+import { L } from "../stage/layout";
+import { Bevel } from "./Parts";
+
+const pad = 10;
+
+function Board({ items, bg, w, h, onPick, label }: { items: BoardItem[]; bg: string; w: number; h: number; onPick?: () => void; label: string }) {
+  const [hover, setHover] = useState(false);
+  const Tag = onPick ? "button" : "div";
+  return (
+    <Tag
+      type={onPick ? "button" : undefined}
+      aria-label={label}
+      onClick={onPick}
+      onPointerEnter={() => setHover(true)}
+      onPointerLeave={() => setHover(false)}
+      style={{
+        position: "relative",
+        width: w,
+        height: h,
+        padding: 0,
+        background: bg,
+        boxSizing: "border-box",
+        border: `3px solid ${hover && onPick ? C.invEdge : C.white}`,
+        boxShadow: `3px 3px 0 ${C.invSlotShadow}`,
+        cursor: onPick ? "pointer" : "default",
+        display: "block",
+      }}
+    >
+      {items.map(({ garment, box }) => (
+        <PixelImage
+          key={garment.id}
+          src={garment.image}
+          w={Math.round(box.w * (w - 6))}
+          h={Math.round(box.h * (h - 6))}
+          pixel={2}
+          outline={C.white}
+          style={{ position: "absolute", left: Math.round(box.x * (w - 6)), top: Math.round(box.y * (h - 6)) }}
+        />
+      ))}
+    </Tag>
+  );
+}
+
+function SmallButton({ x, y, w, label, tone = "gray", onClick }: { x: number; y: number; w: number; label: string; tone?: "gray" | "blue"; onClick: () => void }) {
+  return (
+    <Bevel box={{ x, y, w, h: 30 }} tone={tone} onClick={onClick} label={label} style={{ borderWidth: 2 }}>
+      <PixelText text={label} color={C.ink} sx={1.8} sy={2} bold />
+    </Bevel>
+  );
+}
+
+// The MY STYLE pop-up: three rounds of "which of these is you?", each a row
+// of outfit boards made from the user's own closet, then the result.
+export function StyleQuiz({ closet, saved, onSave, onClose }: {
+  closet: Garment[];
+  saved: MyStyle | null;
+  onSave: (s: MyStyle) => void;
+  onClose: () => void;
+}) {
+  const [q, setQ] = useState<QuizState>(() => (saved ? { step: 3, ...saved, seed: 1 } : startQuiz()));
+  const boards = useMemo(() => (q.step < 3 ? boardsFor(closet, q) : []), [closet, q]);
+  const box = L.styleQuiz;
+  const { y: by, w: bw, h: bh, gap } = L.quizBoard;
+  const chosen = result(q);
+  const finalBoard = useMemo(() => (chosen ? buildBoard(closet, targetFor(chosen), q.seed * 31) : []), [closet, chosen?.leaf, chosen?.palette, q.seed]);
+
+  const crumbs = [q.family && family(q.family)?.label, q.leaf && leaf(q.leaf)?.label, q.palette && palette(q.palette)?.label].filter(Boolean).join(" > ");
+  const footY = box.y + box.h - pad - 30;
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, zIndex: 30, background: "rgba(10,8,30,0.35)" }} />
+      <div
+        role="dialog"
+        aria-label="My style"
+        style={{
+          position: "absolute",
+          left: box.x,
+          top: box.y,
+          width: box.w,
+          height: box.h,
+          boxSizing: "border-box",
+          background: C.invBg,
+          border: `3px solid ${C.invEdge}`,
+          boxShadow: `inset 3px 3px 0 ${C.white}, inset -3px -3px 0 ${C.invSlotShadow}`,
+          zIndex: 31,
+        }}
+      />
+      <div style={{ position: "absolute", left: 0, top: 0, zIndex: 32 }}>
+        <div style={{ position: "absolute", left: box.x + pad + 2, top: box.y + pad + 4, display: "flex", gap: 14, alignItems: "baseline" }}>
+          <PixelText text="MY STYLE" color={C.invText} sx={2} sy={2.2} bold />
+          <PixelText text={q.step < 3 ? `STEP ${q.step + 1} OF 3: ${STEP_TITLES[q.step]}` : STEP_TITLES[3]} color={C.invText} sx={1.5} sy={2} />
+        </div>
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={onClose}
+          className="bevel"
+          style={{
+            left: box.x + box.w - pad - 29,
+            top: box.y + pad,
+            width: 26,
+            height: 26,
+            background: C.btnGray,
+            borderColor: `${C.btnGrayLight} ${C.btnGrayDark} ${C.btnGrayDark} ${C.btnGrayLight}`,
+          }}
+        >
+          <PixelText text="X" color={C.ink} sx={2} sy={2} />
+        </button>
+
+        {q.step < 3 &&
+          boards.map(({ option, items }, i) => {
+            const x = box.x + pad + 3 + i * (bw + gap);
+            return (
+              <div key={option.id} style={{ position: "absolute", left: x, top: by }}>
+                <Board items={items} bg={option.bg} w={bw} h={bh} label={option.label} onPick={() => setQ(choose(q, option.id))} />
+                <div style={{ width: bw, marginTop: 6 }}>
+                  <PixelLines text={option.label} maxWidth={bw} color={C.invText} sx={1.6} sy={2} bold />
+                </div>
+              </div>
+            );
+          })}
+
+        {q.step === 3 && chosen && (
+          <>
+            <div style={{ position: "absolute", left: box.x + pad + 3, top: by }}>
+              <Board items={finalBoard} bg={palette(chosen.palette)?.bg ?? C.white} w={200} h={bh} label="Your style board" />
+            </div>
+            <div style={{ position: "absolute", left: box.x + pad + 230, top: by + 10, width: 360, display: "grid", gap: 14 }}>
+              <PixelText text="YOU'RE" color={C.invText} sx={2} sy={2} />
+              <PixelLines text={leaf(chosen.leaf)?.label ?? ""} maxWidth={360} color={C.invEdge} sx={4.5} sy={5} bold align="left" shadow={C.invSlot} />
+              <PixelLines text={`${family(chosen.family)?.label} FAMILY, ${palette(chosen.palette)?.label} TODAY.`} maxWidth={360} color={C.invText} sx={1.8} sy={2.2} align="left" />
+              <PixelLines text="AUTO DRESS WILL PICK OUTFITS FROM YOUR CLOSET THAT FIT THIS STYLE." maxWidth={360} color={C.invText} sx={1.5} sy={1.8} align="left" />
+            </div>
+          </>
+        )}
+
+        <div style={{ position: "absolute", left: box.x + pad + 3, top: footY + 9 }}>
+          {q.step < 3 && crumbs && <PixelText text={crumbs} color={C.invText} sx={1.5} sy={1.8} />}
+        </div>
+        {q.step > 0 && q.step < 3 && <SmallButton x={box.x + box.w - pad - 250} y={footY} w={110} label="BACK" onClick={() => setQ(back(q))} />}
+        {q.step < 3 && <SmallButton x={box.x + box.w - pad - 130} y={footY} w={127} label="SHUFFLE" onClick={() => setQ({ ...q, seed: q.seed + 1 })} />}
+        {q.step === 3 && (
+          <>
+            <SmallButton x={box.x + box.w - pad - 410} y={footY} w={127} label="RETAKE" onClick={() => setQ(startQuiz(q.seed + 1))} />
+            <SmallButton x={box.x + box.w - pad - 270} y={footY} w={127} label="SHUFFLE" onClick={() => setQ({ ...q, seed: q.seed + 1 })} />
+            <SmallButton x={box.x + box.w - pad - 130} y={footY} w={127} label="SAVE" tone="blue" onClick={() => onSave(chosen!)} />
+          </>
+        )}
+      </div>
+    </>
+  );
+}

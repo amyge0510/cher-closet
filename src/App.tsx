@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { closetTitle, wardrobeTitle } from "./auth/names";
-import { useAuth } from "./auth/useAuth";
+import { styleOf, useAuth } from "./auth/useAuth";
+import type { MyStyle } from "./style/styles";
 import { categoriesFor } from "./closet/categories";
 import { demoCloset } from "./closet/demoArt";
 import { loadCloset } from "./closet/repo";
@@ -38,7 +39,7 @@ function SignInPreview() {
 
 // Sign-in first; once someone has a name, the hanger splash and their closet.
 export function App() {
-  const { state: auth, sendCode, verifyCode, saveName, signOut, skip } = useAuth();
+  const { state: auth, sendCode, verifyCode, saveName, saveStyle, signOut, skip } = useAuth();
   const name = auth.status === "signedIn" || auth.status === "guest" ? auth.name : null;
 
   useEffect(() => {
@@ -65,14 +66,47 @@ export function App() {
         title={wardrobeTitle(name)}
         signedIn={auth.status === "signedIn"}
         onSignOut={auth.status === "signedIn" ? signOut : undefined}
+        savedStyle={auth.status === "signedIn" ? styleOf(auth.user) : loadGuestStyle()}
+        persistStyle={auth.status === "signedIn" ? saveStyle : saveGuestStyle}
       />
     );
 
   return <Stage>{screen}</Stage>;
 }
 
-function Closet({ title, signedIn, onSignOut }: { title: string; signedIn: boolean; onSignOut?: () => void }) {
+// Guests (local dev, no backend) keep their style in this browser only.
+const GUEST_STYLE_KEY = "cher-guest-style";
+function loadGuestStyle(): MyStyle | null {
+  try {
+    return JSON.parse(localStorage.getItem(GUEST_STYLE_KEY) ?? "null");
+  } catch {
+    return null;
+  }
+}
+async function saveGuestStyle(style: MyStyle) {
+  try {
+    localStorage.setItem(GUEST_STYLE_KEY, JSON.stringify(style));
+  } catch {
+    /* storage unavailable: the style lasts until reload */
+  }
+}
+
+function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle }: {
+  title: string;
+  signedIn: boolean;
+  onSignOut?: () => void;
+  savedStyle: MyStyle | null;
+  persistStyle: (s: MyStyle) => Promise<void>;
+}) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const [myStyle, setMyStyle] = useState(savedStyle);
+  const saveMyStyle = useCallback(
+    (s: MyStyle) => {
+      setMyStyle(s);
+      persistStyle(s).catch(() => {});
+    },
+    [persistStyle],
+  );
   const [own, setOwn] = useState<Garment[]>([]);
   useEffect(() => {
     if (signedIn) loadCloset().then(setOwn, () => setOwn([]));
@@ -87,7 +121,7 @@ function Closet({ title, signedIn, onSignOut }: { title: string; signedIn: boole
       {state.screen === "splash" ? (
         <Splash onDone={splashDone} />
       ) : (
-        <Wardrobe state={state} dispatch={dispatch} closet={closet} categories={categories} title={title} onSignOut={onSignOut} />
+        <Wardrobe state={state} dispatch={dispatch} closet={closet} categories={categories} title={title} onSignOut={onSignOut} myStyle={myStyle} onSaveStyle={saveMyStyle} />
       )}
       {DevOverlay && (
         <Suspense fallback={null}>

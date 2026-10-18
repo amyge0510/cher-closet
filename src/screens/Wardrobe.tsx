@@ -7,11 +7,15 @@ import { PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
 import { L, type Box } from "../stage/layout";
 import type { Action, State } from "../state/machine";
+import { rankPairs } from "../style/quiz";
+import type { MyStyle } from "../style/styles";
 import { Inventory, MoreMenu } from "./Inventory";
+import { StyleQuiz } from "./StyleQuiz";
 import { Bevel, ButtonLabel, CategoryBar, ControlStrip, Header, Leopard, overflowCategories, pos } from "./Parts";
 import { Reveal } from "./Reveal";
 
 const MATCH_HOLD_MS = 1400; // black panels stay up this long before the reveal
+const MISMATCH_MS = 3000; // MIS-MATCH! clears itself after this long
 const SCAN_STEP_MS = 70;
 
 function GarmentPanel({ box, garment, matched }: { box: Box; garment?: Garment; matched: boolean }) {
@@ -24,15 +28,17 @@ function GarmentPanel({ box, garment, matched }: { box: Box; garment?: Garment; 
   );
 }
 
-type Popup = { kind: "closet"; category: string } | { kind: "more" } | null;
+type Popup = { kind: "closet"; category: string } | { kind: "more" } | { kind: "style" } | null;
 
-export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut }: {
+export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut, myStyle, onSaveStyle }: {
   state: State;
   dispatch: Dispatch<Action>;
   closet: Garment[];
   categories: Category[];
   title: string;
   onSignOut?: () => void;
+  myStyle: MyStyle | null;
+  onSaveStyle: (s: MyStyle) => void;
 }) {
   const { screen } = state;
   const tops = useMemo(() => closet.filter((g) => g.slot === "top"), [closet]);
@@ -78,18 +84,24 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   }, [dispatch, top, bottom]);
 
   const autoDress = useCallback(() => {
-    const pairs = matchingPairs(tops, bottoms);
+    const pairs = rankPairs(matchingPairs(tops, bottoms), tops, bottoms, myStyle);
     if (!pairs.length) return;
     const others = pairs.filter(([t, b]) => t !== state.top || b !== state.bottom);
     const [t, b] = (others.length ? others : pairs)[Math.floor(Math.random() * (others.length || pairs.length))];
     dispatch({ type: "AUTO_DRESS", top: t, bottom: b });
-  }, [dispatch, tops, bottoms, state.top, state.bottom]);
+  }, [dispatch, tops, bottoms, state.top, state.bottom, myStyle]);
 
   useEffect(() => {
     if (screen !== "match") return;
     const t = window.setTimeout(() => dispatch({ type: "MATCH_SHOWN" }), MATCH_HOLD_MS);
     return () => clearTimeout(t);
   }, [screen, state.top, state.bottom, dispatch]);
+
+  useEffect(() => {
+    if (screen !== "mismatch") return;
+    const t = window.setTimeout(() => dispatch({ type: "BROWSE" }), MISMATCH_MS);
+    return () => clearTimeout(t);
+  }, [screen, dispatch]);
 
   const revealDone = useCallback(() => dispatch({ type: "REVEAL_DONE" }), [dispatch]);
 
@@ -114,7 +126,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
 
   return (
     <div className="fade-in" style={{ position: "absolute", inset: 0, background: C.frameDark }}>
-      <Header title={title} />
+      <Header title={title} onStyle={() => setPopup({ kind: "style" })} />
       <Leopard box={L.leopardLeft} />
       <Leopard box={L.leopardRight} />
       <div style={{ ...pos(L.center), background: C.frameDark, borderLeft: `2px solid ${C.frame}`, borderRight: `2px solid ${C.frame}`, boxSizing: "border-box" }} />
@@ -162,6 +174,17 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
 
       {popup?.kind === "closet" && (
         <Inventory category={popup.category} categories={categories} closet={closet} onClose={closePopup} onWear={wear} onDragStart={showRack} />
+      )}
+      {popup?.kind === "style" && (
+        <StyleQuiz
+          closet={closet}
+          saved={myStyle}
+          onSave={(s) => {
+            onSaveStyle(s);
+            setPopup(null);
+          }}
+          onClose={closePopup}
+        />
       )}
       {popup?.kind === "more" && (
         <MoreMenu

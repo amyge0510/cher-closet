@@ -1,0 +1,75 @@
+import { describe, expect, it } from "vitest";
+import { slotFor } from "../closet/categories";
+import { DEMO_SPECS } from "../closet/demo";
+import { matchingPairs } from "../closet/match";
+import type { Garment } from "../closet/types";
+import { back, boardsFor, choose, fit, rankPairs, result, startQuiz } from "./quiz";
+import { FAMILIES, LEAVES, leaf } from "./styles";
+
+const closet: Garment[] = DEMO_SPECS.map(({ shape, fill, band, ...g }) => ({ ...g, slot: slotFor(g.category), image: "" }));
+
+describe("demo closet", () => {
+  it("has at least 75 pieces, with something in every built-in category", () => {
+    expect(closet.length).toBeGreaterThanOrEqual(75);
+    for (const c of ["tops", "bottoms", "skirts", "shoes", "jewelry", "scarves", "pantyhose", "underwear", "sweaters"])
+      expect(closet.some((g) => g.category === c), c).toBe(true);
+  });
+
+  it("uses only known style ids and unique ids", () => {
+    for (const g of closet) for (const s of g.styles) expect(leaf(s), `${g.name}: ${s}`).toBeDefined();
+    expect(new Set(closet.map((g) => g.id)).size).toBe(closet.length);
+  });
+
+  it("can dress every specific style with a top, a bottom and shoes", () => {
+    for (const l of LEAVES) {
+      const t = { leaves: [l.id], families: [l.family] };
+      for (const pick of [(g: Garment) => g.slot === "top", (g: Garment) => g.slot === "bottom", (g: Garment) => g.category === "shoes"])
+        expect(closet.some((g) => pick(g) && g.styles.includes(l.id)) || closet.some((g) => pick(g) && fit(g, t) > 0), l.id).toBe(true);
+    }
+  });
+});
+
+describe("quiz", () => {
+  it("narrows family -> style -> palette, and can step back", () => {
+    let q = startQuiz();
+    expect(boardsFor(closet, q).map((b) => b.option.id)).toEqual(FAMILIES.map((f) => f.id));
+    q = choose(q, "edgy");
+    expect(boardsFor(closet, q).map((b) => b.option.id)).toEqual(["grunge", "goth", "punk", "moto"]);
+    q = choose(q, "goth");
+    expect(boardsFor(closet, q)).toHaveLength(4);
+    q = choose(q, "dark");
+    expect(result(q)).toEqual({ family: "edgy", leaf: "goth", palette: "dark" });
+    expect(back(q).step).toBe(2);
+  });
+
+  it("builds full, on-style boards that don't all repeat the same top", () => {
+    const boards = boardsFor(closet, choose(startQuiz(), "preppy"));
+    for (const b of boards) {
+      const roles = b.items.map((i) => i.garment);
+      expect(roles.some((g) => g.slot === "top")).toBe(true);
+      expect(roles.some((g) => g.slot === "bottom")).toBe(true);
+      expect(roles.some((g) => g.category === "shoes")).toBe(true);
+      const top = roles.find((g) => g.slot === "top")!;
+      expect(top.styles).toContain(b.option.id);
+    }
+    const tops = boards.map((b) => b.items[0].garment.id);
+    expect(new Set(tops).size).toBeGreaterThan(2);
+  });
+
+  it("palette boards lean into their colors", () => {
+    const q = choose(choose(startQuiz(), "easy"), "minimal");
+    const [dark, light] = boardsFor(closet, q);
+    const darkTop = dark.items[0].garment;
+    const lightTop = light.items[0].garment;
+    expect(darkTop.colors.some((c) => ["black", "gray", "navy"].includes(c))).toBe(true);
+    expect(lightTop.colors.some((c) => ["white", "cream", "beige"].includes(c))).toBe(true);
+  });
+
+  it("auto dress favours the saved style", () => {
+    const tops = closet.filter((g) => g.slot === "top");
+    const bottoms = closet.filter((g) => g.slot === "bottom");
+    const ranked = rankPairs(matchingPairs(tops, bottoms), tops, bottoms, { family: "edgy", leaf: "goth", palette: "dark" });
+    expect(ranked.length).toBeGreaterThan(0);
+    for (const [t, b] of ranked) expect([...tops[t].styles, ...bottoms[b].styles].some((s) => leaf(s)?.family === "edgy")).toBe(true);
+  });
+});

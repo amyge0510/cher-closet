@@ -1,6 +1,7 @@
 import type { User } from "@supabase/supabase-js";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import type { MyStyle } from "../style/styles";
 
 export type AuthState =
   | { status: "loading" }
@@ -8,6 +9,8 @@ export type AuthState =
   | { status: "signedIn"; user: User; name: string | null }
   // no backend configured, or skipped in dev: runs on the demo closet
   | { status: "guest"; name: string };
+
+export const styleOf = (user: User): MyStyle | null => (user.user_metadata?.style as MyStyle | undefined) ?? null;
 
 const nameOf = (user: User): string | null => (user.user_metadata?.display_name as string | undefined)?.trim() || null;
 
@@ -41,6 +44,11 @@ export function useAuth() {
     if (data.user) setState({ status: "signedIn", user: data.user, name: nameOf(data.user) });
   }, []);
 
+  // the style quiz result, kept with the account
+  const saveStyle = useCallback(async (style: MyStyle) => {
+    await supabase?.auth.updateUser({ data: { style } });
+  }, []);
+
   const signOut = useCallback(async () => {
     setState({ status: "signedOut" });
     await supabase?.auth.signOut();
@@ -48,7 +56,7 @@ export function useAuth() {
 
   const skip = useCallback(() => setState({ status: "guest", name: "Cher" }), []);
 
-  return { state, sendCode, verifyCode, saveName, signOut, skip };
+  return { state, sendCode, verifyCode, saveName, saveStyle, signOut, skip };
 }
 
 // Turns Supabase errors into something short the pixel font can draw.

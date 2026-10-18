@@ -57,7 +57,7 @@ export function Leopard({ box }: { box: Box }) {
   );
 }
 
-export function Header({ title, season = "FALL FASHIONS" }: { title: string; season?: string }) {
+export function Header({ title, season = "FALL FASHIONS", onStyle }: { title: string; season?: string; onStyle?: () => void }) {
   const { sx, sy } = L.seasonText;
   return (
     <>
@@ -78,6 +78,14 @@ export function Header({ title, season = "FALL FASHIONS" }: { title: string; sea
       >
         <PixelText text={season} color={C.lavender} sx={sx} sy={sy} />
       </div>
+      {onStyle && (
+        <Bevel box={L.styleButton} tone="gray" onClick={onStyle} label="My style" style={{ borderWidth: 2 }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <PixelText text="MY STYLE" color={C.ink} sx={1.5} sy={1.8} bold />
+            <PixelText text="~" color={C.ink} sx={1.5} sy={1.8} />
+          </div>
+        </Bevel>
+      )}
     </>
   );
 }
