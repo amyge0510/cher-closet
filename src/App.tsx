@@ -23,8 +23,8 @@ const PREVIEW_SIGNIN = PREVIEW === "signin";
 // ?preview=intro replays the welcome intro even if it has been seen
 const PREVIEW_INTRO = PREVIEW === "intro";
 
-// `onDone` runs after the last step; by default it just reloads the app.
-function SignInPreview({ onDone = () => (window.location.search = "") }: { onDone?: () => void }) {
+// `onDone` runs after the last step.
+function SignInPreview({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState<"phone" | "name" | "wardrobe">("phone");
   const pause = () => new Promise<void>((done) => setTimeout(done, 600));
   return (
@@ -64,6 +64,7 @@ export function App() {
   const [introDone, setIntroDone] = useState(false);
   // ?preview=intro walks through a pretend sign-in first, like a new user
   const [previewSignedIn, setPreviewSignedIn] = useState(false);
+  const [justChoseWardrobe, setJustChoseWardrobe] = useState(false);
   const introSeen = auth.status === "signedIn" ? introSeenOf(auth.user) : loadGuest<boolean>(GUEST_INTRO_KEY) === true;
   const finishIntro = useCallback(() => {
     setIntroDone(true);
@@ -76,8 +77,9 @@ export function App() {
   }, [name]);
 
   let screen;
-  if (PREVIEW_SIGNIN) screen = <SignInPreview />;
-  else if (PREVIEW_INTRO && !previewSignedIn) screen = <SignInPreview onDone={() => setPreviewSignedIn(true)} />;
+  // both previews run the first-sign-in order: sign-in, wardrobe question, intro
+  if ((PREVIEW_SIGNIN || PREVIEW_INTRO) && !previewSignedIn) screen = <SignInPreview onDone={() => setPreviewSignedIn(true)} />;
+  else if (PREVIEW_SIGNIN && !introDone) screen = <Intro onDone={() => (window.location.search = "")} />;
   else if (PREVIEW_INTRO && !introDone) screen = <Intro onDone={() => setIntroDone(true)} />;
   else if (auth.status === "loading") screen = null;
   else if (auth.status === "signedOut" || (auth.status === "signedIn" && !auth.name) || !wardrobe)
@@ -89,11 +91,16 @@ export function App() {
         sendCode={sendCode}
         verifyCode={verifyCode}
         saveName={saveName}
-        saveWardrobe={auth.status === "signedIn" ? saveWardrobe : saveGuestWardrobe}
+        saveWardrobe={async (w) => {
+          await (auth.status === "signedIn" ? saveWardrobe : saveGuestWardrobe)(w);
+          setJustChoseWardrobe(true);
+        }}
         onSkip={import.meta.env.DEV ? skip : undefined}
       />
     );
-  else if (!introDone && !introSeen) screen = <Intro onDone={finishIntro} />;
+  // the movie scene follows the wardrobe question, even for accounts that
+  // saw it before the question existed
+  else if (!introDone && (!introSeen || justChoseWardrobe)) screen = <Intro onDone={finishIntro} />;
   else
     screen = (
       <Closet

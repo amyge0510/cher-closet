@@ -34,13 +34,15 @@ label themselves. The answer picks which demo clothes and quiz styles they
 see, and the stand-in figure on the reveal. It's kept with the account and
 can be switched any time under MORE (CLOTHES: ...). When running locally, a SKIP (DEV) button bypasses sign-in.
 To look at the sign-in screens while signed in, add `?preview=signin` to the
-address: every step works without sending a text or saving anything.
+address: every step works without sending a text or saving anything, and
+the welcome intro plays at the end, as it does for a new user.
 
-**Welcome intro.** Right after someone's first sign-in, a leopard screen
+**Welcome intro.** Right after the "What do you like to wear?" question, a leopard screen
 reads "A REMINDER..." over a TV playing the movie clip. When the clip ends,
 the screen brightens and a quick whirlpool of sparkles sucks the TV and title
 away, then bursts into a light pink puff of smoke that clears to reveal the
-swinging hangers. It plays once per account and has a SKIP button. Add
+swinging hangers. It plays once per account, right after that question (so accounts made
+before the question existed see it once more), and has a SKIP button. Add
 `?preview=intro` to the address to watch it again; that starts from a pretend
 sign-in, in the same order a new user sees.
 
