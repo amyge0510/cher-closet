@@ -98,7 +98,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   const bottom = bottoms[state.bottom];
   const scanTimer = useRef(0);
 
-  // SAVE LOOK: remember what's on right now (skipping exact repeats)
+  // ♥ SAVE on the dressed screen: remember this outfit (skipping exact repeats)
   const [justSaved, setJustSaved] = useState(false);
   const saveLook = useCallback(() => {
     if (!top || !bottom) return;
@@ -213,10 +213,6 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       <Header
         title={title}
         onStyle={() => setPopup({ kind: "style" })}
-        onSaveLook={saveLook}
-        saveLabel={justSaved ? "SAVED!" : "SAVE LOOK"}
-        onLooks={() => setPopup({ kind: "looks" })}
-        looksHint={`MY LOOKS (${looks.length})`}
       />
       <Leopard box={L.leopardLeft} />
       <Leopard box={L.leopardRight} />
@@ -233,6 +229,12 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
           <GarmentPanel box={L.bottomPanel} garment={bottom} matched={matched} />
           <ControlStrip box={L.bottomControls} onPrev={() => step("bottom", -1)} onNext={() => step("bottom", 1)} onScan={() => scan("bottom")} lit={scanning === "bottom" ? 2 : undefined} disabled={matched} />
         </>
+      )}
+
+      {screen === "dressed" && (
+        <Bevel box={L.saveLook} tone={justSaved ? "blue" : "gray"} onClick={saveLook} label="Save this look" style={{ borderWidth: 2, zIndex: 6 }}>
+          <PixelText text={justSaved ? "♥ SAVED" : "♥ SAVE"} color={C.ink} sx={1.6} sy={2} bold />
+        </Bevel>
       )}
 
       {!fullBody && worn.map((g) => <ExtraSticker key={g.category} garment={g} onTakeOff={() => dispatch({ type: "TAKE_OFF", category: g.category })} />)}
@@ -269,6 +271,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
         active={popup?.kind === "closet" ? popup.category : popup?.kind}
         onPick={(id) => setPopup(popup?.kind === "closet" && popup.category === id ? null : { kind: "closet", category: id })}
         onMore={() => setPopup(popup?.kind === "more" ? null : { kind: "more" })}
+        onLooks={() => setPopup(popup?.kind === "looks" ? null : { kind: "looks" })}
       />
 
       {popup?.kind === "closet" && (

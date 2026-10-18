@@ -80,8 +80,11 @@ tagged with styles, colors and a pattern, so the quiz and matching have
 something to work with until real uploads exist.
 
 **MIS-MATCH!** judges the whole look, accessories included, and says why
-under the banner. On top of the top/bottom check (patterns, style, clashing
-colors):
+under the banner. The top and bottom must have at most one pattern, share a
+style family, and not mix warm colors (brown, burgundy, red, yellow, olive,
+gold) with cool ones (navy, blue, pink, purple, green, silver). Black, white,
+gray, denim, cream and beige go with either. On top of that, for the whole
+look:
 
 - an accessory has to share a style family with the top or bottom (plain
   black/white/brown shoes go with anything)
@@ -94,9 +97,10 @@ colors):
 Quiz boards and AUTO DRESS only ever pick accessories that pass these rules.
 MIS-MATCH! clears itself after three seconds.
 
-**SAVE LOOK** (top of the screen) saves what's on right now. The **MY LOOKS (n)**
-tab under it opens the saved looks as flat-lay boards. Click one to wear it
-again, or use its X to delete it. Looks are kept with the account.
+**♥ SAVE** appears on the dressed screen after DRESS ME, and saves that outfit.
+**LOOKS**, beside MORE on the bottom bar, opens the saved looks as flat-lay
+boards. Click one to wear it again, or use its X to delete it. Looks are kept
+with the account.
 
 ## Matching the film: the ghost overlay
 

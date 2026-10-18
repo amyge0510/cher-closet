@@ -51,7 +51,8 @@ export const L = {
   categoryText: { sx: 1.5, sy: 2, y: 459 },
   // labels are placed left to right from `start`; ones that don't fit before
   // `end` go under MORE
-  categoryRun: { start: 9, end: 552, gap: 14 },
+  categoryRun: { start: 9, end: 484, gap: 14 },
+  looks: { x: 492, y: 453, w: 66, h: 24 },
   more: { x: 562, y: 453, w: 62, h: 24 },
 
   // the closet pop-up (Minecraft-style inventory), sitting just above the bar
@@ -66,8 +67,7 @@ export const L = {
 
   // MY STYLE button in the header, and the style quiz pop-up
   styleButton: { x: 512, y: 6, w: 122, h: 21 },
-  saveButton: { x: 402, y: 6, w: 104, h: 21 }, // SAVE LOOK, with MY LOOKS (n) hanging under it
-  saveHint: { x: 402, y: 32, w: 104, h: 13 },
+  saveLook: { x: 350, y: 414, w: 86, h: 26 }, // ♥ SAVE, on the dressed screen
   bannerReason: { x: 80, y: 276, w: 490, h: 24 }, // why it's a mis-match
   styleQuiz: { x: 8, y: 36, w: 624, h: 410 },
   quizBoard: { y: 80, w: 145, h: 290, gap: 8 },

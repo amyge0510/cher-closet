@@ -60,15 +60,10 @@ export function Leopard({ box }: { box: Box }) {
   );
 }
 
-export function Header({ title, season = "FALL FASHIONS", onStyle, onSaveLook, saveLabel = "SAVE LOOK", onLooks, looksHint }: {
+export function Header({ title, season = "FALL FASHIONS", onStyle }: {
   title: string;
   season?: string;
   onStyle?: () => void;
-  onSaveLook?: () => void;
-  saveLabel?: string;
-  onLooks?: () => void;
-  /** tab under SAVE LOOK, e.g. MY LOOKS (3) */
-  looksHint?: string;
 }) {
   const { sx, sy } = L.seasonText;
   return (
@@ -98,21 +93,6 @@ export function Header({ title, season = "FALL FASHIONS", onStyle, onSaveLook, s
           </div>
         </Bevel>
       )}
-      {onSaveLook && (
-        <Bevel box={L.saveButton} tone="gray" onClick={onSaveLook} label="Save look" style={{ borderWidth: 2 }}>
-          <PixelText text={saveLabel} color={C.ink} sx={1.5} sy={1.8} bold />
-        </Bevel>
-      )}
-      {onLooks && looksHint && (
-        <button
-          type="button"
-          onClick={onLooks}
-          aria-label="My saved looks"
-          style={{ ...pos(L.saveHint), padding: 0, border: 0, background: C.navy, display: "grid", placeItems: "center", cursor: "pointer", zIndex: 4 }}
-        >
-          <PixelText text={looksHint} color={C.lavender} sx={1} sy={1.4} />
-        </button>
-      )}
     </>
   );
 }
@@ -121,12 +101,14 @@ const labelWidth = (label: string) => layoutText(label).width * L.categoryText.s
 
 // The bottom bar. Clicking a category opens the closet pop-up on it; whatever
 // doesn't fit goes under MORE. Without handlers it is just decoration.
-export function CategoryBar({ categories, active, onPick, onMore }: {
+export function CategoryBar({ categories, active, onPick, onMore, onLooks }: {
   categories: Category[];
-  /** highlighted label: a category id, or "more" */
+  /** highlighted label: a category id, "more" or "looks" */
   active?: string | null;
   onPick?: (id: string) => void;
   onMore?: () => void;
+  /** saved looks, in a box beside MORE */
+  onLooks?: () => void;
 }) {
   const { sx, sy, y } = L.categoryText;
   const { start, end, gap } = L.categoryRun;
@@ -151,6 +133,27 @@ export function CategoryBar({ categories, active, onPick, onMore }: {
           {label(cat.label, active === cat.id)}
         </button>
       ))}
+      {onLooks && (
+        <button
+          type="button"
+          aria-label="Saved looks"
+          onClick={onLooks}
+          style={{
+            ...pos(L.looks),
+            boxSizing: "border-box",
+            border: 0,
+            borderLeft: `2px solid ${C.lavender}`,
+            borderTop: `2px solid ${C.lavender}`,
+            background: active === "looks" ? C.lavender : "transparent",
+            display: "grid",
+            placeItems: "center",
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          <PixelText text="LOOKS" color={active === "looks" ? C.navy : C.lavender} sx={sx * 1.2} sy={sy * 1.1} />
+        </button>
+      )}
       <button
         type="button"
         aria-label="More categories"

@@ -76,7 +76,7 @@ export function SavedLooks({ looks, closet, onWear, onDelete, onClose }: {
 
         {wearable.length === 0 && (
           <div style={{ position: "absolute", left: box.x + 60, top: box.y + 150, width: box.w - 120 }}>
-            <PixelLines text="NO SAVED LOOKS YET. HIT SAVE LOOK AT THE TOP WHEN YOU LOVE WHAT YOU'RE WEARING." maxWidth={box.w - 120} color={C.invText} sx={2} sy={2.4} />
+            <PixelLines text="NO SAVED LOOKS YET. AFTER DRESS ME, HIT ♥ SAVE ON AN OUTFIT YOU LOVE." maxWidth={box.w - 120} color={C.invText} sx={2} sy={2.4} />
           </div>
         )}
 

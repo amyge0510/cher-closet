@@ -15,6 +15,16 @@ const HUE: Record<string, string> = {
   lavender: "purple", purple: "purple",
 };
 
+// Warm and cool colors don't mix between a top and a bottom (a navy sweater
+// with a brown skirt). Black, white, gray, denim, cream and beige go either way.
+const COOL = new Set(["navy", "blue", "lavender", "purple", "pink", "babypink", "green", "silver"]);
+const WARM = new Set(["brown", "burgundy", "red", "yellow", "olive", "orange", "gold"]);
+const temperature = (g: Garment) => {
+  const cool = g.colors.some((c) => COOL.has(c));
+  const warm = g.colors.some((c) => WARM.has(c));
+  return cool && !warm ? "cool" : warm && !cool ? "warm" : null; // null: neutral or already mixed
+};
+
 const accents = (g: Garment) => new Set(g.colors.map((c) => HUE[c]).filter(Boolean));
 const isBusy = (g: Garment) => g.pattern !== "solid";
 const onlyIn = (g: Garment, group: Set<string>) => g.colors.length > 0 && g.colors.every((c) => group.has(c) || METAL.has(c));
@@ -24,12 +34,16 @@ const sharesFamily = (a: Garment, b: Garment) => {
 };
 const short = (g: Garment) => g.name.toUpperCase();
 
-// Decides whether a top and bottom go together. Deliberately simple and
+// Decides whether a top and bottom go together: one pattern at most, a shared
+// style family, no warm/cool mix, and accent colors that agree. Simple and
 // deterministic; the reason is shown under MIS-MATCH!.
 export function judge(top: Garment, bottom: Garment): Verdict {
   if (top.set && top.set === bottom.set) return { match: true, reason: "same set" };
   if (isBusy(top) && isBusy(bottom)) return { match: false, reason: "TWO PATTERNS FIGHTING" };
   if (!sharesFamily(top, bottom)) return { match: false, reason: "THE TOP AND BOTTOM ARE DIFFERENT STYLES" };
+  const tt = temperature(top);
+  const bt = temperature(bottom);
+  if (tt && bt && tt !== bt) return { match: false, reason: "WARM AND COOL COLORS CLASH" };
   // two accent colors only work if they share a hue
   const ta = accents(top);
   const ba = accents(bottom);

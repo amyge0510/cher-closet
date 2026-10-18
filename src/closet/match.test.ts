@@ -38,6 +38,18 @@ describe("matchingPairs", () => {
 
 const n = (name: string) => g(`demo-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`);
 
+describe("warm and cool colors", () => {
+  it("a navy sweater doesn't go with a brown or burgundy skirt", () => {
+    expect(judge(n("Navy Quarter Zip"), n("Brown Plaid Midi"))).toEqual({ match: false, reason: "WARM AND COOL COLORS CLASH" });
+    expect(judge(n("Navy Quarter Zip"), g("demo-plaid-mini")).match).toBe(false);
+  });
+
+  it("neutrals still go either way", () => {
+    expect(judge(n("Navy Quarter Zip"), n("White Tennis Skirt")).match).toBe(true);
+    expect(judge(n("White Button-Up"), n("Brown Plaid Midi")).match).toBe(true);
+  });
+});
+
 describe("judgeOutfit (accessories count too)", () => {
   const tee = g("demo-tee");
   const whiteMini = g("demo-white-mini");
