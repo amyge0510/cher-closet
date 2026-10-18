@@ -20,6 +20,8 @@ Controls: click the on-screen buttons, or use the keyboard. ← → flip tops,
 then they give their first name, and the header becomes "AMY'S WARDROBE".
 Browsers remember the sign-in, so returning visitors go straight to the
 hangers. When running locally, a SKIP (DEV) button bypasses sign-in.
+To look at the sign-in screens while signed in, add `?preview=signin` to the
+address: every step works without sending a text or saving anything.
 
 **The closet pop-up.** Click any category on the bottom bar (TOPS, BOTTOMS
 and SKIRTS always come first) to open that part of the closet as a grid of

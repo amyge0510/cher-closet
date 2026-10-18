@@ -13,6 +13,29 @@ import { initialState, reducer } from "./state/machine";
 
 const DevOverlay = import.meta.env.DEV ? lazy(() => import("./dev/DevOverlay").then((m) => ({ default: m.DevOverlay }))) : null;
 
+// Visiting with ?preview=signin shows the sign-in screens even when signed in.
+// Nothing is sent or saved: every step just succeeds after a short pause.
+const PREVIEW_SIGNIN = new URLSearchParams(window.location.search).get("preview") === "signin";
+
+function SignInPreview() {
+  const [named, setNamed] = useState(false);
+  const pause = () => new Promise<void>((done) => setTimeout(done, 600));
+  return (
+    <SignIn
+      needsName={named}
+      sendCode={pause}
+      verifyCode={async () => {
+        await pause();
+        setNamed(true);
+      }}
+      saveName={async () => {
+        await pause();
+        window.location.search = "";
+      }}
+    />
+  );
+}
+
 // Sign-in first; once someone has a name, the hanger splash and their closet.
 export function App() {
   const { state: auth, sendCode, verifyCode, saveName, signOut, skip } = useAuth();
@@ -23,7 +46,8 @@ export function App() {
   }, [name]);
 
   let screen;
-  if (auth.status === "loading") screen = null;
+  if (PREVIEW_SIGNIN) screen = <SignInPreview />;
+  else if (auth.status === "loading") screen = null;
   else if (auth.status === "signedOut" || (auth.status === "signedIn" && !auth.name))
     screen = (
       <SignIn
