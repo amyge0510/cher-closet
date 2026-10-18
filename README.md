@@ -14,7 +14,8 @@ npm run build    # production build in dist/
 ```
 
 Controls: click the on-screen buttons, or use the keyboard. ← → flip tops,
-↑ ↓ flip bottoms, Enter is Dress Me, Esc is Browse.
+↑ ↓ flip bottoms, Enter is Dress Me, Esc clears MIS-MATCH! early. The left
+button is always AUTO DRESS (the film's BROWSE was just a mode indicator).
 
 **Sign-in.** People sign in with their phone number: a code arrives by text,
 then they give their first name, and the header becomes "AMY'S WARDROBE".

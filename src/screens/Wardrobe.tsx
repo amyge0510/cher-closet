@@ -157,7 +157,6 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
 
   const matched = screen === "match";
   const fullBody = screen === "reveal" || screen === "dressed";
-  const leftIsAuto = screen === "match" || fullBody;
 
   return (
     <div className="fade-in" style={{ position: "absolute", inset: 0, background: C.frameDark }}>
@@ -189,15 +188,9 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
         </Bevel>
       )}
 
-      {leftIsAuto ? (
-        <Bevel box={L.leftButton} tone="blue" onClick={autoDress} label="Auto dress">
-          <ButtonLabel lines={["AUTO", "DRESS"]} sub={myStyle ? leaf(myStyle.leaf)?.label : undefined} />
-        </Bevel>
-      ) : (
-        <Bevel box={L.leftButton} tone="gray" onClick={() => dispatch({ type: "BROWSE" })} label="Browse">
-          <ButtonLabel lines={["BROWSE"]} />
-        </Bevel>
-      )}
+      <Bevel box={L.leftButton} tone="blue" onClick={autoDress} label="Auto dress">
+        <ButtonLabel lines={["AUTO", "DRESS"]} sub={myStyle ? leaf(myStyle.leaf)?.label : undefined} />
+      </Bevel>
       <Bevel box={L.rightButton} tone="blue" onClick={dressMe} label="Dress me">
         <ButtonLabel lines={["DRESS", "ME"]} />
       </Bevel>

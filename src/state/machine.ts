@@ -2,7 +2,7 @@ import type { Slot, Verdict } from "../closet/types";
 
 //  splash ─▶ browse ─[dress me]─▶ mismatch ─[browse]─▶ browse
 //                       └────────▶ match ─(timer)─▶ reveal ─(anim)─▶ dressed
-//  dressed ─[dress me]─▶ browse        match/dressed ─[auto dress]─▶ match
+//  dressed ─[dress me]─▶ browse        any (not mid-reveal) ─[auto dress]─▶ match
 //  any screen but splash ─[pick from the closet pop-up]─▶ browse
 export type Screen = "splash" | "browse" | "mismatch" | "match" | "reveal" | "dressed";
 
@@ -49,9 +49,9 @@ export function reducer(s: State, a: Action): State {
     case "BROWSE":
       return s.screen === "mismatch" ? { ...s, screen: "browse", verdict: null } : s;
     case "AUTO_DRESS":
-      if (s.screen === "match" || s.screen === "dressed")
-        return { ...s, screen: "match", top: a.top, bottom: a.bottom, extras: a.extras, verdict: { match: true, reason: "auto dress" } };
-      return s;
+      // works from any screen but the splash and mid-reveal
+      if (s.screen === "splash" || s.screen === "reveal") return s;
+      return { ...s, screen: "match", top: a.top, bottom: a.bottom, extras: a.extras, verdict: { match: true, reason: "auto dress" } };
     case "PICK":
       if (s.screen === "splash") return s;
       return { ...s, screen: "browse", verdict: null, [a.slot]: a.index };

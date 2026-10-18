@@ -34,6 +34,13 @@ describe("reducer", () => {
     expect(reducer(s, { type: "STEP", slot: "top", delta: 1, count: 5 })).toBe(s);
   });
 
+  it("auto dress works straight from browsing, but not mid-reveal", () => {
+    const extras = {};
+    expect(reducer(browse, { type: "AUTO_DRESS", top: 1, bottom: 1, extras }).screen).toBe("match");
+    const revealing: State = { ...browse, screen: "reveal" };
+    expect(reducer(revealing, { type: "AUTO_DRESS", top: 1, bottom: 1, extras })).toBe(revealing);
+  });
+
   it("auto dress picks a new pair and re-runs the match", () => {
     const s = reducer({ ...browse, screen: "dressed", extras: { shoes: "boots" } }, { type: "AUTO_DRESS", top: 2, bottom: 3, extras: { shoes: "flats", bags: "tote" } });
     expect(s).toMatchObject({ screen: "match", top: 2, bottom: 3, extras: { shoes: "flats", bags: "tote" } });
