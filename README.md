@@ -42,7 +42,10 @@ Each step shows four outfit boards built from the user's own closet:
 
 SHUFFLE rebuilds the boards and BACK steps out. WEAR IT saves the result with
 the account and swaps the outfit on screen, accessories included, for the
-final board. Auto Dress then prefers outfits that fit the saved style. The style map lives
+final board. Auto Dress then prefers outfits that fit the saved style, shows
+that style's name under its label, and changes everything on each press,
+accessories included. A small tab under MY STYLE says what it's for ("FIND
+YOUR STYLE", then "TWEAK YOUR STYLE"). The style map lives
 in `src/style/styles.ts`, and the quiz and board logic in `src/style/quiz.ts`.
 
 **The demo closet.** 91 drawn pieces across every category, plus a

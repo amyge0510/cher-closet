@@ -76,34 +76,56 @@ const SPOTS = {
 
 // Builds one outfit board for a target. `avoid` holds garment ids already used
 // on the other boards of the same step, so the four boards look different.
-export function buildBoard(closet: Garment[], t: Target, seed: number, avoid = new Set<string>()): BoardItem[] {
+// Picks the best-fitting piece from a pool, with a little randomness.
+// Pieces in `avoid` lose `penalty` points, so they're only picked if nothing
+// else fits.
+function picker(t: Target, seed: number, avoid: Set<string>, penalty: number) {
   const rand = rng(seed);
-  const best = (pool: Garment[], bonus: (g: Garment) => number = () => 0) => {
+  return (pool: Garment[], bonus: (g: Garment) => number = () => 0) => {
     let pick: Garment | undefined;
-    let top = 0;
+    let top = -Infinity;
     for (const g of pool) {
       const base = fit(g, t);
       if (!base) continue;
-      const s = base + bonus(g) - (avoid.has(g.id) ? 2.5 : 0) + rand() * 1.5;
+      const s = base + bonus(g) - (avoid.has(g.id) ? penalty : 0) + rand() * 1.5;
       if (s > top) [top, pick] = [s, g];
     }
     return pick;
   };
-  const inCat = (...cats: string[]) => closet.filter((g) => cats.includes(g.category));
+}
 
+// The accessories that go with an outfit: shoes, jewelry, a bag, and a scarf
+// or tights.
+const ACCESSORY_ROLES: [keyof typeof SPOTS, string[]][] = [
+  ["shoes", ["shoes"]],
+  ["jewelry", ["jewelry"]],
+  ["bags", ["bags"]],
+  ["extra", ["scarves", "pantyhose"]],
+];
+
+function accessories(closet: Garment[], best: ReturnType<typeof picker>) {
+  return ACCESSORY_ROLES.map(([spot, cats]) => [spot, best(closet.filter((g) => cats.includes(g.category)))] as const);
+}
+
+// Builds one outfit board for a target. `avoid` holds garment ids already used
+// on the other boards of the same step, so the four boards look different.
+export function buildBoard(closet: Garment[], t: Target, seed: number, avoid = new Set<string>()): BoardItem[] {
+  const best = picker(t, seed, avoid, 2.5);
   const top = best(closet.filter((g) => g.slot === "top"));
   const bottom = best(closet.filter((g) => g.slot === "bottom"), (g) => (top && judge(top, g).match ? 3 : 0));
-  const picks: [keyof typeof SPOTS, Garment | undefined][] = [
-    ["top", top],
-    ["bottom", bottom],
-    ["shoes", best(inCat("shoes"))],
-    ["jewelry", best(inCat("jewelry"))],
-    ["bags", best(inCat("bags"))],
-    ["extra", best(inCat("scarves", "pantyhose"))],
-  ];
+  const picks: (readonly [keyof typeof SPOTS, Garment | undefined])[] = [["top", top], ["bottom", bottom], ...accessories(closet, best)];
   const items = picks.filter(([, g]) => g).map(([spot, g]) => ({ garment: g!, box: SPOTS[spot] }));
   items.forEach((i) => avoid.add(i.garment.id));
   return items;
+}
+
+// Fresh accessories for Auto Dress: chosen to suit the saved style (or, with
+// no style yet, the outfit itself), and different from what's being worn.
+export function accessoriesFor(closet: Garment[], outfit: Garment[], style: MyStyle | null, wearing: string[], seed: number): Record<string, string> {
+  const styles = outfit.flatMap((g) => g.styles);
+  const t = style ? targetFor(style) : { leaves: styles, families: familiesOf(styles) };
+  const best = picker(t, seed, new Set(wearing), 100);
+  return Object.fromEntries(accessories(closet, best).flatMap(([, g]) => (g ? [[g.category, g.id]] : [])));
 }
 
 // All four boards for a step, each kept distinct from the ones before it.

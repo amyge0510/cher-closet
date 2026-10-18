@@ -20,7 +20,7 @@ export type Action =
   | { type: "STEP"; slot: Slot; delta: number; count: number }
   | { type: "DRESS_ME"; verdict: Verdict }
   | { type: "BROWSE" }
-  | { type: "AUTO_DRESS"; top: number; bottom: number }
+  | { type: "AUTO_DRESS"; top: number; bottom: number; extras: Record<string, string> }
   | { type: "PICK"; slot: Slot; index: number }
   | { type: "SHOW_RACK" }
   | { type: "WEAR"; category: string; id: string } // an accessory; wearing it again takes it off
@@ -50,7 +50,7 @@ export function reducer(s: State, a: Action): State {
       return s.screen === "mismatch" ? { ...s, screen: "browse", verdict: null } : s;
     case "AUTO_DRESS":
       if (s.screen === "match" || s.screen === "dressed")
-        return { ...s, screen: "match", top: a.top, bottom: a.bottom, verdict: { match: true, reason: "auto dress" } };
+        return { ...s, screen: "match", top: a.top, bottom: a.bottom, extras: a.extras, verdict: { match: true, reason: "auto dress" } };
       return s;
     case "PICK":
       if (s.screen === "splash") return s;

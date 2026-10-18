@@ -33,13 +33,16 @@ export function Bevel({ box, tone, children, onClick, label, style }: {
 }
 
 // Big two-line button label, e.g. DRESS / ME.
-export function ButtonLabel({ lines }: { lines: string[] }) {
+// `sub` is a small extra line underneath, e.g. the saved style on AUTO DRESS.
+export function ButtonLabel({ lines, sub }: { lines: string[]; sub?: string }) {
   const { sx, sy } = L.buttonText;
+  const s = sub ? 0.74 : 1; // make room for the extra line
   return (
-    <div style={{ display: "grid", justifyItems: "center", gap: sy * 1.2 }}>
+    <div style={{ display: "grid", justifyItems: "center", gap: sub ? 1 : sy }}>
       {lines.map((l) => (
-        <PixelText key={l} text={l} color={C.ink} sx={sx} sy={sy} bold shadow={C.btnBlueLight} />
+        <PixelText key={l} text={l} color={C.ink} sx={sx * s} sy={sy * s} bold shadow={C.btnBlueLight} />
       ))}
+      {sub && <PixelText text={sub} color={C.white} sx={1.1} sy={1.4} />}
     </div>
   );
 }
@@ -57,7 +60,13 @@ export function Leopard({ box }: { box: Box }) {
   );
 }
 
-export function Header({ title, season = "FALL FASHIONS", onStyle }: { title: string; season?: string; onStyle?: () => void }) {
+export function Header({ title, season = "FALL FASHIONS", onStyle, styleHint }: {
+  title: string;
+  season?: string;
+  onStyle?: () => void;
+  /** tiny explainer under MY STYLE */
+  styleHint?: string;
+}) {
   const { sx, sy } = L.seasonText;
   return (
     <>
@@ -85,6 +94,16 @@ export function Header({ title, season = "FALL FASHIONS", onStyle }: { title: st
             <PixelText text="~" color={C.ink} sx={1.5} sy={1.8} />
           </div>
         </Bevel>
+      )}
+      {onStyle && styleHint && (
+        <button
+          type="button"
+          onClick={onStyle}
+          aria-label={styleHint}
+          style={{ ...pos(L.styleHint), padding: 0, border: 0, background: C.navy, display: "grid", placeItems: "center", cursor: "pointer", zIndex: 4 }}
+        >
+          <PixelText text={styleHint} color={C.lavender} sx={1} sy={1.4} />
+        </button>
       )}
     </>
   );

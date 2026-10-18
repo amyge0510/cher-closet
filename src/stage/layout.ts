@@ -66,6 +66,7 @@ export const L = {
 
   // MY STYLE button in the header, and the style quiz pop-up
   styleButton: { x: 512, y: 6, w: 122, h: 21 },
+  styleHint: { x: 512, y: 32, w: 122, h: 13 }, // a tab hanging under it saying what it does
   styleQuiz: { x: 8, y: 36, w: 624, h: 410 },
   quizBoard: { y: 80, w: 145, h: 290, gap: 8 },
 

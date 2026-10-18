@@ -3,7 +3,7 @@ import { slotFor } from "../closet/categories";
 import { DEMO_SPECS } from "../closet/demo";
 import { matchingPairs } from "../closet/match";
 import type { Garment } from "../closet/types";
-import { back, boardsFor, choose, fit, rankPairs, result, startQuiz } from "./quiz";
+import { accessoriesFor, back, boardsFor, choose, fit, rankPairs, result, startQuiz } from "./quiz";
 import { FAMILIES, LEAVES, leaf } from "./styles";
 
 const closet: Garment[] = DEMO_SPECS.map(({ shape, fill, band, ...g }) => ({ ...g, slot: slotFor(g.category), image: "" }));
@@ -71,5 +71,15 @@ describe("quiz", () => {
     const ranked = rankPairs(matchingPairs(tops, bottoms), tops, bottoms, { family: "edgy", leaf: "goth", palette: "dark" });
     expect(ranked.length).toBeGreaterThan(0);
     for (const [t, b] of ranked) expect([...tops[t].styles, ...bottoms[b].styles].some((s) => leaf(s)?.family === "edgy")).toBe(true);
+  });
+
+  it("auto dress swaps every accessory for a new one that suits the style", () => {
+    const style = { family: "soft", leaf: "coquette", palette: "light" };
+    const outfit = [closet.find((g) => g.id === "demo-pink")!, closet.find((g) => g.id === "demo-white-mini")!];
+    const first = accessoriesFor(closet, outfit, style, [], 1);
+    expect(Object.keys(first).sort()).toEqual(expect.arrayContaining(["bags", "jewelry", "shoes"]));
+    const next = accessoriesFor(closet, outfit, style, Object.values(first), 2);
+    for (const cat of ["shoes", "jewelry", "bags"]) expect(next[cat], cat).not.toBe(first[cat]);
+    for (const id of Object.values(next)) expect(fit(closet.find((g) => g.id === id)!, { leaves: ["coquette"], families: ["soft"] })).toBeGreaterThan(0);
   });
 });

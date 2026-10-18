@@ -35,8 +35,8 @@ describe("reducer", () => {
   });
 
   it("auto dress picks a new pair and re-runs the match", () => {
-    const s = reducer({ ...browse, screen: "dressed" }, { type: "AUTO_DRESS", top: 2, bottom: 3 });
-    expect(s).toMatchObject({ screen: "match", top: 2, bottom: 3 });
+    const s = reducer({ ...browse, screen: "dressed", extras: { shoes: "boots" } }, { type: "AUTO_DRESS", top: 2, bottom: 3, extras: { shoes: "flats", bags: "tote" } });
+    expect(s).toMatchObject({ screen: "match", top: 2, bottom: 3, extras: { shoes: "flats", bags: "tote" } });
   });
 
   it("picking from the closet puts the item on the rack from any screen", () => {

@@ -7,8 +7,8 @@ import { PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
 import { extraSpot, L, type Box } from "../stage/layout";
 import type { Action, State } from "../state/machine";
-import { rankPairs, type BoardItem } from "../style/quiz";
-import type { MyStyle } from "../style/styles";
+import { accessoriesFor, rankPairs, type BoardItem } from "../style/quiz";
+import { leaf, type MyStyle } from "../style/styles";
 import { Inventory, MoreMenu } from "./Inventory";
 import { StyleQuiz } from "./StyleQuiz";
 import { Bevel, ButtonLabel, CategoryBar, ControlStrip, Header, Leopard, overflowCategories, pos } from "./Parts";
@@ -121,8 +121,10 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
     if (!pairs.length) return;
     const others = pairs.filter(([t, b]) => t !== state.top || b !== state.bottom);
     const [t, b] = (others.length ? others : pairs)[Math.floor(Math.random() * (others.length || pairs.length))];
-    dispatch({ type: "AUTO_DRESS", top: t, bottom: b });
-  }, [dispatch, tops, bottoms, state.top, state.bottom, myStyle]);
+    // everything changes, accessories included
+    const extras = accessoriesFor(closet, [tops[t], bottoms[b]], myStyle, Object.values(state.extras), Math.floor(Math.random() * 1e9));
+    dispatch({ type: "AUTO_DRESS", top: t, bottom: b, extras });
+  }, [dispatch, closet, tops, bottoms, state.top, state.bottom, state.extras, myStyle]);
 
   useEffect(() => {
     if (screen !== "match") return;
@@ -159,7 +161,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
 
   return (
     <div className="fade-in" style={{ position: "absolute", inset: 0, background: C.frameDark }}>
-      <Header title={title} onStyle={() => setPopup({ kind: "style" })} />
+      <Header title={title} onStyle={() => setPopup({ kind: "style" })} styleHint={myStyle ? "TWEAK YOUR STYLE" : "FIND YOUR STYLE"} />
       <Leopard box={L.leopardLeft} />
       <Leopard box={L.leopardRight} />
       <div style={{ ...pos(L.center), background: C.frameDark, borderLeft: `2px solid ${C.frame}`, borderRight: `2px solid ${C.frame}`, boxSizing: "border-box" }} />
@@ -189,7 +191,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
 
       {leftIsAuto ? (
         <Bevel box={L.leftButton} tone="blue" onClick={autoDress} label="Auto dress">
-          <ButtonLabel lines={["AUTO", "DRESS"]} />
+          <ButtonLabel lines={["AUTO", "DRESS"]} sub={myStyle ? leaf(myStyle.leaf)?.label : undefined} />
         </Bevel>
       ) : (
         <Bevel box={L.leftButton} tone="gray" onClick={() => dispatch({ type: "BROWSE" })} label="Browse">
