@@ -15,8 +15,9 @@ export type Box = { x: number; y: number; w: number; h: number };
 export type BoardItem = { garment: Garment; box: Box };
 export type Option = { id: string; label: string; bg: string; target: Target };
 
-// step 2 is the result screen
-export type QuizState = { step: 0 | 1 | 2; family?: string; leaf?: string; seed: number };
+// step 2 is the result screen; `board` is the outfit shown there, which is
+// exactly the board that was picked (until NEW OUTFIT swaps it)
+export type QuizState = { step: 0 | 1 | 2; family?: string; leaf?: string; seed: number; board?: BoardItem[] };
 
 export const STEP_TITLES = ["PICK A VIBE", "GET MORE SPECIFIC", "YOUR STYLE"];
 export const QUESTIONS = 2;
@@ -34,14 +35,31 @@ export function options(q: QuizState): Option[] {
   return [];
 }
 
-export function choose(q: QuizState, id: string): QuizState {
+// `board` is the outfit that was clicked; picking the specific style keeps it.
+export function choose(q: QuizState, id: string, board?: BoardItem[]): QuizState {
   if (q.step === 0) return { ...q, step: 1, family: id };
-  if (q.step === 1) return { ...q, step: 2, leaf: id };
+  if (q.step === 1) return { ...q, step: 2, leaf: id, board };
   return q;
 }
 
+// A different outfit for the same choices: on the question screens it rebuilds
+// all four boards; on the result screen it builds a new board for the style.
+export function newOutfits(q: QuizState, closet: Garment[]): QuizState {
+  const seed = q.seed + 1;
+  const style = result(q);
+  if (q.step !== 2 || !style) return { ...q, seed };
+  return { ...q, seed, board: buildBoard(closet, targetFor(style), seed * 31, new Set((q.board ?? []).map((i) => i.garment.id))) };
+}
+
+// The result screen's outfit: the picked board, or one built for a saved style.
+export function resultBoard(q: QuizState, closet: Garment[]): BoardItem[] {
+  const style = result(q);
+  if (!style) return [];
+  return q.board ?? buildBoard(closet, targetFor(style), q.seed * 31);
+}
+
 export function back(q: QuizState): QuizState {
-  if (q.step === 2) return { ...q, step: 1, leaf: undefined };
+  if (q.step === 2) return { ...q, step: 1, leaf: undefined, board: undefined };
   if (q.step === 1) return { ...q, step: 0, family: undefined };
   return q;
 }

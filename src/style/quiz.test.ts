@@ -3,7 +3,7 @@ import { slotFor } from "../closet/categories";
 import { DEMO_SPECS } from "../closet/demo";
 import { matchingPairs } from "../closet/match";
 import type { Garment } from "../closet/types";
-import { accessoriesFor, back, boardsFor, buildBoard, choose, fit, rankPairs, result, startQuiz } from "./quiz";
+import { accessoriesFor, back, boardsFor, buildBoard, choose, fit, newOutfits, rankPairs, result, resultBoard, startQuiz } from "./quiz";
 import { FAMILIES, LEAVES, leaf } from "./styles";
 
 const closet: Garment[] = DEMO_SPECS.map(({ shape, fill, band, ...g }) => ({ ...g, slot: slotFor(g.category), image: "" }));
@@ -78,5 +78,26 @@ describe("quiz", () => {
     const next = accessoriesFor(closet, outfit, style, Object.values(first), 2);
     for (const cat of ["shoes", "jewelry", "bags"]) expect(next[cat], cat).not.toBe(first[cat]);
     for (const id of Object.values(next)) expect(fit(closet.find((g) => g.id === id)!, { leaves: ["coquette"], families: ["soft"] })).toBeGreaterThan(0);
+  });
+
+  it("only ever shows pieces from the closet it was given", () => {
+    const small = closet.filter((_, i) => i % 3 === 0); // a smaller, different closet
+    const ids = new Set(small.map((g) => g.id));
+    let q = startQuiz();
+    for (const b of boardsFor(small, q)) for (const i of b.items) expect(ids.has(i.garment.id)).toBe(true);
+    q = choose(q, "soft");
+    const boards = boardsFor(small, q);
+    for (const b of boards) for (const i of b.items) expect(ids.has(i.garment.id)).toBe(true);
+    q = choose(q, boards[0].option.id, boards[0].items);
+    for (const i of resultBoard(newOutfits(q, small), small)) expect(ids.has(i.garment.id)).toBe(true);
+  });
+
+  it("the result is exactly the board that was picked", () => {
+    let q = choose(startQuiz(), "soft");
+    const picked = boardsFor(closet, q)[0];
+    q = choose(q, picked.option.id, picked.items);
+    expect(resultBoard(q, closet)).toBe(picked.items);
+    const next = resultBoard(newOutfits(q, closet), closet);
+    expect(next.map((i) => i.garment.id)).not.toEqual(picked.items.map((i) => i.garment.id));
   });
 });

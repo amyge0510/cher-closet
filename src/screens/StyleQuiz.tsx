@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import type { Garment } from "../closet/types";
 import { PixelImage } from "../pixel/PixelImage";
 import { PixelLines, PixelText } from "../pixel/PixelText";
-import { back, boardsFor, buildBoard, choose, QUESTIONS, result, startQuiz, STEP_TITLES, targetFor, type BoardItem, type QuizState } from "../style/quiz";
+import { back, boardsFor, choose, newOutfits, QUESTIONS, result, resultBoard, startQuiz, STEP_TITLES, type BoardItem, type QuizState } from "../style/quiz";
 import { family, leaf, type MyStyle } from "../style/styles";
 import { C } from "../stage/palette";
 import { L } from "../stage/layout";
@@ -72,7 +72,7 @@ export function StyleQuiz({ closet, saved, onSave, onClose }: {
   const box = L.styleQuiz;
   const { y: by, w: bw, h: bh, gap } = L.quizBoard;
   const chosen = result(q);
-  const finalBoard = useMemo(() => (chosen ? buildBoard(closet, targetFor(chosen), q.seed * 31) : []), [closet, chosen?.leaf, q.seed]);
+  const finalBoard = useMemo(() => resultBoard(q, closet), [q, closet]);
 
   const crumbs = [q.family && family(q.family)?.label, q.leaf && leaf(q.leaf)?.label].filter(Boolean).join(" > ");
   const footY = box.y + box.h - pad - 30;
@@ -123,7 +123,7 @@ export function StyleQuiz({ closet, saved, onSave, onClose }: {
             const x = box.x + pad + 3 + i * (bw + gap);
             return (
               <div key={option.id} style={{ position: "absolute", left: x, top: by }}>
-                <Board items={items} bg={option.bg} w={bw} h={bh} label={option.label} onPick={() => setQ(choose(q, option.id))} />
+                <Board items={items} bg={option.bg} w={bw} h={bh} label={option.label} onPick={() => setQ(choose(q, option.id, items))} />
                 <div style={{ width: bw, marginTop: 6 }}>
                   <PixelLines text={option.label} maxWidth={bw} color={C.invText} sx={1.6} sy={2} bold />
                 </div>
@@ -150,12 +150,12 @@ export function StyleQuiz({ closet, saved, onSave, onClose }: {
         </div>
         {q.step > 0 && q.step < QUESTIONS && <SmallButton x={box.x + box.w - pad - 292} y={footY} w={110} label="BACK" onClick={() => setQ(back(q))} />}
         {q.step < QUESTIONS && (
-          <SmallButton x={box.x + box.w - pad - 175} y={footY} w={172} label="OTHER OUTFITS" hint="Same choices, different pieces from your closet" onClick={() => setQ({ ...q, seed: q.seed + 1 })} />
+          <SmallButton x={box.x + box.w - pad - 175} y={footY} w={172} label="OTHER OUTFITS" hint="Same choices, different pieces from your closet" onClick={() => setQ(newOutfits(q, closet))} />
         )}
         {q.step === QUESTIONS && (
           <>
             <SmallButton x={box.x + box.w - pad - 425} y={footY} w={127} label="RETAKE" onClick={() => setQ(startQuiz(q.seed + 1))} />
-            <SmallButton x={box.x + box.w - pad - 290} y={footY} w={152} label="NEW OUTFIT" hint="Same style, different pieces from your closet" onClick={() => setQ({ ...q, seed: q.seed + 1 })} />
+            <SmallButton x={box.x + box.w - pad - 290} y={footY} w={152} label="NEW OUTFIT" hint="Same style, different pieces from your closet" onClick={() => setQ(newOutfits(q, closet))} />
             <SmallButton x={box.x + box.w - pad - 130} y={footY} w={127} label="WEAR IT" tone="blue" onClick={() => onSave(chosen!, finalBoard)} />
           </>
         )}
