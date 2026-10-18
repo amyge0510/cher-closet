@@ -1,9 +1,8 @@
 // The style map the quiz narrows through: 4 families, each with 4 specific
-// styles, then a color mood. Garments are tagged with the specific style ids.
+// styles. Garments are tagged with the specific style ids.
 
 export type Family = { id: string; label: string; bg: string; leaves: string[] };
 export type Leaf = { id: string; label: string; family: string; bg: string };
-export type Palette = { id: string; label: string; bg: string; colors: string[] };
 
 export const FAMILIES: Family[] = [
   { id: "preppy", label: "PREPPY", bg: "#f3e3a6", leaves: ["clueless", "oldmoney", "tennis", "academia"] },
@@ -31,25 +30,13 @@ export const LEAVES: Leaf[] = [
   { id: "street", label: "STREETWEAR", family: "easy", bg: "#d8d2c2" },
 ];
 
-// The last step: what colors feel right today.
-export const PALETTES: Palette[] = [
-  { id: "dark", label: "DARK & MOODY", bg: "#9f97ad", colors: ["black", "navy", "burgundy", "brown", "gray", "silver"] },
-  { id: "light", label: "LIGHT & AIRY", bg: "#f4f0ea", colors: ["white", "cream", "babypink", "beige", "lavender", "gold"] },
-  { id: "bold", label: "BOLD COLOR", bg: "#f3b9a6", colors: ["red", "yellow", "pink", "green", "blue", "purple"] },
-  { id: "earthy", label: "EARTHY", bg: "#d6c7a5", colors: ["brown", "olive", "beige", "cream", "burgundy", "denim"] },
-];
-
 export const leaf = (id: string) => LEAVES.find((l) => l.id === id);
 export const family = (id: string) => FAMILIES.find((f) => f.id === id);
-export const palette = (id: string) => PALETTES.find((p) => p.id === id);
 
 // Families a garment belongs to, from its specific style tags.
 export function familiesOf(styles: string[]): string[] {
   return [...new Set(styles.map((s) => leaf(s)?.family ?? s))];
 }
 
-export type MyStyle = { family: string; leaf: string; palette: string };
-
-export function describe(s: MyStyle) {
-  return `${leaf(s.leaf)?.label ?? s.leaf} / ${palette(s.palette)?.label ?? s.palette}`;
-}
+// `palette` is left over from when the quiz had a color step; it's ignored.
+export type MyStyle = { family: string; leaf: string; palette?: string };

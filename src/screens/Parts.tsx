@@ -14,8 +14,8 @@ const BEVELS = {
   banner: { bg: C.banner, light: C.bannerLight, dark: C.bannerDark },
 };
 
-export function Bevel({ box, tone, children, onClick, label, style }: {
-  box: Box; tone: keyof typeof BEVELS; children: ReactNode; onClick?: () => void; label?: string; style?: CSSProperties;
+export function Bevel({ box, tone, children, onClick, label, title, style }: {
+  box: Box; tone: keyof typeof BEVELS; children: ReactNode; onClick?: () => void; label?: string; title?: string; style?: CSSProperties;
 }) {
   const t = BEVELS[tone];
   const look: CSSProperties = {
@@ -26,7 +26,7 @@ export function Bevel({ box, tone, children, onClick, label, style }: {
   };
   if (!onClick) return <div className="bevel" style={{ ...look, cursor: "default" }}>{children}</div>;
   return (
-    <button type="button" className="bevel" style={look} onClick={onClick} aria-label={label}>
+    <button type="button" className="bevel" style={look} onClick={onClick} aria-label={label} title={title}>
       {children}
     </button>
   );

@@ -34,14 +34,15 @@ the leopard beside the outfit, one per category; click one to take it off.
 They are drawn onto the body in the reveal too. The search box only searches
 the open category.
 
-**MY STYLE.** The pencil button in the header opens a three-step style quiz.
+**MY STYLE.** The pencil button in the header opens a two-step style quiz.
 Each step shows four outfit boards built from the user's own closet:
 
 1. a family (preppy, edgy, soft, easy)
 2. a specific style inside it (e.g. goth, punk, grunge, moto)
-3. today's color mood (dark, light, bold, earthy)
 
-SHUFFLE rebuilds the boards and BACK steps out. WEAR IT saves the result with
+OTHER OUTFITS rebuilds the boards from different pieces, without changing
+the choices, and BACK steps out. On the result screen, NEW OUTFIT does the same
+for the final board. WEAR IT saves the result with
 the account and swaps the outfit on screen, accessories included, for the
 final board. Auto Dress then prefers outfits that fit the saved style, shows
 that style's name under its label, and changes everything on each press,
