@@ -1,21 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PixelLines, PixelText } from "../pixel/PixelText";
+import { PixelText } from "../pixel/PixelText";
 import { rng } from "../pixel/raster";
 import { C } from "../stage/palette";
 import { STAGE_H, STAGE_W } from "../stage/layout";
 import { Bevel, Leopard } from "./Parts";
 
 // The welcome intro, played once after someone first signs in:
-//   1. brew:    leopard screen, the movie clip on a little TV, captions
-//               alternating "BREWING..." with closet phrases every 2 seconds
-//   2. swirl:   a whirlpool of sparkles sucks the TV and captions away while
+//   1. brew:    leopard screen, "A REMINDER..." over a TV playing the movie clip
+//   2. swirl:   a whirlpool of sparkles sucks the TV and title away while
 //               the room brightens, then bursts into a light pink puff of
 //               smoke that fills the screen; the hangers fade in out of it
 // The clip is public/intro.mp4. Without it, the TV shows static and the brew
 // step lasts a few seconds instead of the length of the clip.
 
 const CLIP_SRC = "/intro.mp4";
-const PHRASE_MS = 2000;
 const NO_CLIP_BREW_MS = 4500;
 const MAX_CLIP_MS = 20000; // in case the clip never reports that it ended
 const SWIRL_MS = 1600;
@@ -23,37 +21,19 @@ const SWIRL_MS = 1600;
 // same colour and fades it away, so the hand-off is seamless
 export const SMOKE = "#ffe1ec";
 
-const BREWING = ["BREWING", "STILL BREWING", "BREWING SOMETHING CUTE", "BREWING"];
-const CLOSET = ["PUTTING TOGETHER YOUR DREAM CLOSET", "STEAMING THE PLAID", "MATCHING THE KNEE SOCKS", "FLUFFING THE CARDIGANS"];
-const phraseAt = (i: number) => (i % 2 === 0 ? BREWING[(i / 2) % BREWING.length] : CLOSET[Math.floor(i / 2) % CLOSET.length]);
-
-const TV = { x: 150, y: 46, w: 340, h: 232 };
+const TV = { x: 50, y: 98, w: 540, h: 312 }; // a 16:9 screen inside a 10px frame
 const SCREEN = { x: TV.x + 10, y: TV.y + 10, w: TV.w - 20, h: TV.h - 20 };
-const CAPTION = { x: 110, y: 298, w: 420, h: 64 };
 const RES = 2; // stage pixels per canvas pixel, for the clip and the sparkles
 
 type Phase = "brew" | "swirl";
 
 export function Intro({ onDone }: { onDone: () => void }) {
   const [phase, setPhase] = useState<Phase>("brew");
-  const [phrase, setPhrase] = useState(0);
-  const [dots, setDots] = useState(0);
   const video = useRef<HTMLVideoElement>(null);
   const screen = useRef<HTMLCanvasElement>(null);
   const sparkles = useRef<HTMLCanvasElement>(null);
   const hasClip = useRef(true);
   const swirl = useCallback(() => setPhase((p) => (p === "brew" ? "swirl" : p)), []);
-
-  // captions: alternate brewing / closet phrases, with animated dots
-  useEffect(() => {
-    if (phase !== "brew") return;
-    const p = window.setInterval(() => setPhrase((i) => i + 1), PHRASE_MS);
-    const d = window.setInterval(() => setDots((n) => (n + 1) % 4), 400);
-    return () => {
-      clearInterval(p);
-      clearInterval(d);
-    };
-  }, [phase]);
 
   // the clip: try with sound (the sign-in click usually allows it), else muted;
   // drawn onto a small canvas each frame so it's as pixelated as everything else
@@ -109,7 +89,7 @@ export function Intro({ onDone }: { onDone: () => void }) {
     const W = canvas.width;
     const H = canvas.height;
     const cx = W / 2;
-    const cy = (TV.y + TV.h / 2 + 30) / RES;
+    const cy = (TV.y + TV.h / 2) / RES;
     const rand = rng(1995);
     const colors = ["#ffffff", "#fff4b0", "#ffc4dc", "#f7c6ff", "#ffd6e8", "#ffe08a"];
     const parts = Array.from({ length: 700 }, () => ({
@@ -205,7 +185,7 @@ export function Intro({ onDone }: { onDone: () => void }) {
     transform: sucked ? "scale(0) rotate(540deg)" : "none",
     opacity: sucked ? 0 : 1,
     transition: `transform ${SWIRL_MS * 0.55}ms cubic-bezier(.55,0,.85,.4), opacity ${SWIRL_MS * 0.55}ms cubic-bezier(.9,0,1,1)`,
-    transformOrigin: `${STAGE_W / 2}px ${TV.y + TV.h / 2 + 30}px`,
+    transformOrigin: `${STAGE_W / 2}px ${TV.y + TV.h / 2}px`,
   };
 
   return (
@@ -224,9 +204,8 @@ export function Intro({ onDone }: { onDone: () => void }) {
           />
           <video ref={video} src={CLIP_SRC} preload="auto" playsInline onEnded={swirl} onError={noClip} style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
 
-          {/* caption */}
-          <div style={{ position: "absolute", left: CAPTION.x, top: CAPTION.y, width: CAPTION.w, height: CAPTION.h, background: C.navy, boxSizing: "border-box", border: `3px solid ${C.lavender}`, display: "grid", placeItems: "center" }}>
-            <PixelLines text={`${phraseAt(phrase)}${".".repeat(dots)}`} maxWidth={CAPTION.w - 30} color={C.lavender} sx={2} sy={2.4} />
+          <div style={{ position: "absolute", left: 0, top: 30, width: STAGE_W, display: "grid", justifyItems: "center" }}>
+            <PixelText text="A REMINDER..." color={C.white} sx={5} sy={5.4} bold outline={C.navy} />
           </div>
         </div>
 
