@@ -51,35 +51,41 @@ export function judge(top: Garment, bottom: Garment): Verdict {
   return { match: true, reason: "top and bottom go" };
 }
 
-// The whole look: top, bottom and every accessory. On top of judge():
-// - accessories must share a style family with the top or bottom (plain,
-//   neutral shoes are exempt; most people own only a few pairs)
-// - an accessory's accent color has to echo a color in the top or bottom
-// - a dark scarf, bag or jewelry weighs down an all-light outfit
-// - at most one patterned piece among top, bottom, scarf and bag
-// - no more than two accent hues in the whole look
+// The whole look: top, bottom and every accessory. The top and bottom must
+// pass judge(). Accessory problems are only "strikes", and it takes two to
+// make a MIS-MATCH! (one odd bag is a choice; an odd bag and an odd scarf is
+// a mess). Strikes:
+// - an accessory from a different style family (plain, neutral shoes are
+//   exempt; most people own only a few pairs)
+// - an accessory whose accent color isn't in the top or bottom
+// - a dark scarf, bag or jewelry on an all-light outfit
+// - more than one patterned piece among top, bottom, scarf and bag
+// - more than two accent hues in the whole look
+export const STRIKES_FOR_MISMATCH = 2;
+
 export function judgeOutfit(top: Garment, bottom: Garment, extras: Garment[] = []): Verdict {
   const base = judge(top, bottom);
   if (!base.match) return base;
   const sameSet = !!top.set && top.set === bottom.set;
   const outfitAccents = new Set([...accents(top), ...accents(bottom)]);
   const lightOutfit = [top, bottom].every((g) => onlyIn(g, LIGHT) || [...accents(g)].every((h) => h === "pink"));
-
-  const patterned = [top, bottom, ...extras.filter((e) => e.category === "scarves" || e.category === "bags")].filter(isBusy);
-  if (patterned.length > (sameSet ? 2 : 1)) return { match: false, reason: "TOO MANY PATTERNS" };
+  const strikes: string[] = [];
 
   for (const e of extras) {
     const plainShoes = e.category === "shoes" && onlyIn(e, new Set([...LIGHT, ...DARK]));
-    if (!plainShoes && !sharesFamily(e, top) && !sharesFamily(e, bottom)) return { match: false, reason: `THE ${short(e)} IS A DIFFERENT STYLE` };
-    const stray = [...accents(e)].find((h) => !outfitAccents.has(h));
-    if (stray) return { match: false, reason: `THE ${short(e)} DOESN'T GO WITH THE COLORS` };
+    if (!plainShoes && !sharesFamily(e, top) && !sharesFamily(e, bottom)) strikes.push(`THE ${short(e)} IS A DIFFERENT STYLE`);
+    if ([...accents(e)].some((h) => !outfitAccents.has(h))) strikes.push(`THE ${short(e)} DOESN'T GO WITH THE COLORS`);
     const heavy = ["scarves", "bags", "jewelry"].includes(e.category) && onlyIn(e, DARK);
-    if (heavy && lightOutfit) return { match: false, reason: `THE ${short(e)} IS TOO DARK FOR THIS OUTFIT` };
+    if (heavy && lightOutfit) strikes.push(`THE ${short(e)} IS TOO DARK FOR THIS OUTFIT`);
   }
-
+  const patterned = [top, bottom, ...extras.filter((e) => e.category === "scarves" || e.category === "bags")].filter(isBusy);
+  if (patterned.length > (sameSet ? 2 : 1)) strikes.push("TOO MANY PATTERNS");
   const hues = new Set([...outfitAccents, ...extras.flatMap((e) => [...accents(e)])]);
-  if (hues.size > 2) return { match: false, reason: "TOO MANY COLORS" };
-  return { match: true, reason: extras.length ? "the whole look goes" : base.reason };
+  if (hues.size > 2) strikes.push("TOO MANY COLORS");
+
+  if (strikes.length >= STRIKES_FOR_MISMATCH) return { match: false, reason: strikes[0], strikes: strikes.length };
+  if (strikes.length) return { match: true, reason: `one thing's a little off: ${strikes[0].toLowerCase()}`, strikes: strikes.length };
+  return { match: true, reason: extras.length ? "the whole look goes" : base.reason, strikes: 0 };
 }
 
 // Every matching (top, bottom) pair, for Auto Dress.

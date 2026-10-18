@@ -54,27 +54,30 @@ describe("judgeOutfit (accessories count too)", () => {
   const tee = g("demo-tee");
   const whiteMini = g("demo-white-mini");
 
-  it("a white outfit can't take a pink handbag", () => {
-    expect(judgeOutfit(tee, whiteMini, [n("Pink Bow Bag")])).toEqual({ match: false, reason: "THE PINK BOW BAG DOESN'T GO WITH THE COLORS" });
+  it("one odd accessory is a choice, not a mis-match", () => {
+    expect(judgeOutfit(tee, whiteMini, [n("Pink Bow Bag")]).match).toBe(true);
+    expect(judgeOutfit(tee, whiteMini, [n("Black Velvet Scarf")]).match).toBe(true);
+    expect(judgeOutfit(g("demo-blazer"), g("demo-yellow-mini"), [n("Spiked Choker")]).match).toBe(true);
   });
 
-  it("a black scarf is too heavy for an all-white outfit", () => {
-    expect(judgeOutfit(tee, whiteMini, [n("Black Velvet Scarf")]).match).toBe(false);
+  it("a white outfit with a pink handbag and a black scarf is a mis-match", () => {
+    expect(judgeOutfit(tee, whiteMini, [n("Pink Bow Bag"), n("Black Velvet Scarf")])).toMatchObject({ match: false, reason: "THE PINK BOW BAG DOESN'T GO WITH THE COLORS" });
   });
 
   it("but the same pink bag works once pink is in the outfit", () => {
-    expect(judgeOutfit(g("demo-pink"), whiteMini, [n("Pink Bow Bag"), n("White Sneakers")]).match).toBe(true);
-  });
-
-  it("accessories from a different style family don't go", () => {
-    expect(judgeOutfit(g("demo-blazer"), g("demo-yellow-mini"), [n("Spiked Choker")]).reason).toMatch(/DIFFERENT STYLE/);
+    expect(judgeOutfit(g("demo-pink"), whiteMini, [n("Pink Bow Bag"), n("White Sneakers")])).toMatchObject({ match: true, reason: "the whole look goes" });
   });
 
   it("plain shoes go with anything, even off-style", () => {
-    expect(judgeOutfit(n("Black Lace Corset"), n("Black Maxi Skirt"), [n("White Sneakers")]).match).toBe(true);
+    expect(judgeOutfit(n("Black Lace Corset"), n("Black Maxi Skirt"), [n("White Sneakers")]).reason).toBe("the whole look goes");
   });
 
-  it("only one patterned piece among top, bottom, scarf and bag", () => {
-    expect(judgeOutfit(n("Faded Band Tee"), n("Red Tartan Mini"), [n("Plaid Blanket Scarf")]).reason).toBe("TOO MANY PATTERNS");
+  it("a clash between top and bottom is still a mis-match on its own", () => {
+    expect(judgeOutfit(n("Navy Quarter Zip"), n("Brown Plaid Midi"), [n("White Sneakers")]).match).toBe(false);
+  });
+
+  it("a patterned scarf plus a clashing-color bag adds up", () => {
+    const v = judgeOutfit(n("Faded Band Tee"), n("Red Tartan Mini"), [n("Plaid Blanket Scarf"), n("Pink Bow Bag")]);
+    expect(v.match).toBe(false);
   });
 });

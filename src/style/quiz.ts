@@ -173,7 +173,8 @@ const NEUTRAL = new Set(["black", "white", "cream", "beige", "brown", "gray", "n
 // that still goes stands in. Jewelry, bags and scarves are optional.
 function accessories(closet: Garment[], top: Garment | undefined, bottom: Garment | undefined, best: ReturnType<typeof picker>, bestShoes: ReturnType<typeof picker>) {
   const chosen: Garment[] = [];
-  const goes = (g: Garment) => !top || !bottom || judgeOutfit(top, bottom, [...chosen, g]).match;
+  // suggestions stay spotless: no strikes at all, not just under the limit
+  const goes = (g: Garment) => !top || !bottom || judgeOutfit(top, bottom, [...chosen, g]).strikes === 0;
   return ACCESSORY_ROLES.map(([spot, cats]) => {
     const pool = closet.filter((g) => cats.includes(g.category) && goes(g));
     const pick = spot !== "shoes" ? best(pool) : (bestShoes(pool) ?? [...pool].sort((a, b) => neutrality(b) - neutrality(a))[0]);

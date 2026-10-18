@@ -19,7 +19,7 @@ export const styleOf = (user: User): MyStyle | null => (user.user_metadata?.styl
 const nameOf = (user: User): string | null => (user.user_metadata?.display_name as string | undefined)?.trim() || null;
 
 // Phone-number sign-in: text a one-time code, check it, then ask for a name.
-// The session is remembered by the browser, so returning visitors skip it.
+// Sign-ins aren't remembered (see lib/supabase.ts), so every visit starts here.
 export function useAuth() {
   const [state, setState] = useState<AuthState>(supabase ? { status: "loading" } : { status: "guest", name: "Cher" });
 

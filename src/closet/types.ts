@@ -19,7 +19,8 @@ export type Garment = {
   set?: string;
 };
 
-export type Verdict = { match: boolean; reason: string };
+// `strikes` counts small accessory problems (see judgeOutfit)
+export type Verdict = { match: boolean; reason: string; strikes?: number };
 
 // A saved outfit, by garment id (accessories by category).
 export type Look = { id: string; top: string; bottom: string; extras: Record<string, string> };

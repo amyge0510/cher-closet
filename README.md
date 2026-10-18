@@ -23,8 +23,9 @@ settles on an outfit; press it again to stop. Once you're dressed, it becomes
 
 **Sign-in.** People sign in with their phone number: a code arrives by text,
 then they give their first name, and the header becomes "AMY'S WARDROBE".
-Browsers remember the sign-in, so returning visitors go straight to the
-hangers. When running locally, a SKIP (DEV) button bypasses sign-in.
+Sign-ins aren't remembered, so every visit starts on the sign-in screen and
+needs a new code. Returning users skip the name step, since their name is
+kept with the account. When running locally, a SKIP (DEV) button bypasses sign-in.
 To look at the sign-in screens while signed in, add `?preview=signin` to the
 address: every step works without sending a text or saving anything.
 
@@ -70,8 +71,7 @@ for the final board. WEAR IT saves the result with
 the account and swaps the outfit on screen, accessories included, for the
 final board. Auto Dress then prefers outfits that fit the saved style, shows
 that style's name under its label, and changes everything on each press,
-accessories included. A small tab under MY STYLE says what it's for ("FIND
-YOUR STYLE", then "TWEAK YOUR STYLE"). The style map lives
+accessories included. The style map lives
 in `src/style/styles.ts`, and the quiz and board logic in `src/style/quiz.ts`.
 
 **The demo closet.** 91 drawn pieces across every category, plus a
@@ -83,8 +83,9 @@ something to work with until real uploads exist.
 under the banner. The top and bottom must have at most one pattern, share a
 style family, and not mix warm colors (brown, burgundy, red, yellow, olive,
 gold) with cool ones (navy, blue, pink, purple, green, silver). Black, white,
-gray, denim, cream and beige go with either. On top of that, for the whole
-look:
+gray, denim, cream and beige go with either. Accessories only count as
+"strikes", and it takes two to make a MIS-MATCH! (one odd bag is a choice;
+an odd bag and an odd scarf is a mess). Strikes:
 
 - an accessory has to share a style family with the top or bottom (plain
   black/white/brown shoes go with anything)
@@ -94,7 +95,7 @@ look:
 - at most one patterned piece among top, bottom, scarf and bag
 - no more than two accent colors in the whole look
 
-Quiz boards and AUTO DRESS only ever pick accessories that pass these rules.
+Quiz boards and AUTO DRESS only ever suggest outfits with no strikes at all.
 MIS-MATCH! clears itself after three seconds.
 
 **♥ SAVE** appears on the dressed screen after DRESS ME, and saves that outfit.
