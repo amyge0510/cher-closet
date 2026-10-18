@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { PLACEHOLDER_ANCHORS, placeholderBody, type Anchor, type BodyAnchors } from "../closet/body";
+import { LAYERS, PLACEHOLDER_ANCHORS, placeholderBody, type Anchor, type BodyAnchors } from "../closet/body";
 import type { Garment } from "../closet/types";
 import { containBox, crunch, loadImage, makeCanvas, rng } from "../pixel/raster";
 
@@ -8,6 +8,8 @@ type Props = {
   h: number;
   top: Garment;
   bottom: Garment;
+  /** worn accessories */
+  extras?: Garment[];
   bodySrc?: string | null;
   anchors?: BodyAnchors;
   /** run the dissolve; otherwise draw the finished outfit straight away */
@@ -37,7 +39,8 @@ async function place(ctx: CanvasRenderingContext2D, src: string, a: Anchor, cw: 
 
 // The full-body screen: the body appears, then the outfit dissolves onto it
 // block by block, like a slow 1995 modem picture.
-export function Reveal({ w, h, top, bottom, bodySrc, anchors = PLACEHOLDER_ANCHORS, animate, onDone }: Props) {
+export function Reveal({ w, h, top, bottom, extras = [], bodySrc, anchors = PLACEHOLDER_ANCHORS, animate, onDone }: Props) {
+  const extrasKey = extras.map((g) => g.image).join("|");
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -56,8 +59,16 @@ export function Reveal({ w, h, top, bottom, bodySrc, anchors = PLACEHOLDER_ANCHO
       crunch(body, { levels: 10 });
       const outfit = makeCanvas(cw, ch);
       const octx = outfit.getContext("2d")!;
-      await place(octx, bottom.image, anchors.bottom, cw, ch);
-      await place(octx, top.image, anchors.top, cw, ch);
+      for (const layer of LAYERS) {
+        if (layer === "outfit") {
+          await place(octx, bottom.image, anchors.bottom, cw, ch);
+          await place(octx, top.image, anchors.top, cw, ch);
+          continue;
+        }
+        const g = extras.find((e) => e.category === layer);
+        const a = anchors.extras[layer];
+        if (g && a) await place(octx, g.image, a, cw, ch);
+      }
       crunch(outfit, { levels: 10 });
       if (cancelled) return;
 
@@ -96,7 +107,8 @@ export function Reveal({ w, h, top, bottom, bodySrc, anchors = PLACEHOLDER_ANCHO
       cancelAnimationFrame(raf);
       clearTimeout(holdTimer);
     };
-  }, [w, h, top.image, bottom.image, bodySrc, anchors, animate, onDone]);
+    // extrasKey stands in for `extras`, which is a new array every render
+  }, [w, h, top.image, bottom.image, extrasKey, bodySrc, anchors, animate, onDone]);
 
   return <canvas ref={ref} style={{ width: w, height: h, imageRendering: "pixelated", display: "block" }} />;
 }

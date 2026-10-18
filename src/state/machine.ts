@@ -11,6 +11,8 @@ export type State = {
   top: number;
   bottom: number;
   verdict: Verdict | null;
+  /** worn accessories: category id -> garment id */
+  extras: Record<string, string>;
 };
 
 export type Action =
@@ -21,11 +23,14 @@ export type Action =
   | { type: "AUTO_DRESS"; top: number; bottom: number }
   | { type: "PICK"; slot: Slot; index: number }
   | { type: "SHOW_RACK" }
+  | { type: "WEAR"; category: string; id: string } // an accessory; wearing it again takes it off
+  | { type: "TAKE_OFF"; category: string }
+  | { type: "SET_OUTFIT"; top: number; bottom: number; extras: Record<string, string> }
   | { type: "MATCH_SHOWN" }
   | { type: "REVEAL_DONE" }
   | { type: "GOTO"; screen: Screen }; // dev overlay only
 
-export const initialState: State = { screen: "splash", top: 0, bottom: 0, verdict: null };
+export const initialState: State = { screen: "splash", top: 0, bottom: 0, verdict: null, extras: {} };
 
 const wrap = (i: number, n: number) => (n ? ((i % n) + n) % n : 0);
 
@@ -50,6 +55,20 @@ export function reducer(s: State, a: Action): State {
     case "PICK":
       if (s.screen === "splash") return s;
       return { ...s, screen: "browse", verdict: null, [a.slot]: a.index };
+    case "WEAR": {
+      if (s.screen === "splash") return s;
+      const { [a.category]: current, ...rest } = s.extras;
+      const extras = current === a.id ? rest : { ...rest, [a.category]: a.id };
+      return { ...s, screen: "browse", verdict: null, extras };
+    }
+    case "TAKE_OFF": {
+      if (s.screen === "splash" || !(a.category in s.extras)) return s;
+      const { [a.category]: _, ...extras } = s.extras;
+      return { ...s, extras };
+    }
+    case "SET_OUTFIT":
+      if (s.screen === "splash") return s;
+      return { ...s, screen: "browse", verdict: null, top: a.top, bottom: a.bottom, extras: a.extras };
     case "SHOW_RACK":
       return s.screen === "splash" || s.screen === "browse" ? s : { ...s, screen: "browse", verdict: null };
     case "MATCH_SHOWN":

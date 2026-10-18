@@ -61,7 +61,8 @@ function SmallButton({ x, y, w, label, tone = "gray", onClick }: { x: number; y:
 export function StyleQuiz({ closet, saved, onSave, onClose }: {
   closet: Garment[];
   saved: MyStyle | null;
-  onSave: (s: MyStyle) => void;
+  /** the chosen style, and the board to dress in */
+  onSave: (s: MyStyle, board: BoardItem[]) => void;
   onClose: () => void;
 }) {
   const [q, setQ] = useState<QuizState>(() => (saved ? { step: 3, ...saved, seed: 1 } : startQuiz()));
@@ -137,7 +138,7 @@ export function StyleQuiz({ closet, saved, onSave, onClose }: {
               <PixelText text="YOU'RE" color={C.invText} sx={2} sy={2} />
               <PixelLines text={leaf(chosen.leaf)?.label ?? ""} maxWidth={360} color={C.invEdge} sx={4.5} sy={5} bold align="left" shadow={C.invSlot} />
               <PixelLines text={`${family(chosen.family)?.label} FAMILY, ${palette(chosen.palette)?.label} TODAY.`} maxWidth={360} color={C.invText} sx={1.8} sy={2.2} align="left" />
-              <PixelLines text="AUTO DRESS WILL PICK OUTFITS FROM YOUR CLOSET THAT FIT THIS STYLE." maxWidth={360} color={C.invText} sx={1.5} sy={1.8} align="left" />
+              <PixelLines text="WEAR IT PUTS THIS OUTFIT ON. AUTO DRESS WILL KEEP PICKING FROM YOUR CLOSET IN THIS STYLE." maxWidth={360} color={C.invText} sx={1.5} sy={1.8} align="left" />
             </div>
           </>
         )}
@@ -151,7 +152,7 @@ export function StyleQuiz({ closet, saved, onSave, onClose }: {
           <>
             <SmallButton x={box.x + box.w - pad - 410} y={footY} w={127} label="RETAKE" onClick={() => setQ(startQuiz(q.seed + 1))} />
             <SmallButton x={box.x + box.w - pad - 270} y={footY} w={127} label="SHUFFLE" onClick={() => setQ({ ...q, seed: q.seed + 1 })} />
-            <SmallButton x={box.x + box.w - pad - 130} y={footY} w={127} label="SAVE" tone="blue" onClick={() => onSave(chosen!)} />
+            <SmallButton x={box.x + box.w - pad - 130} y={footY} w={127} label="WEAR IT" tone="blue" onClick={() => onSave(chosen!, finalBoard)} />
           </>
         )}
       </div>

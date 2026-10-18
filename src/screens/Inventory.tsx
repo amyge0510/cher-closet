@@ -5,14 +5,22 @@ import { PixelField } from "../pixel/PixelField";
 import { PixelImage } from "../pixel/PixelImage";
 import { PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
-import { L, type Box } from "../stage/layout";
+import { extraSpot, L, type Box } from "../stage/layout";
 import { useToStage } from "../stage/Stage";
 
 const DRAG_START_PX = 4; // stage pixels the pointer must travel before a press becomes a drag
 const DRAG_ICON = 56;
 
 const inside = (b: Box, x: number, y: number) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h;
-const dropSlotAt = (x: number, y: number): Slot | null => (inside(L.topPanel, x, y) ? "top" : inside(L.bottomPanel, x, y) ? "bottom" : null);
+const panelAt = (x: number, y: number): Slot | null => (inside(L.topPanel, x, y) ? "top" : inside(L.bottomPanel, x, y) ? "bottom" : null);
+
+// Where a dragged piece would land: tops and bottoms on their own panel;
+// accessories anywhere above the category bar, landing in their side spot.
+function dropAt(g: Garment, x: number, y: number): { box: Box; ok: boolean } | null {
+  if (!g.slot) return y < L.categoryBar.y ? { box: extraSpot(g.category), ok: true } : null;
+  const panel = panelAt(x, y);
+  return panel ? { box: panel === "top" ? L.topPanel : L.bottomPanel, ok: panel === g.slot } : null;
+}
 
 const bevelIn: CSSProperties = {
   boxSizing: "border-box",
@@ -25,7 +33,8 @@ const searchText = (g: Garment) => [g.name, ...g.colors, g.pattern, ...g.styles]
 type Press = { g: Garment; x0: number; y0: number; dragging: boolean };
 
 // The closet pop-up: every garment in a category as a grid of inventory slots.
-// Click a top or bottom to put it on the rack, or drag it onto a panel.
+// Click a piece to wear it, or drag it out: tops and bottoms onto their panel,
+// accessories anywhere on the screen.
 export function Inventory({ category, categories, closet, onClose, onWear, onDragStart }: {
   category: string;
   categories: Category[];
@@ -38,7 +47,7 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
   const [query, setQuery] = useState("");
   const [scroll, setScroll] = useState(0);
   const [hover, setHover] = useState<Garment | null>(null);
-  const [drag, setDrag] = useState<{ g: Garment; x: number; y: number; over: Slot | null } | null>(null);
+  const [drag, setDrag] = useState<{ g: Garment; x: number; y: number; over: { box: Box; ok: boolean } | null } | null>(null);
   const press = useRef<Press | null>(null);
 
   const cat = categories.find((c) => c.id === category);
@@ -65,23 +74,20 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
       if (!p) return;
       const { x, y } = toStage(e.clientX, e.clientY);
       if (!p.dragging) {
-        if (!p.g.slot || Math.hypot(x - p.x0, y - p.y0) < DRAG_START_PX) return;
+        if (Math.hypot(x - p.x0, y - p.y0) < DRAG_START_PX) return;
         p.dragging = true;
         onDragStart();
       }
-      setDrag({ g: p.g, x, y, over: dropSlotAt(x, y) });
+      setDrag({ g: p.g, x, y, over: dropAt(p.g, x, y) });
     };
     const up = (e: PointerEvent) => {
       const p = press.current;
       press.current = null;
       if (!p) return;
-      if (!p.dragging) {
-        if (p.g.slot) onWear(p.g);
-        return;
-      }
+      if (!p.dragging) return onWear(p.g);
       const { x, y } = toStage(e.clientX, e.clientY);
       setDrag(null);
-      if (dropSlotAt(x, y) === p.g.slot) onWear(p.g);
+      if (dropAt(p.g, x, y)?.ok) onWear(p.g);
     };
     const cancel = () => {
       press.current = null;
@@ -109,7 +115,7 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
   const footerY = gridY + rows * S + 8;
   const title = cat?.label ?? category.toUpperCase();
   const status = hover
-    ? hover.name + (hover.slot ? "" : " - CAN'T WEAR YET")
+    ? hover.name
     : items.length
       ? `${items.length} ${items.length === 1 ? "ITEM" : "ITEMS"}`
       : q
@@ -193,11 +199,11 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
                 background: g && hover === g ? C.invSlotHover : C.invSlot,
                 display: "grid",
                 placeItems: "center",
-                cursor: g ? (g.slot ? "grab" : "help") : "default",
+                cursor: g ? "grab" : "default",
                 touchAction: "none",
               }}
             >
-              {g && <PixelImage src={g.image} w={S - 6} h={S - 6} pixel={2} fill={0.95} style={{ opacity: g.slot ? 1 : 0.85 }} />}
+              {g && <PixelImage src={g.image} w={S - 6} h={S - 6} pixel={2} fill={0.95} />}
             </div>
           ))}
         </div>
@@ -237,12 +243,12 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
             <div
               style={{
                 position: "absolute",
-                ...(() => {
-                  const b = drag.over === "top" ? L.topPanel : L.bottomPanel;
-                  return { left: b.x, top: b.y, width: b.w, height: b.h };
-                })(),
+                left: drag.over.box.x,
+                top: drag.over.box.y,
+                width: drag.over.box.w,
+                height: drag.over.box.h,
                 boxSizing: "border-box",
-                border: `4px solid ${drag.over === drag.g.slot ? C.dropGlow : C.btnGrayDark}`,
+                border: `4px ${drag.g.slot ? "solid" : "dashed"} ${drag.over.ok ? C.dropGlow : C.btnGrayDark}`,
                 zIndex: 23,
                 pointerEvents: "none",
               }}

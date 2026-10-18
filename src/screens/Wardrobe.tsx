@@ -5,9 +5,9 @@ import type { Garment, Slot } from "../closet/types";
 import { PixelImage } from "../pixel/PixelImage";
 import { PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
-import { L, type Box } from "../stage/layout";
+import { extraSpot, L, type Box } from "../stage/layout";
 import type { Action, State } from "../state/machine";
-import { rankPairs } from "../style/quiz";
+import { rankPairs, type BoardItem } from "../style/quiz";
 import type { MyStyle } from "../style/styles";
 import { Inventory, MoreMenu } from "./Inventory";
 import { StyleQuiz } from "./StyleQuiz";
@@ -25,6 +25,22 @@ function GarmentPanel({ box, garment, matched }: { box: Box; garment?: Garment; 
         <PixelImage key={garment.id} src={garment.image} w={box.w - 16} h={box.h - 10} pixel={2} fill={0.92} outline={C.white} />
       )}
     </div>
+  );
+}
+
+// A worn accessory, standing on the leopard beside the outfit. Click to take it off.
+function ExtraSticker({ garment, onTakeOff }: { garment: Garment; onTakeOff: () => void }) {
+  const b = extraSpot(garment.category);
+  return (
+    <button
+      type="button"
+      aria-label={`Take off ${garment.name}`}
+      title={`${garment.name} (click to take off)`}
+      onClick={onTakeOff}
+      style={{ ...pos(b), padding: 0, border: 0, background: "transparent", cursor: "pointer", zIndex: 3 }}
+    >
+      <PixelImage key={garment.id} src={garment.image} w={b.w} h={b.h} pixel={2} fill={0.9} outline={C.white} />
+    </button>
   );
 }
 
@@ -47,12 +63,29 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   const closePopup = useCallback(() => setPopup(null), []);
   const wear = useCallback(
     (g: Garment) => {
-      if (!g.slot) return;
-      const list = g.slot === "top" ? tops : bottoms;
-      dispatch({ type: "PICK", slot: g.slot, index: list.indexOf(g) });
+      if (g.slot) dispatch({ type: "PICK", slot: g.slot, index: (g.slot === "top" ? tops : bottoms).indexOf(g) });
+      else dispatch({ type: "WEAR", category: g.category, id: g.id });
       setPopup(null);
     },
     [dispatch, tops, bottoms],
+  );
+  const worn = useMemo(
+    () => Object.values(state.extras).map((id) => closet.find((g) => g.id === id)).filter((g): g is Garment => !!g),
+    [state.extras, closet],
+  );
+  // MY STYLE: put the chosen style's board on, top to toe
+  const wearBoard = useCallback(
+    (items: BoardItem[]) => {
+      const pick = (slot: "top" | "bottom", list: Garment[]) => {
+        const g = items.find((i) => i.garment.slot === slot)?.garment;
+        return g ? list.indexOf(g) : -1;
+      };
+      const t = pick("top", tops);
+      const b = pick("bottom", bottoms);
+      const extras = Object.fromEntries(items.filter((i) => !i.garment.slot).map((i) => [i.garment.category, i.garment.id]));
+      dispatch({ type: "SET_OUTFIT", top: t < 0 ? state.top : t, bottom: b < 0 ? state.bottom : b, extras });
+    },
+    [dispatch, tops, bottoms, state.top, state.bottom],
   );
   const showRack = useCallback(() => dispatch({ type: "SHOW_RACK" }), [dispatch]);
   const top = tops[state.top];
@@ -133,7 +166,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
 
       {fullBody && top && bottom ? (
         <div style={{ ...pos(L.revealPanel), background: C.panel }}>
-          <Reveal w={L.revealPanel.w} h={L.revealPanel.h} top={top} bottom={bottom} animate={screen === "reveal"} onDone={revealDone} />
+          <Reveal w={L.revealPanel.w} h={L.revealPanel.h} top={top} bottom={bottom} extras={worn} animate={screen === "reveal"} onDone={revealDone} />
         </div>
       ) : (
         <>
@@ -143,6 +176,8 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
           <ControlStrip box={L.bottomControls} onPrev={() => step("bottom", -1)} onNext={() => step("bottom", 1)} onScan={() => scan("bottom")} disabled={matched} />
         </>
       )}
+
+      {!fullBody && worn.map((g) => <ExtraSticker key={g.category} garment={g} onTakeOff={() => dispatch({ type: "TAKE_OFF", category: g.category })} />)}
 
       {screen === "mismatch" && (
         <Bevel box={L.banner} tone="banner" style={{ borderWidth: 4, zIndex: 5 }}>
@@ -179,8 +214,9 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
         <StyleQuiz
           closet={closet}
           saved={myStyle}
-          onSave={(s) => {
+          onSave={(s, board) => {
             onSaveStyle(s);
+            wearBoard(board);
             setPopup(null);
           }}
           onClose={closePopup}

@@ -5,6 +5,18 @@ export const STAGE_H = 480;
 
 export type Box = { x: number; y: number; w: number; h: number };
 
+// Where worn accessories sit on the leopard sides, next to the top and bottom.
+export const EXTRA_SPOTS: Record<string, Box> = {
+  jewelry: { x: 46, y: 44, w: 112, h: 80 },
+  scarves: { x: 40, y: 136, w: 124, h: 108 },
+  bags: { x: 36, y: 256, w: 132, h: 122 },
+  underwear: { x: 484, y: 44, w: 116, h: 80 },
+  pantyhose: { x: 492, y: 132, w: 100, h: 118 },
+  shoes: { x: 470, y: 262, w: 144, h: 112 },
+};
+// any other category (one a user made up) shares the underwear spot
+export const extraSpot = (category: string): Box => EXTRA_SPOTS[category] ?? EXTRA_SPOTS.underwear;
+
 export const L = {
   header: { x: 0, y: 0, w: 640, h: 32 },
   title: { x: 2, y: 9, sx: 1.6, sy: 2 }, // "CHER'S WARDROBE"

@@ -3,12 +3,24 @@ import { makeCanvas } from "../pixel/raster";
 // Where garments sit on a body photo, as fractions of the photo's box.
 // Stored per photo once users upload their own (body_photos.anchors).
 export type Anchor = { x: number; y: number; w: number; h: number };
-export type BodyAnchors = { top: Anchor; bottom: Anchor };
+// `extras` places accessories by category; ones without an anchor (underwear)
+// aren't drawn on the body.
+export type BodyAnchors = { top: Anchor; bottom: Anchor; extras: Record<string, Anchor> };
 
 export const PLACEHOLDER_ANCHORS: BodyAnchors = {
   top: { x: 0.25, y: 0.165, w: 0.5, h: 0.3 },
   bottom: { x: 0.31, y: 0.415, w: 0.38, h: 0.2 },
+  extras: {
+    pantyhose: { x: 0.36, y: 0.5, w: 0.28, h: 0.44 },
+    shoes: { x: 0.34, y: 0.885, w: 0.32, h: 0.09 },
+    scarves: { x: 0.38, y: 0.15, w: 0.24, h: 0.17 },
+    jewelry: { x: 0.43, y: 0.15, w: 0.14, h: 0.07 },
+    bags: { x: 0.64, y: 0.37, w: 0.22, h: 0.15 },
+  },
 };
+
+// Layering order on the body, bottom to top; "outfit" is the top and bottom.
+export const LAYERS = ["pantyhose", "outfit", "shoes", "scarves", "jewelry", "bags"];
 
 // A simple stand-in figure, used until the user uploads a full-body photo.
 export function placeholderBody(w: number, h: number): HTMLCanvasElement {
