@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { hexToRgb } from "../pixel/raster";
 import { C } from "../stage/palette";
 import { STAGE_H, STAGE_W } from "../stage/layout";
+import { SMOKE } from "./Intro";
 
 // The opening screen: a lattice of identical wire hangers that all swing
 // 30 degrees left-to-right over two seconds, then the screen fades out.
@@ -66,7 +67,8 @@ function draw(ctx: CanvasRenderingContext2D, angleDeg: number) {
   ctx.putImageData(img, 0, 0);
 }
 
-export function Splash({ onDone, frozenAt }: { onDone: () => void; frozenAt?: number }) {
+// `smokeIn` starts the screen under the intro's pink smoke, which drifts away.
+export function Splash({ onDone, frozenAt, smokeIn }: { onDone: () => void; frozenAt?: number; smokeIn?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const [fading, setFading] = useState(false);
 
@@ -97,6 +99,8 @@ export function Splash({ onDone, frozenAt }: { onDone: () => void; frozenAt?: nu
   }, [onDone, frozenAt]);
 
   return (
+    <>
+    {smokeIn && <div className="smoke-out" style={{ position: "absolute", inset: 0, background: SMOKE, zIndex: 41, pointerEvents: "none" }} />}
     <canvas
       ref={ref}
       width={W}
@@ -114,5 +118,6 @@ export function Splash({ onDone, frozenAt }: { onDone: () => void; frozenAt?: nu
         zIndex: 40,
       }}
     />
+    </>
   );
 }

@@ -213,7 +213,6 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       <Header
         title={title}
         onStyle={() => setPopup({ kind: "style" })}
-        styleHint={myStyle ? "TWEAK YOUR STYLE" : "FIND YOUR STYLE"}
         onSaveLook={saveLook}
         saveLabel={justSaved ? "SAVED!" : "SAVE LOOK"}
         onLooks={() => setPopup({ kind: "looks" })}

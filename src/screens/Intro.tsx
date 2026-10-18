@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { closetHeadline } from "../auth/names";
 import { PixelLines, PixelText } from "../pixel/PixelText";
 import { rng } from "../pixel/raster";
 import { C } from "../stage/palette";
@@ -9,8 +8,9 @@ import { Bevel, Leopard } from "./Parts";
 // The welcome intro, played once after someone first signs in:
 //   1. brew:    leopard screen, the movie clip on a little TV, captions
 //               alternating "BREWING..." with closet phrases every 2 seconds
-//   2. swirl:   a whirlpool of sparkles sucks the TV and captions away
-//   3. welcome: "WELCOME TO AMY'S CLOSET", then fade into the hangers
+//   2. swirl:   a whirlpool of sparkles sucks the TV and captions away while
+//               the room brightens, then bursts into a light pink puff of
+//               smoke that fills the screen; the hangers fade in out of it
 // The clip is public/intro.mp4. Without it, the TV shows static and the brew
 // step lasts a few seconds instead of the length of the clip.
 
@@ -18,9 +18,10 @@ const CLIP_SRC = "/intro.mp4";
 const PHRASE_MS = 2000;
 const NO_CLIP_BREW_MS = 4500;
 const MAX_CLIP_MS = 20000; // in case the clip never reports that it ended
-const SWIRL_MS = 2800;
-const WELCOME_MS = 2600;
-const FADE_MS = 600;
+const SWIRL_MS = 1600;
+// the colour of the smoke the intro ends in; the hanger screen starts under the
+// same colour and fades it away, so the hand-off is seamless
+export const SMOKE = "#ffe1ec";
 
 const BREWING = ["BREWING", "STILL BREWING", "BREWING SOMETHING CUTE", "BREWING"];
 const CLOSET = ["PUTTING TOGETHER YOUR DREAM CLOSET", "STEAMING THE PLAID", "MATCHING THE KNEE SOCKS", "FLUFFING THE CARDIGANS"];
@@ -31,9 +32,9 @@ const SCREEN = { x: TV.x + 10, y: TV.y + 10, w: TV.w - 20, h: TV.h - 20 };
 const CAPTION = { x: 110, y: 298, w: 420, h: 64 };
 const RES = 2; // stage pixels per canvas pixel, for the clip and the sparkles
 
-type Phase = "brew" | "swirl" | "welcome" | "out";
+type Phase = "brew" | "swirl";
 
-export function Intro({ name, onDone }: { name: string | null; onDone: () => void }) {
+export function Intro({ onDone }: { onDone: () => void }) {
   const [phase, setPhase] = useState<Phase>("brew");
   const [phrase, setPhrase] = useState(0);
   const [dots, setDots] = useState(0);
@@ -100,7 +101,7 @@ export function Intro({ name, onDone }: { name: string | null; onDone: () => voi
     window.setTimeout(swirl, NO_CLIP_BREW_MS);
   }, [swirl]);
 
-  // the sparkle whirlpool: spirals in over the TV, then bursts outward
+  // the sparkle whirlpool: spirals in over the TV, then bursts into pink smoke
   useEffect(() => {
     if (phase !== "swirl") return;
     const canvas = sparkles.current!;
@@ -110,28 +111,36 @@ export function Intro({ name, onDone }: { name: string | null; onDone: () => voi
     const cx = W / 2;
     const cy = (TV.y + TV.h / 2 + 30) / RES;
     const rand = rng(1995);
-    const colors = ["#ffffff", "#fff4b0", "#f7c6ff", "#c8ccff", "#ffd6e8", "#ffe08a"];
-    const parts = Array.from({ length: 900 }, () => ({
+    const colors = ["#ffffff", "#fff4b0", "#ffc4dc", "#f7c6ff", "#ffd6e8", "#ffe08a"];
+    const parts = Array.from({ length: 700 }, () => ({
       a: rand() * Math.PI * 2,
-      r0: 20 + rand() * 260, // reaches past the screen edges
-      delay: rand() * 0.3,
-      spin: 1.5 + rand() * 2.5,
+      r0: 20 + rand() * 240,
+      delay: rand() * 0.2,
+      spin: 1.2 + rand() * 1.8,
       color: colors[Math.floor(rand() * colors.length)],
       size: rand() < 0.45 ? 2 : rand() < 0.6 ? 1 : 0, // 0 dot, 1 square, 2 twinkle cross
       tw: rand() * Math.PI * 2,
     }));
+    // the puff: soft pink clouds billowing out from the eye of the whirlpool
+    const puffs = Array.from({ length: 40 }, () => ({
+      a: rand() * Math.PI * 2,
+      reach: 40 + rand() * 170,
+      size: 30 + rand() * 60,
+      delay: rand() * 0.15,
+      pink: rand() < 0.5 ? "255,196,220" : "255,226,238",
+    }));
+    const BURST = 0.55; // when the sparkles reach the middle and the smoke starts
     const start = performance.now();
     let raf = 0;
     const at = (p: (typeof parts)[number], local: number) => {
-      // 0..0.72 spiral in, faster near the middle; then burst out and fade
       let r: number;
       let alpha = 1;
-      if (local < 0.72) {
-        const k = local / 0.72;
+      if (local < BURST) {
+        const k = local / BURST;
         r = p.r0 * (1 - k * k * 0.95);
       } else {
-        const k = (local - 0.72) / 0.28;
-        r = p.r0 * 0.05 + k * 300;
+        const k = (local - BURST) / (1 - BURST);
+        r = p.r0 * 0.05 + k * 280;
         alpha = 1 - k;
       }
       const a = p.a + local * p.spin * Math.PI * 2 * (1 + Math.max(0, 1 - r / 200) * 2);
@@ -143,47 +152,51 @@ export function Intro({ name, onDone }: { name: string | null; onDone: () => voi
         ctx.fillRect(x, y - 1, 1, 3);
       } else ctx.fillRect(x, y, size + 1, size + 1);
     };
+    const ease = (x: number) => 1 - (1 - x) * (1 - x);
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / SWIRL_MS);
       ctx.clearRect(0, 0, W, H);
+
+      // smoke first, so the sparkles twinkle through it
+      if (t > BURST) {
+        const k = (t - BURST) / (1 - BURST);
+        for (const p of puffs) {
+          const local = Math.max(0, Math.min(1, (k - p.delay) / (1 - p.delay)));
+          if (!local) continue;
+          const d = ease(local) * p.reach;
+          const x = cx + Math.cos(p.a) * d;
+          const y = cy + Math.sin(p.a) * d * 0.8;
+          const r = p.size * (0.3 + ease(local));
+          const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+          g.addColorStop(0, `rgba(${p.pink},0.85)`);
+          g.addColorStop(1, `rgba(${p.pink},0)`);
+          ctx.fillStyle = g;
+          ctx.fillRect(x - r, y - r, r * 2, r * 2);
+        }
+        // by the end the smoke covers everything
+        ctx.globalAlpha = Math.max(0, (k - 0.45) / 0.55);
+        ctx.fillStyle = SMOKE;
+        ctx.fillRect(0, 0, W, H);
+        ctx.globalAlpha = 1;
+      }
+
       for (const p of parts) {
         const local = Math.max(0, Math.min(1, (t - p.delay) / (1 - p.delay)));
         if (local <= 0) continue;
         ctx.fillStyle = p.color;
         // a short fading trail makes the spiral read as motion
         for (let k = 3; k >= 0; k--) {
-          const pos = at(p, Math.max(0, local - k * 0.012));
+          const pos = at(p, Math.max(0, local - k * 0.015));
           ctx.globalAlpha = pos.alpha * (k ? 0.18 * (4 - k) : 0.7 + 0.3 * Math.sin(p.tw + now / 70));
           dot(pos.x, pos.y, k ? 0 : p.size);
         }
       }
-      // a bright flash at the eye of the whirlpool as it bursts
-      const flash = Math.max(0, 1 - Math.abs(t - 0.74) / 0.12);
-      if (flash > 0) {
-        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 70);
-        g.addColorStop(0, `rgba(255,255,255,${0.9 * flash})`);
-        g.addColorStop(1, "rgba(255,240,255,0)");
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, W, H);
-      }
       ctx.globalAlpha = 1;
       if (t < 1) raf = requestAnimationFrame(tick);
-      else setPhase("welcome");
+      else onDone();
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [phase]);
-
-  useEffect(() => {
-    if (phase === "welcome") {
-      const t = window.setTimeout(() => setPhase("out"), WELCOME_MS);
-      return () => clearTimeout(t);
-    }
-    if (phase === "out") {
-      const t = window.setTimeout(onDone, FADE_MS);
-      return () => clearTimeout(t);
-    }
   }, [phase, onDone]);
 
   // the TV and caption get sucked into the whirlpool
@@ -191,14 +204,13 @@ export function Intro({ name, onDone }: { name: string | null; onDone: () => voi
   const swirlAway = {
     transform: sucked ? "scale(0) rotate(540deg)" : "none",
     opacity: sucked ? 0 : 1,
-    transition: `transform ${SWIRL_MS * 0.7}ms cubic-bezier(.55,0,.85,.4), opacity ${SWIRL_MS * 0.7}ms cubic-bezier(.9,0,1,1)`,
+    transition: `transform ${SWIRL_MS * 0.55}ms cubic-bezier(.55,0,.85,.4), opacity ${SWIRL_MS * 0.55}ms cubic-bezier(.9,0,1,1)`,
     transformOrigin: `${STAGE_W / 2}px ${TV.y + TV.h / 2 + 30}px`,
   };
-  const headline = closetHeadline(name);
 
   return (
     <div style={{ position: "absolute", inset: 0, background: C.black, zIndex: 45 }}>
-      <div className="fade-in" style={{ position: "absolute", inset: 0, opacity: phase === "out" ? 0 : 1, transition: `opacity ${FADE_MS}ms steps(5)` }}>
+      <div className="fade-in" style={{ position: "absolute", inset: 0 }}>
         <Leopard box={{ x: 0, y: 0, w: STAGE_W, h: STAGE_H }} />
 
         <div style={{ position: "absolute", inset: 0, ...swirlAway }}>
@@ -218,16 +230,9 @@ export function Intro({ name, onDone }: { name: string | null; onDone: () => voi
           </div>
         </div>
 
-        {/* the room dims as the whirlpool spins up, so the sparkles pop */}
-        <div style={{ position: "absolute", inset: 0, background: C.frameDark, opacity: phase === "swirl" ? 0.6 : phase === "brew" ? 0 : 0.35, transition: "opacity 700ms", pointerEvents: "none" }} />
+        {/* the room brightens as the whirlpool spins up */}
+        <div style={{ position: "absolute", inset: 0, background: C.white, opacity: phase === "swirl" ? 0.45 : 0, transition: `opacity ${SWIRL_MS * 0.6}ms ease-out`, pointerEvents: "none" }} />
         <canvas ref={sparkles} width={STAGE_W / RES} height={STAGE_H / RES} style={{ position: "absolute", inset: 0, width: STAGE_W, height: STAGE_H, imageRendering: "pixelated", pointerEvents: "none" }} />
-
-        {(phase === "welcome" || phase === "out") && (
-          <div className="fade-in" style={{ position: "absolute", left: 70, top: 150, width: 500, height: 150, background: C.navy, boxSizing: "border-box", border: `4px solid ${C.lavender}`, boxShadow: `5px 5px 0 ${C.frameDark}`, display: "grid", placeItems: "center", alignContent: "center", gap: 14 }}>
-            <PixelText text="WELCOME TO" color={C.lavender} sx={2.5} sy={2.8} />
-            <PixelLines text={headline} maxWidth={470} color={C.white} sx={headline.length > 14 ? 3.4 : 4.6} sy={5} bold shadow={C.btnBlue} />
-          </div>
-        )}
 
         {phase === "brew" && (
           <Bevel box={{ x: 560, y: 444, w: 70, h: 26 }} tone="gray" onClick={swirl} label="Skip intro" style={{ borderWidth: 2 }}>

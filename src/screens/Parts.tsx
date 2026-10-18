@@ -60,12 +60,10 @@ export function Leopard({ box }: { box: Box }) {
   );
 }
 
-export function Header({ title, season = "FALL FASHIONS", onStyle, styleHint, onSaveLook, saveLabel = "SAVE LOOK", onLooks, looksHint }: {
+export function Header({ title, season = "FALL FASHIONS", onStyle, onSaveLook, saveLabel = "SAVE LOOK", onLooks, looksHint }: {
   title: string;
   season?: string;
   onStyle?: () => void;
-  /** tiny explainer under MY STYLE */
-  styleHint?: string;
   onSaveLook?: () => void;
   saveLabel?: string;
   onLooks?: () => void;
@@ -113,16 +111,6 @@ export function Header({ title, season = "FALL FASHIONS", onStyle, styleHint, on
           style={{ ...pos(L.saveHint), padding: 0, border: 0, background: C.navy, display: "grid", placeItems: "center", cursor: "pointer", zIndex: 4 }}
         >
           <PixelText text={looksHint} color={C.lavender} sx={1} sy={1.4} />
-        </button>
-      )}
-      {onStyle && styleHint && (
-        <button
-          type="button"
-          onClick={onStyle}
-          aria-label={styleHint}
-          style={{ ...pos(L.styleHint), padding: 0, border: 0, background: C.navy, display: "grid", placeItems: "center", cursor: "pointer", zIndex: 4 }}
-        >
-          <PixelText text={styleHint} color={C.lavender} sx={1} sy={1.4} />
         </button>
       )}
     </>

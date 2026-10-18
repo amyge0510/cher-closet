@@ -30,10 +30,12 @@ address: every step works without sending a text or saving anything.
 
 **Welcome intro.** Right after someone's first sign-in, a leopard screen plays
 the movie clip on a little TV. Under it, captions alternate between
-"BREWING..." and closet phrases every two seconds. When the clip ends, a
-whirlpool of sparkles sucks the TV and captions away and reveals "WELCOME TO
-AMY'S CLOSET", then it fades into the hangers. It plays once per account and
-has a SKIP button. Add `?preview=intro` to the address to watch it again.
+"BREWING..." and closet phrases every two seconds. When the clip ends, the
+screen brightens and a quick whirlpool of sparkles sucks the TV and captions
+away, then bursts into a light pink puff of smoke that clears to reveal the
+swinging hangers. It plays once per account and has a SKIP button. Add
+`?preview=intro` to the address to watch it again; that starts from a pretend
+sign-in, in the same order a new user sees.
 
 The clip lives at `public/intro.mp4`: about 11 seconds of the film's
 computer scene (hangers → browsing → MIS-MATCH! → Cher's reaction), cut from

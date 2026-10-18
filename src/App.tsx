@@ -23,7 +23,8 @@ const PREVIEW_SIGNIN = PREVIEW === "signin";
 // ?preview=intro replays the welcome intro even if it has been seen
 const PREVIEW_INTRO = PREVIEW === "intro";
 
-function SignInPreview() {
+// `onDone` runs after the last step; by default it just reloads the app.
+function SignInPreview({ onDone = () => (window.location.search = "") }: { onDone?: () => void }) {
   const [named, setNamed] = useState(false);
   const pause = () => new Promise<void>((done) => setTimeout(done, 600));
   return (
@@ -36,7 +37,7 @@ function SignInPreview() {
       }}
       saveName={async () => {
         await pause();
-        window.location.search = "";
+        onDone();
       }}
     />
   );
@@ -48,6 +49,8 @@ export function App() {
   const name = auth.status === "signedIn" || auth.status === "guest" ? auth.name : null;
   // the welcome intro plays once per account, right after first sign-in
   const [introDone, setIntroDone] = useState(false);
+  // ?preview=intro walks through a pretend sign-in first, like a new user
+  const [previewSignedIn, setPreviewSignedIn] = useState(false);
   const introSeen = auth.status === "signedIn" ? introSeenOf(auth.user) : loadGuest<boolean>(GUEST_INTRO_KEY) === true;
   const finishIntro = useCallback(() => {
     setIntroDone(true);
@@ -61,6 +64,8 @@ export function App() {
 
   let screen;
   if (PREVIEW_SIGNIN) screen = <SignInPreview />;
+  else if (PREVIEW_INTRO && !previewSignedIn) screen = <SignInPreview onDone={() => setPreviewSignedIn(true)} />;
+  else if (PREVIEW_INTRO && !introDone) screen = <Intro onDone={() => setIntroDone(true)} />;
   else if (auth.status === "loading") screen = null;
   else if (auth.status === "signedOut" || (auth.status === "signedIn" && !auth.name))
     screen = (
@@ -72,7 +77,7 @@ export function App() {
         onSkip={import.meta.env.DEV ? skip : undefined}
       />
     );
-  else if (!introDone && (PREVIEW_INTRO || !introSeen)) screen = <Intro name={name} onDone={finishIntro} />;
+  else if (!introDone && !introSeen) screen = <Intro onDone={finishIntro} />;
   else
     screen = (
       <Closet
@@ -84,6 +89,7 @@ export function App() {
         persistStyle={auth.status === "signedIn" ? saveStyle : saveGuestStyle}
         savedLooks={auth.status === "signedIn" ? looksOf(auth.user) : loadGuest<Look[]>(GUEST_LOOKS_KEY) ?? []}
         persistLooks={auth.status === "signedIn" ? saveLooks : (l) => saveGuest(GUEST_LOOKS_KEY, l)}
+        afterIntro={introDone}
       />
     );
 
@@ -111,7 +117,7 @@ async function saveGuest(key: string, value: unknown) {
 const loadGuestStyle = () => loadGuest<MyStyle>(GUEST_STYLE_KEY);
 const saveGuestStyle = (style: MyStyle) => saveGuest(GUEST_STYLE_KEY, style);
 
-function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLooks, persistLooks }: {
+function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLooks, persistLooks, afterIntro }: {
   title: string;
   signedIn: boolean;
   onSignOut?: () => void;
@@ -119,6 +125,8 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
   persistStyle: (s: MyStyle) => Promise<void>;
   savedLooks: Look[];
   persistLooks: (l: Look[]) => Promise<void>;
+  /** just came out of the intro: the hangers start under its pink smoke */
+  afterIntro: boolean;
 }) {
   const [looks, setLooks] = useState(savedLooks);
   const saveMyLooks = useCallback(
@@ -149,7 +157,7 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
   return (
     <>
       {state.screen === "splash" ? (
-        <Splash onDone={splashDone} />
+        <Splash onDone={splashDone} smokeIn={afterIntro} />
       ) : (
         <Wardrobe state={state} dispatch={dispatch} closet={closet} categories={categories} title={title} onSignOut={onSignOut} myStyle={myStyle} onSaveStyle={saveMyStyle} looks={looks} onSaveLooks={saveMyLooks} />
       )}
