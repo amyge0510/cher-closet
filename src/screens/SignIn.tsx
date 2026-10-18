@@ -21,6 +21,7 @@ const COPY: Record<Step, { title: string; label: string; button: string[] }> = {
 
 const WARDROBE_BUTTON = { x: 222, w: 204, h: 32, y: 182, gap: 8 };
 const WARDROBE_HINT_Y = 310;
+const PHONE_ERROR_Y = 360; // below the longer privacy note
 
 const CODE_LENGTH = 6;
 
@@ -102,7 +103,7 @@ export function SignIn({ needsName, needsWardrobe = false, sendCode, verifyCode,
       ? "PREVIEW ONLY. NOTHING IS SAVED."
       : "PREVIEW ONLY. NO TEXT IS SENT. ANY 6 DIGITS WORK."
     : step === "phone"
-      ? "WE'LL TEXT YOU A CODE. NO PASSWORDS."
+      ? "WE'LL TEXT YOU A CODE. YOUR NUMBER IS ONLY USED TO SIGN YOU IN AND KEEP YOUR CLOSET SAVED. NO ADS, NO SPAM, NEVER SOLD."
       : step === "code"
         ? `SENT TO ${e164 ?? phone}. WRONG NUMBER? HIT BACK.`
         : "IT GOES ON YOUR WARDROBE.";
@@ -157,7 +158,7 @@ export function SignIn({ needsName, needsWardrobe = false, sendCode, verifyCode,
         <PixelLines text={hint} maxWidth={inner} color={C.frame} sx={L.signHint.sx} sy={L.signHint.sy} />
       </div>
       {error && (
-        <div role="alert" style={centered(step === "wardrobe" ? WARDROBE_HINT_Y + 50 : L.signError.y)}>
+        <div role="alert" style={centered(step === "wardrobe" ? WARDROBE_HINT_Y + 50 : step === "phone" ? PHONE_ERROR_Y : L.signError.y)}>
           <PixelLines text={error} maxWidth={inner} color="#a3123a" sx={L.signError.sx} sy={L.signError.sy} />
         </div>
       )}

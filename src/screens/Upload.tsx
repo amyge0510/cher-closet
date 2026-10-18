@@ -2,12 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Category } from "../closet/categories";
 import type { Garment } from "../closet/types";
 import { PixelField } from "../pixel/PixelField";
-import { PixelImage } from "../pixel/PixelImage";
+import { GarmentImage } from "../pixel/GarmentImage";
 import { PixelLines, PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
 import { L } from "../stage/layout";
 import { leaf, type Wardrobe } from "../style/styles";
-import { finishCutout, forTagging, loadPhoto, pngBlob, removeBackground, type Progress } from "../upload/cutout";
+import { findPieces, finishCutout, forTagging, loadPhoto, pngBlob, type Piece, type Progress } from "../upload/cutout";
 import { Scanner } from "../upload/Scanner";
 import { garmentFrom, tagCategories, tagGarment, type Tags } from "../upload/tags";
 import { Bevel } from "./Parts";
@@ -19,7 +19,7 @@ import { Bevel } from "./Parts";
 type Phase =
   | { kind: "pick" }
   | { kind: "cutting"; photo: HTMLCanvasElement; progress: { what: "download" | "cut"; f: number } | null }
-  | { kind: "popping"; photo: HTMLCanvasElement; cut: HTMLCanvasElement }
+  | { kind: "popping"; photo: HTMLCanvasElement; cut: HTMLCanvasElement; hint?: string }
   | { kind: "tagging"; photo: HTMLCanvasElement; cut: HTMLCanvasElement }
   | { kind: "show"; image: string; png: Blob; tags: Tags; how: "claude" | "guess"; fixing: boolean }
   | { kind: "error"; message: string };
@@ -46,6 +46,8 @@ export function Upload({ categories, wardrobe, incoming, onFile, onClose }: {
   const [total, setTotal] = useState(0);
   const [phase, setPhase] = useState<Phase>({ kind: "pick" });
   const [phrase, setPhrase] = useState(0);
+  // the pieces found in the current photo that are still to be filed
+  const [pieces, setPieces] = useState<{ photo: HTMLCanvasElement; left: Piece[]; total: number } | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const box = L.uploadBox;
   const cats = tagCategories(categories);
@@ -71,9 +73,20 @@ export function Upload({ categories, wardrobe, incoming, onFile, onClose }: {
         if (cancelled) return;
         setPhase({ kind: "cutting", photo, progress: null });
         const progress: Progress = (what, f) => !cancelled && setPhase((p) => (p.kind === "cutting" ? { ...p, progress: { what, f } } : p));
-        const { canvas: cut } = await removeBackground(photo, progress);
+        const found = await findPieces(photo, progress);
         if (cancelled) return;
-        setPhase({ kind: "popping", photo, cut });
+        if (!found.pieces.length) {
+          setPhase({
+            kind: "error",
+            message: found.problem
+              ? `THE BACKGROUND REMOVER COULDN'T LOAD. CHECK YOUR CONNECTION AND TRY AGAIN. (${found.problem})`
+              : "COULDN'T FIND ANY CLOTHES IN THAT PHOTO. TRY ONE WITH THE OUTFIT IN FULL VIEW.",
+          });
+          return;
+        }
+        const [first, ...rest] = found.pieces;
+        setPieces({ photo, left: rest, total: found.pieces.length });
+        setPhase({ kind: "popping", photo, cut: first.canvas, hint: first.hint });
       } catch (e) {
         console.error(e);
         if (!cancelled) setPhase({ kind: "error", message: "THAT PHOTO WOULDN'T OPEN. TRY A JPEG OR PNG." });
@@ -86,10 +99,10 @@ export function Upload({ categories, wardrobe, incoming, onFile, onClose }: {
 
   // once the background has popped away: tag it
   const tag = useCallback(
-    async (photo: HTMLCanvasElement, cut: HTMLCanvasElement) => {
+    async (photo: HTMLCanvasElement, cut: HTMLCanvasElement, hint?: string) => {
       setPhase({ kind: "tagging", photo, cut });
       const final = finishCutout(cut);
-      const [{ tags, how }, png] = await Promise.all([tagGarment(final, await forTagging(final), cats, wardrobe), pngBlob(final)]);
+      const [{ tags, how }, png] = await Promise.all([tagGarment(final, await forTagging(final), cats, wardrobe, hint), pngBlob(final)]);
       setPhase({ kind: "show", image: final.toDataURL("image/png"), png, tags, how, fixing: false });
     },
     [cats.join(), wardrobe],
@@ -112,13 +125,25 @@ export function Upload({ categories, wardrobe, incoming, onFile, onClose }: {
     if (!queue.length && phase.kind === "pick") setTotal(0);
   }, [queue.length, phase.kind]);
 
+  // the next piece from the same photo, or the next photo
+  const advance = useCallback(() => {
+    if (pieces?.left.length) {
+      const [piece, ...rest] = pieces.left;
+      setPieces({ ...pieces, left: rest });
+      setPhase({ kind: "popping", photo: pieces.photo, cut: piece.canvas, hint: piece.hint });
+      return;
+    }
+    setPieces(null);
+    if (queue.length <= 1) onClose();
+    next();
+  }, [pieces, queue.length, onClose, next]);
+
   const file = useCallback(() => {
     if (phase.kind !== "show") return;
     const g = garmentFrom(crypto.randomUUID(), phase.image, phase.tags);
     onFile(g, phase.png, imageBox);
-    if (queue.length <= 1) onClose();
-    next();
-  }, [phase, onFile, queue.length, onClose, next]);
+    advance();
+  }, [phase, onFile, advance]);
 
   // Claude's tags file themselves after a moment, unless you hit FIX IT
   useEffect(() => {
@@ -129,7 +154,9 @@ export function Upload({ categories, wardrobe, incoming, onFile, onClose }: {
 
   const setTags = (patch: Partial<Tags>) => setPhase((p) => (p.kind === "show" ? { ...p, tags: { ...p.tags, ...patch } } : p));
   const catLabel = (id: string) => categories.find((c) => c.id === id)?.label ?? id.toUpperCase();
-  const position = total > 1 ? `${total - queue.length + 1} OF ${total}` : "";
+  const position = [total > 1 && `PHOTO ${total - queue.length + 1} OF ${total}`, pieces && pieces.total > 1 && `PIECE ${pieces.total - pieces.left.length} OF ${pieces.total}`]
+    .filter(Boolean)
+    .join(" · ");
 
   let body;
   if (phase.kind === "pick") {
@@ -179,7 +206,7 @@ export function Upload({ categories, wardrobe, incoming, onFile, onClose }: {
     body = (
       <>
         <div style={{ position: "absolute", left: imageBox.x, top: imageBox.y }}>
-          <Scanner size={SCAN} photo={phase.photo} cutout={cut} onCleared={phase.kind === "popping" ? () => tag(phase.photo, phase.cut) : undefined} />
+          <Scanner size={SCAN} photo={phase.photo} cutout={cut} onCleared={phase.kind === "popping" ? () => tag(phase.photo, phase.cut, phase.hint) : undefined} />
         </div>
         <div style={{ position: "absolute", left: box.x + pad, top: imageBox.y + SCAN + 18, width: box.w - pad * 2 }}>
           <PixelLines text={phase.kind === "tagging" ? "TAGGING" : "REMOVING THE BACKGROUND"} maxWidth={box.w - pad * 2} color={C.invEdge} sx={2} sy={2.4} bold />
@@ -195,7 +222,7 @@ export function Upload({ categories, wardrobe, incoming, onFile, onClose }: {
     body = (
       <>
         <div style={{ position: "absolute", left: imageBox.x, top: imageBox.y, width: SCAN, height: phase.fixing ? 120 : SCAN, background: C.invSlot, display: "grid", placeItems: "center", boxSizing: "border-box", border: `3px solid ${C.invEdge}` }}>
-          <PixelImage key={phase.image} src={phase.image} w={phase.fixing ? 100 : SCAN - 24} h={phase.fixing ? 100 : SCAN - 24} pixel={2} fill={0.95} outline={C.white} />
+          <GarmentImage key={phase.image} src={phase.image} w={phase.fixing ? 100 : SCAN - 24} h={phase.fixing ? 100 : SCAN - 24} fill={0.95} outline={C.white} />
         </div>
         {!phase.fixing ? (
           <div style={{ position: "absolute", left: box.x + pad, top: imageBox.y + SCAN + 10, width: box.w - pad * 2, display: "grid", gap: 6, justifyItems: "center" }}>
@@ -229,10 +256,13 @@ export function Upload({ categories, wardrobe, incoming, onFile, onClose }: {
             </div>
           </>
         )}
-        <Bevel box={{ x: box.x + pad, y: box.y + box.h - pad - 34, w: 150, h: 34 }} tone="gray" onClick={() => setPhase({ ...phase, fixing: !phase.fixing })} label="Fix the tags" style={{ borderWidth: 2 }}>
-          <PixelText text={phase.fixing ? "DONE FIXING" : "FIX IT"} color={C.ink} sx={1.8} sy={2} bold />
+        <Bevel box={{ x: box.x + pad, y: box.y + box.h - pad - 34, w: 104, h: 34 }} tone="gray" onClick={advance} label="Skip this piece" title="Don't file this one" style={{ borderWidth: 2 }}>
+          <PixelText text="SKIP" color={C.ink} sx={1.8} sy={2} bold />
         </Bevel>
-        <Bevel box={{ x: box.x + box.w - pad - 170, y: box.y + box.h - pad - 34, w: 170, h: 34 }} tone="blue" onClick={file} label="File it" style={{ borderWidth: 2 }}>
+        <Bevel box={{ x: box.x + pad + 112, y: box.y + box.h - pad - 34, w: 120, h: 34 }} tone="gray" onClick={() => setPhase({ ...phase, fixing: !phase.fixing })} label="Fix the tags" style={{ borderWidth: 2 }}>
+          <PixelText text={phase.fixing ? "DONE" : "FIX IT"} color={C.ink} sx={1.8} sy={2} bold />
+        </Bevel>
+        <Bevel box={{ x: box.x + box.w - pad - 120, y: box.y + box.h - pad - 34, w: 120, h: 34 }} tone="blue" onClick={file} label="File it" style={{ borderWidth: 2 }}>
           <PixelText text="FILE IT" color={C.white} sx={1.8} sy={2} bold shadow={C.btnBlueDark} />
         </Bevel>
       </>
@@ -241,9 +271,9 @@ export function Upload({ categories, wardrobe, incoming, onFile, onClose }: {
     body = (
       <>
         <div style={{ position: "absolute", left: box.x + pad, top: box.y + 140, width: box.w - pad * 2 }}>
-          <PixelLines text={phase.message} maxWidth={box.w - pad * 2} color="#a3123a" sx={2} sy={2.4} />
+          <PixelLines text={phase.message} maxWidth={box.w - pad * 2} color="#a3123a" sx={1.6} sy={2} />
         </div>
-        <Bevel box={{ x: box.x + (box.w - 170) / 2, y: box.y + 230, w: 170, h: 34 }} tone="blue" onClick={next} label="OK" style={{ borderWidth: 2 }}>
+        <Bevel box={{ x: box.x + (box.w - 170) / 2, y: box.y + 250, w: 170, h: 34 }} tone="blue" onClick={advance} label="OK" style={{ borderWidth: 2 }}>
           <PixelText text="OK" color={C.white} sx={1.8} sy={2} bold />
         </Bevel>
       </>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from
 import { categoriesFor, type Category } from "../closet/categories";
 import { judgeOutfit, matchingPairs } from "../closet/match";
 import type { Garment, Look, Slot } from "../closet/types";
-import { PixelImage } from "../pixel/PixelImage";
+import { GarmentImage } from "../pixel/GarmentImage";
 import { PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
 import { extraSpot, L, type Box } from "../stage/layout";
@@ -24,7 +24,7 @@ function GarmentPanel({ box, garment, matched }: { box: Box; garment?: Garment; 
   return (
     <div style={{ ...pos(box), background: matched ? C.panelMatch : C.panel, display: "grid", placeItems: "center" }}>
       {garment && (
-        <PixelImage key={garment.id} src={garment.image} w={box.w - 16} h={box.h - 10} pixel={2} fill={0.92} outline={C.white} />
+        <GarmentImage key={garment.id} src={garment.image} w={box.w - 16} h={box.h - 10} fill={0.92} outline={C.white} />
       )}
     </div>
   );
@@ -41,7 +41,7 @@ function ExtraSticker({ garment, onTakeOff }: { garment: Garment; onTakeOff: () 
       onClick={onTakeOff}
       style={{ ...pos(b), padding: 0, border: 0, background: "transparent", cursor: "pointer", zIndex: 3 }}
     >
-      <PixelImage key={garment.id} src={garment.image} w={b.w} h={b.h} pixel={2} fill={0.9} outline={C.white} />
+      <GarmentImage key={garment.id} src={garment.image} w={b.w} h={b.h} fill={0.9} outline={C.white} />
     </button>
   );
 }
@@ -67,7 +67,7 @@ function FlyingItem({ garment, from, to, onLanded }: { garment: Garment; from: {
       className="fly-to-tab"
       style={{ position: "absolute", left: from.x, top: from.y, width: from.size, height: from.size, zIndex: 40, pointerEvents: "none", ["--dx" as string]: `${dx}px`, ["--dy" as string]: `${dy}px`, animationDuration: `${FLY_MS}ms` }}
     >
-      <PixelImage src={garment.image} w={from.size} h={from.size} pixel={2} fill={0.9} outline={C.white} />
+      <GarmentImage src={garment.image} w={from.size} h={from.size} fill={0.9} outline={C.white} />
     </div>
   );
 }

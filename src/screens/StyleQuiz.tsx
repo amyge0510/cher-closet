@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Garment } from "../closet/types";
-import { PixelImage } from "../pixel/PixelImage";
+import { GarmentImage } from "../pixel/GarmentImage";
 import { PixelLines, PixelText } from "../pixel/PixelText";
 import { back, boardsFor, choose, newOutfits, QUESTIONS, result, resultBoard, startQuiz, STEP_TITLES, type BoardItem, type QuizState } from "../style/quiz";
 import { family, leaf, type MyStyle, type Wardrobe } from "../style/styles";
@@ -34,12 +34,11 @@ export function Board({ items, bg, w, h, onPick, label }: { items: BoardItem[]; 
       }}
     >
       {items.map(({ garment, box }) => (
-        <PixelImage
+        <GarmentImage
           key={garment.id}
           src={garment.image}
           w={Math.round(box.w * (w - 6))}
           h={Math.round(box.h * (h - 6))}
-          pixel={2}
           outline={C.white}
           style={{ position: "absolute", left: Math.round(box.x * (w - 6)), top: Math.round(box.y * (h - 6)) }}
         />

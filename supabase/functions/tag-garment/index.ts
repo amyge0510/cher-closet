@@ -58,6 +58,8 @@ Deno.serve(async (req) => {
     .slice(0, 40);
   if (!categories.length || !colors.length || !patterns.length || !styles.length) return json({ error: "missing lists" }, 400);
   const wardrobe = WARDROBE[String(body.wardrobe)] ?? WARDROBE.both;
+  // the category the app's clothes model saw, if any (e.g. "skirts")
+  const hint = categories.includes(String(body.hint)) ? String(body.hint) : null;
 
   const schema = {
     type: "object",
@@ -73,8 +75,8 @@ Deno.serve(async (req) => {
     additionalProperties: false,
   };
 
-  const prompt = `This is a photo of one item from someone's closet, with the background removed. Tag it so the app can file it.
-${wardrobe}
+  const prompt = `This is a photo of one item from someone's closet, with the background removed. It may have been cut out of a photo of someone wearing it, so its edges can be rough. Tag it so the app can file it.
+${wardrobe}${hint ? `\nThe app's clothes detector thinks it belongs in "${hint}"; go with that unless it's clearly wrong.` : ""}
 
 - category: where it goes. Sweaters, cardigans and knit vests are "sweaters" if that's listed; shirts, tees, jackets and coats are "tops"; pants, jeans and shorts are "bottoms"; socks and tights are "pantyhose".
 - name: short and plain, the way you'd label it on a shelf.

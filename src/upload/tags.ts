@@ -54,13 +54,13 @@ const defaultName = (colors: string[], category: string) =>
   `${titleCase(colors[0] === "babypink" ? "pink" : colors[0] ?? "")} ${SINGULAR[category] ?? titleCase(category)}`.trim();
 
 // Asks Claude (via the Edge Function) to tag the cut-out. `jpeg` is base64.
-async function askClaude(jpeg: string, categories: string[], wardrobe: Wardrobe): Promise<Tags | null> {
+async function askClaude(jpeg: string, categories: string[], wardrobe: Wardrobe, hint?: string): Promise<Tags | null> {
   if (!supabase) return null;
   const { data: session } = await supabase.auth.getSession();
   if (!session.session) return null; // the function only answers signed-in users
   const styles = LEAVES.filter((l) => forWardrobe(l, wardrobe)).map((l) => ({ id: l.id, label: l.label }));
   const { data, error } = await supabase.functions.invoke("tag-garment", {
-    body: { image: jpeg, categories, colors: COLORS, patterns: PATTERNS, styles, wardrobe },
+    body: { image: jpeg, categories, colors: COLORS, patterns: PATTERNS, styles, wardrobe, hint },
   });
   if (error) {
     console.warn("tagging function unavailable, guessing instead:", error);
@@ -69,17 +69,20 @@ async function askClaude(jpeg: string, categories: string[], wardrobe: Wardrobe)
   return normalizeTags(data, categories);
 }
 
-// The tags for a cut-out, and whether they're Claude's or a guess.
-export async function tagGarment(cutout: HTMLCanvasElement, jpeg: string, categories: string[], wardrobe: Wardrobe): Promise<{ tags: Tags; how: "claude" | "guess" }> {
+// The tags for a cut-out, and whether they're Claude's or a guess. `hint` is
+// the category the clothes model saw (e.g. "skirts"), when it found one.
+export async function tagGarment(cutout: HTMLCanvasElement, jpeg: string, categories: string[], wardrobe: Wardrobe, hint?: string): Promise<{ tags: Tags; how: "claude" | "guess" }> {
   try {
-    const tags = await askClaude(jpeg, categories, wardrobe);
+    const tags = await askClaude(jpeg, categories, wardrobe, hint);
     if (tags) return { tags, how: "claude" };
   } catch (e) {
     console.warn("tagging failed, guessing instead:", e);
   }
   const ctx = cutout.getContext("2d")!;
   const { data } = ctx.getImageData(0, 0, cutout.width, cutout.height);
-  return { tags: guessTags(data, cutout.width, cutout.height), how: "guess" };
+  const guess = guessTags(data, cutout.width, cutout.height);
+  if (hint && categories.includes(hint)) Object.assign(guess, { category: hint, name: defaultName(guess.colors, hint) });
+  return { tags: guess, how: "guess" };
 }
 
 // --- the fallback guess, from the pixels alone ---

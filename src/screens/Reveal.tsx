@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { LAYERS, PLACEHOLDER_ANCHORS, placeholderBody, type Anchor, type BodyAnchors, type Figure } from "../closet/body";
 import type { Garment } from "../closet/types";
-import { containBox, crunch, loadImage, makeCanvas, rng } from "../pixel/raster";
+import { containBox, loadImage, makeCanvas, rng } from "../pixel/raster";
 
 type Props = {
   w: number;
@@ -19,8 +19,10 @@ type Props = {
   onDone?: () => void;
 };
 
-const RES = 2; // stage pixels per canvas pixel
-const CELL = 3; // dissolve block size, canvas pixels
+// Drawn at 3 canvas pixels per stage pixel so the clothes stay sharp; only
+// the dissolve itself comes in blocks, like a slow 1995 modem picture.
+const RES = 1 / 3; // stage pixels per canvas pixel
+const CELL = 18; // dissolve block size, canvas pixels (6 stage pixels)
 const HOLD_MS = 700; // show the bare body first
 const DISSOLVE_MS = 1300;
 
@@ -58,7 +60,6 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
 
     (async () => {
       const body = await bodyCanvas(bodySrc, cw, ch, figure);
-      crunch(body, { levels: 10 });
       const outfit = makeCanvas(cw, ch);
       const octx = outfit.getContext("2d")!;
       for (const layer of LAYERS) {
@@ -71,7 +72,6 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
         const a = anchors.extras[layer];
         if (g && a) await place(octx, g.image, a, cw, ch);
       }
-      crunch(outfit, { levels: 10 });
       if (cancelled) return;
 
       vctx.clearRect(0, 0, cw, ch);
@@ -112,5 +112,5 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
     // extrasKey stands in for `extras`, which is a new array every render
   }, [w, h, top.image, bottom.image, extrasKey, bodySrc, figure, anchors, animate, onDone]);
 
-  return <canvas ref={ref} style={{ width: w, height: h, imageRendering: "pixelated", display: "block" }} />;
+  return <canvas ref={ref} style={{ width: w, height: h, imageRendering: "auto", display: "block" }} />;
 }

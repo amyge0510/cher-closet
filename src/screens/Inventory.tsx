@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerE
 import type { Category } from "../closet/categories";
 import type { Garment, Slot } from "../closet/types";
 import { PixelField } from "../pixel/PixelField";
-import { PixelImage } from "../pixel/PixelImage";
+import { GarmentImage } from "../pixel/GarmentImage";
 import { PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
 import { extraSpot, L, type Box } from "../stage/layout";
@@ -207,7 +207,7 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
                 touchAction: "none",
               }}
             >
-              {g && <PixelImage src={g.image} w={S - 6} h={S - 6} pixel={2} fill={0.95} />}
+              {g && <GarmentImage src={g.image} w={S - 6} h={S - 6} fill={0.95} />}
             </div>
           ))}
         </div>
@@ -259,7 +259,7 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
             />
           )}
           <div style={{ position: "absolute", left: drag.x - DRAG_ICON / 2, top: drag.y - DRAG_ICON / 2, zIndex: 24, pointerEvents: "none" }}>
-            <PixelImage src={drag.g.image} w={DRAG_ICON} h={DRAG_ICON} pixel={2} outline={C.white} />
+            <GarmentImage src={drag.g.image} w={DRAG_ICON} h={DRAG_ICON} outline={C.white} />
           </div>
         </>
       )}

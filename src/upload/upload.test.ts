@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BUILT_IN, categoriesFor } from "../closet/categories";
 import type { Garment } from "../closet/types";
-import { clearEdgeBackground } from "./cutout";
+import { clearEdgeBackground, fillSeams, keepMainBlobs } from "./cutout";
 import { guessTags, nearestColor, normalizeTags, tagCategories } from "./tags";
 
 // A w x h RGBA picture filled with `bg`, with a `fg` rectangle in it.
@@ -39,6 +39,34 @@ describe("edge background fallback", () => {
     const d = picture(20, 20, [10, 200, 30], [10, 200, 30], [0, 0, 20, 20]);
     clearEdgeBackground(d, 20, 20);
     expect(alphaAt(d, 20, 10, 10)).toBe(255);
+  });
+});
+
+describe("keepMainBlobs", () => {
+  it("keeps the garment and drops stray specks", () => {
+    const w = 20;
+    const m = new Uint8Array(w * w);
+    for (let y = 2; y < 14; y++) for (let x = 2; x < 12; x++) m[y * w + x] = 1; // the garment
+    m[18 * w + 18] = 1; // a speck
+    const share = keepMainBlobs(m, w, w);
+    expect(m[18 * w + 18]).toBe(0);
+    expect(m[5 * w + 5]).toBe(1);
+    expect(share).toBeCloseTo(120 / 121, 3);
+  });
+
+  it("closes hairline seams so a striped shirt stays one piece", () => {
+    const w = 10;
+    const m = new Uint8Array(w * w).fill(1);
+    for (let x = 0; x < w; x++) m[5 * w + x] = 0;
+    fillSeams(m, w, w);
+    expect(m[5 * w + 4]).toBe(1);
+  });
+
+  it("says when what's left is scattered bits", () => {
+    const w = 30;
+    const m = new Uint8Array(w * w);
+    for (let i = 0; i < w * w; i += 7) m[i] = 1;
+    expect(keepMainBlobs(m, w, w)).toBeLessThan(0.1);
   });
 });
 

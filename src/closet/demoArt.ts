@@ -134,9 +134,13 @@ function tracePath(ctx: CanvasRenderingContext2D, def: ShapeDef) {
   }
 }
 
+// drawn at 2x so the pieces stay crisp now that garments aren't pixelated
+const SCALE = 2;
+
 export function drawDemo(spec: DemoSpec): string {
-  const canvas = makeCanvas(SIZE, SIZE);
+  const canvas = makeCanvas(SIZE * SCALE, SIZE * SCALE);
   const ctx = canvas.getContext("2d")!;
+  ctx.scale(SCALE, SCALE);
   const def = SHAPES[spec.shape];
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
@@ -174,7 +178,7 @@ export function drawDemo(spec: DemoSpec): string {
     ctx.strokeStyle = "rgba(10,8,20,0.8)";
     ctx.stroke();
   }
-  return trimCanvas(canvas).toDataURL();
+  return trimCanvas(canvas, 2 * SCALE).toDataURL();
 }
 
 const images = new Map<string, string>();

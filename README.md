@@ -21,8 +21,9 @@ through the tops on its own (the row's ▶▶ lights up), then the bottoms, and
 settles on an outfit; press it again to stop. Once you're dressed, it becomes
 **AUTO DRESS**.
 
-**Sign-in.** People sign in with their phone number: a code arrives by text,
-then they give their first name, and the header becomes "AMY'S WARDROBE".
+**Sign-in.** People sign in with their phone number. The screen says the
+number is only used to sign in and keep the closet saved: no ads, no spam,
+never sold. A code arrives by text, then they give their first name, and the header becomes "AMY'S WARDROBE".
 Sign-ins aren't remembered, so every visit starts on the sign-in screen and
 needs a new code. Returning users skip the name step, since their name is
 kept with the account.
@@ -149,17 +150,27 @@ Uploads are saved to the account. Until someone has uploaded at least one
 top and one bottom, their pieces are mixed in with the demo rack (theirs
 come first in each category). After that, only their own clothes show.
 
-Background removal runs in the browser with
-[`@imgly/background-removal`](https://github.com/imgly/background-removal-js).
-It's free, needs no account or key, and the photo never leaves the computer.
-The first upload downloads the model (about 40MB) from IMG.LY's servers, and
-the browser keeps it after that. If the model can't load, a simple fallback
-clears everything that matches the photo's edges, which works for clothes
-laid on a plain bed, floor or wall. The library is AGPL-licensed: that's
-fine while this repo's code is public. A closed-source or paid app would
-need IMG.LY's commercial license, or a hosted service instead, such as
-remove.bg or a BiRefNet model on Replicate or fal. A hosted service would be
-called from an Edge Function like the tagger, so its key stays private.
+Background removal runs in the browser, for free, with no account or key,
+and photos never leave the computer. The models download the first time
+(and the browser keeps them):
+
+1. A clothes model, [SegFormer for clothes](https://huggingface.co/Xenova/segformer_b2_clothes),
+   run with [Transformers.js](https://github.com/huggingface/transformers.js)
+   (MIT and Apache licenses, about 30MB from Hugging Face). When the photo
+   shows someone wearing an outfit, it finds each piece separately: the top,
+   skirt or pants, a dress, shoes, a bag, a hat, a scarf. Each piece then gets
+   its own pop, tag and filing ("PIECE 1 OF 2"), and SKIP drops a piece you
+   don't want.
+2. With no one in the photo (a flat lay or a hanger shot), a general
+   background remover, [`@imgly/background-removal`](https://github.com/imgly/background-removal-js),
+   cuts out the one item. It downloads about 40MB from IMG.LY. It's
+   AGPL-licensed, which is fine while this repo's code is public; a
+   closed-source or paid app would need IMG.LY's commercial license or a
+   hosted service.
+3. If neither model loads, a simple fallback clears everything matching the
+   photo's edges. That only works on plain backgrounds, so its result is only
+   used when what's left is one clean piece; otherwise the pop-up says the
+   background remover couldn't load, instead of filing junk.
 
 Tagging uses Claude, through the Supabase Edge Function in
 `supabase/functions/tag-garment`, which keeps the API key on the server (see
@@ -195,8 +206,12 @@ production build.
 | `src/dev/` | The ghost overlay (dev only) |
 | `supabase/migrations/` | Database schema for per-user closets |
 
-Everything is pixelated on purpose. Text is drawn as square SVG blocks.
-Images are drawn small onto a canvas, then scaled up without smoothing.
+The screen is pixelated on purpose: text is drawn as square SVG blocks, and
+the leopard print and hanger art are drawn small and scaled up without
+smoothing. The clothes are not. As on the film's monitor, each garment shows
+as the real photo, drawn sharp, with a thin soft white outline
+(`src/pixel/GarmentImage.tsx`). Only the reveal's dissolve and the upload
+scanner come in blocks.
 
 ## Supabase
 
