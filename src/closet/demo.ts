@@ -47,12 +47,12 @@ export const DEMO_SPECS: DemoSpec[] = [
   item("tops", "vest", "Plaid Sweater Vest", burgundyPlaid, ["burgundy", "black"], ["clueless", "academia"], { id: "demo-vest", set: "burgundy-plaid", band: "#2a1018" }),
   item("tops", "cropJacket", "Patchwork Crop Jacket", { kind: "split", left: monoPlaid, right: solid("#16141e") }, ["black", "white"], ["grunge", "punk"], { id: "demo-crop-jacket" }),
   item("tops", "blazer", "Yellow Plaid Blazer", yellowPlaid, ["yellow", "black"], ["clueless"], { id: "demo-blazer", set: "yellow-plaid" }),
-  item("tops", "tee", "White Baby Tee", solid("#f2f0f4"), ["white"], ["clean", "y2k", "tennis", "minimal"], { id: "demo-tee" }),
+  item("tops", "tee", "White Baby Tee", solid("#f2f0f4"), ["white"], ["clean", "y2k", "tennis", "minimal", "everyday"], { id: "demo-tee" }),
   item("tops", "tee", "Pink Fitted Tee", solid("#f08ab8"), ["pink"], ["y2k", "coquette"], { id: "demo-pink" }),
   item("skirts", "mini", "Plaid Mini", burgundyPlaid, ["burgundy", "black"], ["clueless", "academia"], { id: "demo-plaid-mini", set: "burgundy-plaid" }),
   item("skirts", "aline", "Black Skater Skirt", solid("#121018"), ["black"], ["academia", "minimal"], { id: "demo-black-skirt" }),
   item("skirts", "mini", "Yellow Plaid Mini", yellowPlaid, ["yellow", "black"], ["clueless"], { id: "demo-yellow-mini", set: "yellow-plaid" }),
-  item("bottoms", "pants", "Light Wash Jeans", solid("#7c9cc8"), ["denim"], ["street", "grunge", "clean"], { id: "demo-jeans" }),
+  item("bottoms", "pants", "Light Wash Jeans", solid("#7c9cc8"), ["denim"], ["street", "grunge", "clean", "everyday"], { id: "demo-jeans" }),
   item("skirts", "mini", "White Mini", solid("#eeeaf0"), ["white"], ["tennis", "clean", "y2k"], { id: "demo-white-mini" }),
 
   // tops
@@ -71,19 +71,19 @@ export const DEMO_SPECS: DemoSpec[] = [
   item("tops", "blouse", "Lace Peasant Blouse", dots("#f6efe2", "#e2d4bc", 8), ["cream", "white"], ["cottage", "coquette"]),
   item("tops", "blouse", "Floral Blouse", dots("#f2e4c8", "#c86070", 10), ["cream", "pink", "green"], ["cottage"]),
   item("tops", "cropTop", "Butterfly Crop Top", solid("#c8b0f0"), ["lavender"], ["y2k"]),
-  item("tops", "hoodie", "Gray Zip Hoodie", solid("#9a9aa2"), ["gray"], ["athleisure", "street"]),
+  item("tops", "hoodie", "Gray Zip Hoodie", solid("#9a9aa2"), ["gray"], ["athleisure", "street", "everyday"]),
   item("tops", "hoodie", "Oversized Black Hoodie", solid("#202024"), ["black"], ["street", "athleisure"]),
-  item("tops", "tank", "Beige Ribbed Tank", stripe("#e2d2b8", "#cdbb9e", 4, true), ["beige"], ["clean", "minimal"]),
+  item("tops", "tank", "Beige Ribbed Tank", stripe("#e2d2b8", "#cdbb9e", 4, true), ["beige"], ["clean", "minimal", "everyday"]),
   item("tops", "cropTop", "Wrap Top", solid("#f6d4dc"), ["babypink"], ["ballet", "coquette"]),
 
   // sweaters
   item("sweaters", "blouse", "Cream Cable Knit", knit("#efe4cc", "#d6c6a4"), ["cream"], ["oldmoney", "academia", "cottage"]),
   item("sweaters", "turtleneck", "Black Turtleneck", solid("#16161a"), ["black"], ["minimal", "academia", "goth"]),
-  item("sweaters", "blouse", "Gray Crewneck", knit("#a4a4aa", "#8c8c92"), ["gray"], ["minimal", "athleisure", "clean"]),
+  item("sweaters", "blouse", "Gray Crewneck", knit("#a4a4aa", "#8c8c92"), ["gray"], ["minimal", "athleisure", "clean", "everyday"]),
   item("sweaters", "blazer", "Pink Fuzzy Cardigan", knit("#f4a8c4", "#e48cb0"), ["pink"], ["clueless", "y2k", "coquette"]),
   item("sweaters", "vest", "Argyle Sweater Vest", plaid("#6a1e2a", "#e8d8b0", "#2a3a2a", 12), ["burgundy", "cream"], ["academia", "tennis"]),
   item("sweaters", "blazer", "Ballet Wrap Cardigan", knit("#f8dde4", "#ecc8d2"), ["babypink"], ["ballet"]),
-  item("sweaters", "blouse", "Navy Quarter Zip", solid("#22305a"), ["navy", "white"], ["tennis", "oldmoney", "athleisure"]),
+  item("sweaters", "blouse", "Navy Quarter Zip", solid("#22305a"), ["navy", "white"], ["tennis", "oldmoney", "athleisure", "everyday"]),
 
   // bottoms
   item("bottoms", "pants", "Ripped Black Jeans", solid("#2a2a32"), ["black"], ["grunge", "punk", "moto"]),
@@ -105,11 +105,11 @@ export const DEMO_SPECS: DemoSpec[] = [
   item("skirts", "aline", "Pink Pleated Mini", stripe("#f6a8c4", "#e48aae", 6, true), ["pink"], ["coquette", "clueless", "y2k"]),
   item("skirts", "maxi", "Tulle Skirt", solid("#f6d6de"), ["babypink"], ["ballet", "coquette"]),
   item("skirts", "maxi", "Gingham Prairie Skirt", plaid("#f4f0e8", "#8ab0d8", "#8ab0d8", 8), ["blue", "white"], ["cottage"]),
-  item("skirts", "mini", "Denim Mini", solid("#7090c0"), ["denim"], ["y2k", "grunge", "street"]),
+  item("skirts", "mini", "Denim Mini", solid("#7090c0"), ["denim"], ["y2k", "grunge", "street", "everyday"]),
   item("skirts", "midi", "Camel Pleated Midi", stripe("#c8a070", "#b08858", 6, true), ["beige", "brown"], ["oldmoney"]),
 
   // shoes
-  item("shoes", "sneakers", "White Sneakers", solid("#f4f4f4"), ["white"], ["clean", "tennis", "street", "athleisure"]),
+  item("shoes", "sneakers", "White Sneakers", solid("#f4f4f4"), ["white"], ["clean", "tennis", "street", "athleisure", "everyday"]),
   item("shoes", "boots", "Combat Boots", solid("#1a1818"), ["black"], ["grunge", "punk", "goth", "moto"]),
   item("shoes", "boots", "Platform Boots", solid("#121014"), ["black", "silver"], ["goth", "y2k"]),
   item("shoes", "flats", "White Mary Janes", solid("#f2f0ee"), ["white"], ["clueless", "coquette"]),
@@ -121,7 +121,7 @@ export const DEMO_SPECS: DemoSpec[] = [
   item("shoes", "boots", "Lace-Up Boots", solid("#6a4428"), ["brown"], ["cottage", "grunge", "academia"]),
 
   // jewelry
-  item("jewelry", "hoops", "Gold Hoops", solid("#e0b440"), ["gold"], ["clean", "y2k", "street"]),
+  item("jewelry", "hoops", "Gold Hoops", solid("#e0b440"), ["gold"], ["clean", "y2k", "street", "everyday"]),
   item("jewelry", "hoops", "Silver Hoops", solid("#c8ccd4"), ["silver"], ["minimal", "moto", "clean"]),
   item("jewelry", "pearls", "Pearl Necklace", solid("#f4f0e6"), ["white", "cream"], ["oldmoney", "coquette", "ballet"]),
   item("jewelry", "chain", "Silver Chain", solid("#b8bcc6"), ["silver"], ["street", "punk", "moto"]),
@@ -154,5 +154,5 @@ export const DEMO_SPECS: DemoSpec[] = [
   item("bags", "tote", "Straw Tote", stripe("#e2c894", "#c8aa70", 4), ["beige"], ["cottage", "clean"]),
   item("bags", "miniBag", "Pink Bow Bag", solid("#f2a8c0"), ["pink"], ["coquette", "clueless", "y2k"]),
   item("bags", "miniBag", "Rhinestone Mini Bag", dots("#c8ccd8", "#ffffff", 6), ["silver"], ["y2k", "goth"]),
-  item("bags", "shoulderBag", "Canvas Crossbody", solid("#6a6a48"), ["olive"], ["street", "grunge", "athleisure"]),
+  item("bags", "shoulderBag", "Canvas Crossbody", solid("#6a6a48"), ["olive"], ["street", "grunge", "athleisure", "everyday"]),
 ];

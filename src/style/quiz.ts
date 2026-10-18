@@ -1,13 +1,15 @@
 import { judge } from "../closet/match";
 import { rng } from "../pixel/raster";
 import type { Garment } from "../closet/types";
-import { FAMILIES, LEAVES, familiesOf, leaf as leafOf, type MyStyle } from "./styles";
+import { EVERYDAY, FAMILIES, familiesOf, leaf as leafOf, stylesOf, type MyStyle } from "./styles";
 
-// The style quiz narrows in two steps, each showing four outfit boards built
-// from the user's own closet:
+// The style quiz narrows in two steps, each showing up to four outfit boards
+// built from the user's own closet:
 //   1. family  (preppy / edgy / soft / easy)
 //   2. specific style inside that family (e.g. goth, punk, grunge, moto)
-// The answer is the chosen style, which Auto Dress then prefers.
+// Only styles the closet can actually dress are offered, most outfits first,
+// so a closet of jeans and tees gets EVERYDAY, not GOTH. The answer is the
+// chosen style, which Auto Dress then prefers.
 
 export type Target = { leaves: string[]; families: string[] };
 
@@ -28,10 +30,43 @@ export function targetFor(s: MyStyle): Target {
   return { leaves: [s.leaf], families: [s.family] };
 }
 
-export function options(q: QuizState): Option[] {
-  if (q.step === 0) return FAMILIES.map((f) => ({ id: f.id, label: f.label, bg: f.bg, target: { leaves: f.leaves, families: [f.id] } }));
-  if (q.step === 1)
-    return LEAVES.filter((l) => l.family === q.family).map((l) => ({ id: l.id, label: l.label, bg: l.bg, target: { leaves: [l.id], families: [l.family] } }));
+const MAX_OPTIONS = 4;
+
+// How many outfits the closet can make in a style: matching top + bottom
+// pairs where both pieces are tagged with exactly that style. (Counting
+// looser fits made one white tee look like a whole tennis wardrobe.)
+export function coverage(closet: Garment[], leafId: string): number {
+  if (!leafOf(leafId)) return 0;
+  const exact = (g: Garment) => stylesOf(g).includes(leafId);
+  const tops = closet.filter((g) => g.slot === "top" && exact(g));
+  const bottoms = closet.filter((g) => g.slot === "bottom" && exact(g));
+  let n = 0;
+  for (const top of tops) for (const bottom of bottoms) if (judge(top, bottom).match) n++;
+  return n;
+}
+
+// The choices for a step: only what this closet can dress, best-stocked first.
+export function options(q: QuizState, closet: Garment[]): Option[] {
+  const dressable = (leaves: string[]) =>
+    leaves.map((id) => ({ id, n: coverage(closet, id) })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n);
+  if (q.step === 0)
+    return FAMILIES.map((f) => ({ f, leaves: dressable(f.leaves) }))
+      .filter((x) => x.leaves.length)
+      .sort((a, b) => b.leaves.reduce((s, l) => s + l.n, 0) - a.leaves.reduce((s, l) => s + l.n, 0))
+      .slice(0, MAX_OPTIONS)
+      .map(({ f, leaves }) => ({ id: f.id, label: f.label, bg: f.bg, target: { leaves: leaves.map((l) => l.id), families: [f.id] } }));
+  if (q.step === 1) {
+    const leaves = dressable(FAMILIES.find((f) => f.id === q.family)?.leaves ?? []);
+    // EVERYDAY always keeps a spot when the closet can dress it
+    const shown = leaves.slice(0, MAX_OPTIONS);
+    const everyday = leaves.find((l) => l.id === EVERYDAY);
+    if (everyday && !shown.includes(everyday)) shown[MAX_OPTIONS - 1] = everyday;
+    return shown
+      .map(({ id }) => {
+        const l = leafOf(id)!;
+        return { id, label: l.label, bg: l.bg, target: { leaves: [id], families: [l.family] } };
+      });
+  }
   return [];
 }
 
@@ -72,8 +107,9 @@ export function result(q: QuizState): MyStyle | null {
 // family.
 export function fit(g: Garment, t: Target): number {
   let s = 0;
-  if (g.styles.some((x) => t.leaves.includes(x))) s += 3;
-  else if (familiesOf(g.styles).some((f) => t.families.includes(f))) s += 1;
+  const styles = stylesOf(g);
+  if (styles.some((x) => t.leaves.includes(x))) s += 3;
+  else if (familiesOf(styles).some((f) => t.families.includes(f))) s += 1;
   else return 0;
   return s;
 }
@@ -88,8 +124,6 @@ const SPOTS = {
   extra: { x: 0.68, y: 0.25, w: 0.3, h: 0.18 },
 };
 
-// Builds one outfit board for a target. `avoid` holds garment ids already used
-// on the other boards of the same step, so the four boards look different.
 // Picks the best-fitting piece from a pool, with a little randomness.
 // Pieces in `avoid` lose `penalty` points, so they're only picked if nothing
 // else fits.
@@ -117,9 +151,22 @@ const ACCESSORY_ROLES: [keyof typeof SPOTS, string[]][] = [
   ["extra", ["scarves", "pantyhose"]],
 ];
 
-function accessories(closet: Garment[], best: ReturnType<typeof picker>) {
-  return ACCESSORY_ROLES.map(([spot, cats]) => [spot, best(closet.filter((g) => cats.includes(g.category)))] as const);
+const NEUTRAL = new Set(["black", "white", "cream", "beige", "brown", "gray", "navy", "denim"]);
+
+// Most people own only a few pairs of shoes, so shoes may repeat across boards
+// (a small penalty, not a big one), and if none suit the style the most
+// neutral pair stands in rather than leaving the outfit barefoot. Jewelry,
+// bags and scarves are optional: they only appear when they suit the style.
+function accessories(closet: Garment[], best: ReturnType<typeof picker>, bestShoes: ReturnType<typeof picker>) {
+  return ACCESSORY_ROLES.map(([spot, cats]) => {
+    const pool = closet.filter((g) => cats.includes(g.category));
+    if (spot !== "shoes") return [spot, best(pool)] as const;
+    const shoes = bestShoes(pool) ?? [...pool].sort((a, b) => neutrality(b) - neutrality(a))[0];
+    return [spot, shoes] as const;
+  });
 }
+
+const neutrality = (g: Garment) => g.colors.filter((c) => NEUTRAL.has(c)).length / Math.max(1, g.colors.length);
 
 // Builds one outfit board for a target. `avoid` holds garment ids already used
 // on the other boards of the same step, so the four boards look different.
@@ -127,7 +174,11 @@ export function buildBoard(closet: Garment[], t: Target, seed: number, avoid = n
   const best = picker(t, seed, avoid, 2.5);
   const top = best(closet.filter((g) => g.slot === "top"));
   const bottom = best(closet.filter((g) => g.slot === "bottom"), (g) => (top && judge(top, g).match ? 3 : 0));
-  const picks: (readonly [keyof typeof SPOTS, Garment | undefined])[] = [["top", top], ["bottom", bottom], ...accessories(closet, best)];
+  const picks: (readonly [keyof typeof SPOTS, Garment | undefined])[] = [
+    ["top", top],
+    ["bottom", bottom],
+    ...accessories(closet, best, picker(t, seed + 1, avoid, 0.5)),
+  ];
   const items = picks.filter(([, g]) => g).map(([spot, g]) => ({ garment: g!, box: SPOTS[spot] }));
   items.forEach((i) => avoid.add(i.garment.id));
   return items;
@@ -136,16 +187,16 @@ export function buildBoard(closet: Garment[], t: Target, seed: number, avoid = n
 // Fresh accessories for Auto Dress: chosen to suit the saved style (or, with
 // no style yet, the outfit itself), and different from what's being worn.
 export function accessoriesFor(closet: Garment[], outfit: Garment[], style: MyStyle | null, wearing: string[], seed: number): Record<string, string> {
-  const styles = outfit.flatMap((g) => g.styles);
+  const styles = outfit.flatMap(stylesOf);
   const t = style ? targetFor(style) : { leaves: styles, families: familiesOf(styles) };
   const best = picker(t, seed, new Set(wearing), 100);
-  return Object.fromEntries(accessories(closet, best).flatMap(([, g]) => (g ? [[g.category, g.id]] : [])));
+  return Object.fromEntries(accessories(closet, best, best).flatMap(([, g]) => (g ? [[g.category, g.id]] : [])));
 }
 
-// All four boards for a step, each kept distinct from the ones before it.
+// The boards for a step, each kept distinct from the ones before it.
 export function boardsFor(closet: Garment[], q: QuizState): { option: Option; items: BoardItem[] }[] {
   const avoid = new Set<string>();
-  return options(q).map((option, i) => ({ option, items: buildBoard(closet, option.target, q.seed * 97 + i * 13 + q.step, avoid) }));
+  return options(q, closet).map((option, i) => ({ option, items: buildBoard(closet, option.target, q.seed * 97 + i * 13 + q.step, avoid) }));
 }
 
 // Auto Dress with a saved style: among matching outfits, prefer the ones that

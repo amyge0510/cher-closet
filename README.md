@@ -40,6 +40,13 @@ Each step shows four outfit boards built from the user's own closet:
 1. a family (preppy, edgy, soft, easy)
 2. a specific style inside it (e.g. goth, punk, grunge, moto)
 
+Only styles the closet can really dress are offered: a style needs a top and
+a bottom that are both tagged with it and go together. The ones with the most
+outfits come first, so a closet of jeans and tees leads with EVERYDAY, and a
+closet that can only make two styles shows two boards. Untagged uploads count
+as EVERYDAY pieces. Shoes may repeat across boards, and when no shoes suit a
+style the most neutral pair is used.
+
 OTHER OUTFITS rebuilds the boards from different pieces, without changing
 the choices, and BACK steps out. On the result screen, NEW OUTFIT does the same
 for the final board. WEAR IT saves the result with

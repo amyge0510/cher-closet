@@ -120,7 +120,8 @@ export function StyleQuiz({ closet, saved, onSave, onClose }: {
 
         {q.step < QUESTIONS &&
           boards.map(({ option, items }, i) => {
-            const x = box.x + pad + 3 + i * (bw + gap);
+            // fewer styles than slots (a smaller closet): centre the boards
+            const x = box.x + pad + 3 + ((4 - boards.length) * (bw + gap)) / 2 + i * (bw + gap);
             return (
               <div key={option.id} style={{ position: "absolute", left: x, top: by }}>
                 <Board items={items} bg={option.bg} w={bw} h={bh} label={option.label} onPick={() => setQ(choose(q, option.id, items))} />
@@ -130,6 +131,12 @@ export function StyleQuiz({ closet, saved, onSave, onClose }: {
               </div>
             );
           })}
+
+        {q.step < QUESTIONS && boards.length === 0 && (
+          <div style={{ position: "absolute", left: box.x + 60, top: by + 90, width: box.w - 120 }}>
+            <PixelLines text="ADD AT LEAST ONE TOP AND ONE BOTTOM THAT GO TOGETHER, AND WE'LL FIND YOUR STYLE FROM THEM." maxWidth={box.w - 120} color={C.invText} sx={2} sy={2.4} />
+          </div>
+        )}
 
         {q.step === QUESTIONS && chosen && (
           <>

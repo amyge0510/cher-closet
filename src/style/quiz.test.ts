@@ -3,7 +3,7 @@ import { slotFor } from "../closet/categories";
 import { DEMO_SPECS } from "../closet/demo";
 import { matchingPairs } from "../closet/match";
 import type { Garment } from "../closet/types";
-import { accessoriesFor, back, boardsFor, buildBoard, choose, fit, newOutfits, rankPairs, result, resultBoard, startQuiz } from "./quiz";
+import { accessoriesFor, back, boardsFor, buildBoard, choose, coverage, fit, newOutfits, options, rankPairs, result, resultBoard, startQuiz } from "./quiz";
 import { FAMILIES, LEAVES, leaf } from "./styles";
 
 const closet: Garment[] = DEMO_SPECS.map(({ shape, fill, band, ...g }) => ({ ...g, slot: slotFor(g.category), image: "" }));
@@ -32,9 +32,10 @@ describe("demo closet", () => {
 describe("quiz", () => {
   it("narrows family -> specific style in two steps, and can step back", () => {
     let q = startQuiz();
-    expect(boardsFor(closet, q).map((b) => b.option.id)).toEqual(FAMILIES.map((f) => f.id));
+    expect(boardsFor(closet, q).map((b) => b.option.id).sort()).toEqual(FAMILIES.map((f) => f.id).sort());
     q = choose(q, "edgy");
-    expect(boardsFor(closet, q).map((b) => b.option.id)).toEqual(["grunge", "goth", "punk", "moto"]);
+    expect(boardsFor(closet, q).map((b) => b.option.id).sort()).toEqual(["goth", "grunge", "moto", "punk"]);
+    expect(options(choose(startQuiz(), "easy"), closet).map((o) => o.id)).toContain("everyday");
     q = choose(q, "goth");
     expect(result(q)).toEqual({ family: "edgy", leaf: "goth" });
     expect(boardsFor(closet, q)).toEqual([]);
@@ -99,5 +100,46 @@ describe("quiz", () => {
     expect(resultBoard(q, closet)).toBe(picked.items);
     const next = resultBoard(newOutfits(q, closet), closet);
     expect(next.map((i) => i.garment.id)).not.toEqual(picked.items.map((i) => i.garment.id));
+  });
+});
+
+// A realistic closet: mostly basics, a couple of statement pieces, few shoes.
+const byName = (...names: string[]) => names.map((n) => closet.find((g) => g.name === n)!);
+const realCloset: Garment[] = [
+  ...byName("White Baby Tee", "Beige Ribbed Tank", "Gray Crewneck", "Light Wash Jeans", "Black Wide-Leg Trousers", "Denim Mini"),
+  ...byName("Black Lace Corset", "Black Maxi Skirt"), // one goth-ish outfit
+  ...byName("White Sneakers", "Combat Boots"), // only two pairs of shoes
+  // something uploaded but not tagged yet
+  { id: "mine-1", category: "tops", slot: "top", name: "Striped Shirt", image: "", colors: ["navy", "white"], pattern: "stripe", styles: [] },
+];
+
+describe("quiz on a real, mostly-basic closet", () => {
+  it("leads with EVERYDAY and never offers styles the closet can't dress", () => {
+    const families = options(startQuiz(), realCloset).map((o) => o.id);
+    expect(families[0]).toBe("easy");
+    const easy = options(choose(startQuiz(), "easy"), realCloset).map((o) => o.id);
+    expect(easy[0]).toBe("everyday");
+    for (const id of ["punk", "moto", "grunge", "tennis", "oldmoney", "ballet", "cottage", "athleisure"]) expect(coverage(realCloset, id), id).toBe(0);
+    expect(coverage(realCloset, "goth")).toBeGreaterThan(0);
+  });
+
+  it("counts untagged uploads as everyday pieces", () => {
+    const shirt = realCloset.find((g) => g.id === "mine-1")!;
+    expect(fit(shirt, { leaves: ["everyday"], families: ["easy"] })).toBe(3);
+  });
+
+  it("every board is a full outfit, re-using the two pairs of shoes", () => {
+    let q = startQuiz();
+    for (const step of [0, 1]) {
+      const boards = boardsFor(realCloset, q);
+      expect(boards.length).toBeGreaterThan(0);
+      for (const b of boards) {
+        const cats = b.items.map((i) => i.garment);
+        expect(cats.some((g) => g.slot === "top"), b.option.id).toBe(true);
+        expect(cats.some((g) => g.slot === "bottom"), b.option.id).toBe(true);
+        expect(cats.some((g) => g.category === "shoes"), b.option.id).toBe(true);
+      }
+      if (step === 0) q = choose(q, boards[0].option.id);
+    }
   });
 });
