@@ -20,14 +20,19 @@ export function slotFor(categoryId: string): Slot | null {
   return BUILT_IN.find((c) => c.id === categoryId)?.slot ?? null;
 }
 
-// Built-ins plus any category a user invented when filing a garment.
+// Always on the bar, even when empty, so there's somewhere for uploads to go.
+const ALWAYS = new Set(["tops", "bottoms"]);
+
+// Built-ins that have something in them (a menswear closet has no SKIRTS),
+// plus any category a user invented when filing a garment.
 export function categoriesFor(garments: Garment[]): Category[] {
+  const used = new Set(garments.map((g) => g.category));
   const custom = new Map<string, Category>();
   for (const g of garments) {
     if (BUILT_IN.some((c) => c.id === g.category) || custom.has(g.category)) continue;
     custom.set(g.category, { id: g.category, label: g.category.toUpperCase(), slot: g.slot });
   }
-  return [...BUILT_IN, ...custom.values()];
+  return [...BUILT_IN.filter((c) => ALWAYS.has(c.id) || used.has(c.id)), ...custom.values()];
 }
 
 // Splits categories into those that fit on the bar and those under MORE.

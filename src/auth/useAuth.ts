@@ -2,7 +2,7 @@ import type { User } from "@supabase/supabase-js";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import type { Look } from "../closet/types";
-import type { MyStyle } from "../style/styles";
+import type { MyStyle, Wardrobe } from "../style/styles";
 
 export type AuthState =
   | { status: "loading" }
@@ -15,6 +15,8 @@ export type AuthState =
 export const introSeenOf = (user: User): boolean => !!user.user_metadata?.intro_seen;
 export const looksOf = (user: User): Look[] => (user.user_metadata?.looks as Look[] | undefined) ?? [];
 export const styleOf = (user: User): MyStyle | null => (user.user_metadata?.style as MyStyle | undefined) ?? null;
+// womenswear / menswear / both, asked once after the name
+export const wardrobeOf = (user: User): Wardrobe | null => (user.user_metadata?.wardrobe as Wardrobe | undefined) ?? null;
 
 const nameOf = (user: User): string | null => (user.user_metadata?.display_name as string | undefined)?.trim() || null;
 
@@ -48,6 +50,13 @@ export function useAuth() {
     if (data.user) setState({ status: "signedIn", user: data.user, name: nameOf(data.user) });
   }, []);
 
+  // which clothes to suggest; updates the signed-in state so the app moves on
+  const saveWardrobe = useCallback(async (wardrobe: Wardrobe) => {
+    const { data, error } = await supabase!.auth.updateUser({ data: { wardrobe } });
+    if (error) throw error;
+    if (data.user) setState({ status: "signedIn", user: data.user, name: nameOf(data.user) });
+  }, []);
+
   // the style quiz result, kept with the account
   const saveStyle = useCallback(async (style: MyStyle) => {
     await supabase?.auth.updateUser({ data: { style } });
@@ -69,7 +78,7 @@ export function useAuth() {
 
   const skip = useCallback(() => setState({ status: "guest", name: "Cher" }), []);
 
-  return { state, sendCode, verifyCode, saveName, saveStyle, saveLooks, markIntroSeen, signOut, skip };
+  return { state, sendCode, verifyCode, saveName, saveWardrobe, saveStyle, saveLooks, markIntroSeen, signOut, skip };
 }
 
 // Turns Supabase errors into something short the pixel font can draw.

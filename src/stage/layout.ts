@@ -13,6 +13,8 @@ export const EXTRA_SPOTS: Record<string, Box> = {
   underwear: { x: 484, y: 44, w: 116, h: 80 },
   pantyhose: { x: 492, y: 132, w: 100, h: 118 },
   shoes: { x: 470, y: 262, w: 144, h: 112 },
+  // hats share the tights spot (menswear has no tights)
+  hats: { x: 492, y: 132, w: 100, h: 118 },
 };
 // any other category (one a user made up) shares the underwear spot
 export const extraSpot = (category: string): Box => EXTRA_SPOTS[category] ?? EXTRA_SPOTS.underwear;
@@ -51,7 +53,8 @@ export const L = {
   categoryText: { sx: 1.5, sy: 2, y: 459 },
   // labels are placed left to right from `start`; ones that don't fit before
   // `end` go under MORE
-  categoryRun: { start: 9, end: 484, gap: 14 },
+  categoryRun: { start: 9, end: 380, gap: 14 },
+  upload: { x: 388, y: 454, w: 98, h: 22 }, // UPLOAD, styled like MY STYLE
   looks: { x: 492, y: 453, w: 66, h: 24 },
   more: { x: 562, y: 453, w: 62, h: 24 },
 
@@ -70,6 +73,8 @@ export const L = {
   saveLook: { x: 350, y: 414, w: 86, h: 26 }, // ♥ SAVE, on the dressed screen
   bannerReason: { x: 80, y: 276, w: 490, h: 24 }, // why it's a mis-match
   styleQuiz: { x: 8, y: 36, w: 624, h: 410 },
+  // the upload pop-up, in the middle of the screen
+  uploadBox: { x: 130, y: 52, w: 380, h: 380 },
   quizBoard: { y: 80, w: 145, h: 290, gap: 8 },
 
   // sign-in, laid out inside the center column

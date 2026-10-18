@@ -101,7 +101,7 @@ const labelWidth = (label: string) => layoutText(label).width * L.categoryText.s
 
 // The bottom bar. Clicking a category opens the closet pop-up on it; whatever
 // doesn't fit goes under MORE. Without handlers it is just decoration.
-export function CategoryBar({ categories, active, onPick, onMore, onLooks }: {
+export function CategoryBar({ categories, active, onPick, onMore, onLooks, onUpload, flash }: {
   categories: Category[];
   /** highlighted label: a category id, "more" or "looks" */
   active?: string | null;
@@ -109,6 +109,10 @@ export function CategoryBar({ categories, active, onPick, onMore, onLooks }: {
   onMore?: () => void;
   /** saved looks, in a box beside MORE */
   onLooks?: () => void;
+  /** the UPLOAD button, left of LOOKS */
+  onUpload?: () => void;
+  /** a tab that just received an upload: it blinks */
+  flash?: string | null;
 }) {
   const { sx, sy, y } = L.categoryText;
   const { start, end, gap } = L.categoryRun;
@@ -129,10 +133,19 @@ export function CategoryBar({ categories, active, onPick, onMore, onLooks }: {
       <div style={{ ...pos(L.categoryBar), background: C.navy, borderTop: `2px solid ${C.frame}`, boxSizing: "border-box" }} />
       {shown.map(({ cat, x }) => (
         <button key={cat.id} type="button" aria-label={cat.label} disabled={!onPick} onClick={() => onPick?.(cat.id)}
+          className={flash === cat.id ? "tab-flash" : undefined}
           style={{ ...hit(active === cat.id), left: x, top: y }}>
           {label(cat.label, active === cat.id)}
         </button>
       ))}
+      {onUpload && (
+        <Bevel box={L.upload} tone={active === "upload" ? "blue" : "gray"} onClick={onUpload} label="Upload clothes" style={{ borderWidth: 2 }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <PixelText text="UPLOAD" color={C.ink} sx={1.5} sy={1.8} bold />
+            <PixelText text="^" color={C.ink} sx={1.5} sy={1.8} />
+          </div>
+        </Bevel>
+      )}
       {onLooks && (
         <button
           type="button"
@@ -157,6 +170,7 @@ export function CategoryBar({ categories, active, onPick, onMore, onLooks }: {
       <button
         type="button"
         aria-label="More categories"
+        className={flash && more.some((c) => c.id === flash) ? "tab-flash" : undefined}
         disabled={!onMore}
         onClick={onMore}
         style={{
@@ -181,6 +195,15 @@ export function CategoryBar({ categories, active, onPick, onMore, onLooks }: {
 export function overflowCategories(categories: Category[]) {
   const { start, end, gap } = L.categoryRun;
   return splitForBar(categories, labelWidth, start, end, gap).more;
+}
+
+// The middle of a category's tab on the bar (or of MORE, if it's under MORE),
+// where an upload flies to.
+export function tabCenter(categories: Category[], id: string): { x: number; y: number } {
+  const { start, end, gap } = L.categoryRun;
+  const hitTab = splitForBar(categories, labelWidth, start, end, gap).shown.find((s) => s.cat.id === id);
+  if (hitTab) return { x: hitTab.x + labelWidth(hitTab.cat.label) / 2, y: L.categoryText.y + 7 };
+  return { x: L.more.x + L.more.w / 2, y: L.more.y + L.more.h / 2 };
 }
 
 const ICONS = ["[", ">", "]"] as const;

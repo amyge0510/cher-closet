@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { LAYERS, PLACEHOLDER_ANCHORS, placeholderBody, type Anchor, type BodyAnchors } from "../closet/body";
+import { LAYERS, PLACEHOLDER_ANCHORS, placeholderBody, type Anchor, type BodyAnchors, type Figure } from "../closet/body";
 import type { Garment } from "../closet/types";
 import { containBox, crunch, loadImage, makeCanvas, rng } from "../pixel/raster";
 
@@ -11,6 +11,8 @@ type Props = {
   /** worn accessories */
   extras?: Garment[];
   bodySrc?: string | null;
+  /** which stand-in figure to use when there's no body photo */
+  figure?: Figure;
   anchors?: BodyAnchors;
   /** run the dissolve; otherwise draw the finished outfit straight away */
   animate: boolean;
@@ -22,8 +24,8 @@ const CELL = 3; // dissolve block size, canvas pixels
 const HOLD_MS = 700; // show the bare body first
 const DISSOLVE_MS = 1300;
 
-async function bodyCanvas(src: string | null | undefined, cw: number, ch: number) {
-  if (!src) return placeholderBody(cw, ch);
+async function bodyCanvas(src: string | null | undefined, cw: number, ch: number, figure?: Figure) {
+  if (!src) return placeholderBody(cw, ch, figure);
   const img = await loadImage(src);
   const c = makeCanvas(cw, ch);
   const box = containBox(img.width, img.height, cw, ch);
@@ -39,7 +41,7 @@ async function place(ctx: CanvasRenderingContext2D, src: string, a: Anchor, cw: 
 
 // The full-body screen: the body appears, then the outfit dissolves onto it
 // block by block, like a slow 1995 modem picture.
-export function Reveal({ w, h, top, bottom, extras = [], bodySrc, anchors = PLACEHOLDER_ANCHORS, animate, onDone }: Props) {
+export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchors = PLACEHOLDER_ANCHORS, animate, onDone }: Props) {
   const extrasKey = extras.map((g) => g.image).join("|");
   const ref = useRef<HTMLCanvasElement>(null);
 
@@ -55,7 +57,7 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, anchors = PLAC
     const vctx = view.getContext("2d")!;
 
     (async () => {
-      const body = await bodyCanvas(bodySrc, cw, ch);
+      const body = await bodyCanvas(bodySrc, cw, ch, figure);
       crunch(body, { levels: 10 });
       const outfit = makeCanvas(cw, ch);
       const octx = outfit.getContext("2d")!;
@@ -108,7 +110,7 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, anchors = PLAC
       clearTimeout(holdTimer);
     };
     // extrasKey stands in for `extras`, which is a new array every render
-  }, [w, h, top.image, bottom.image, extrasKey, bodySrc, anchors, animate, onDone]);
+  }, [w, h, top.image, bottom.image, extrasKey, bodySrc, figure, anchors, animate, onDone]);
 
   return <canvas ref={ref} style={{ width: w, height: h, imageRendering: "pixelated", display: "block" }} />;
 }

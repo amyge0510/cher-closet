@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { slotFor } from "../closet/categories";
 import { judge, judgeOutfit } from "../closet/match";
-import { DEMO_SPECS } from "../closet/demo";
+import { DEMO_SPECS, demoSpecsFor, type DemoSpec } from "../closet/demo";
 import { matchingPairs } from "../closet/match";
 import type { Garment } from "../closet/types";
 import { accessoriesFor, back, boardsFor, buildBoard, choose, coverage, fit, newOutfits, options, rankPairs, result, resultBoard, startQuiz } from "./quiz";
 import { FAMILIES, LEAVES, leaf } from "./styles";
 
-const closet: Garment[] = DEMO_SPECS.map(({ shape, fill, band, ...g }) => ({ ...g, slot: slotFor(g.category), image: "" }));
+const toGarment = ({ shape, fill, band, audience, ...g }: DemoSpec): Garment => ({ ...g, slot: slotFor(g.category), image: "" });
+const closet: Garment[] = DEMO_SPECS.map(toGarment);
+const womens: Garment[] = demoSpecsFor("womens").map(toGarment);
+const mens: Garment[] = demoSpecsFor("mens").map(toGarment);
 
 describe("demo closet", () => {
   it("has at least 75 pieces, with something in every built-in category", () => {
@@ -33,7 +36,7 @@ describe("demo closet", () => {
 describe("quiz", () => {
   it("narrows family -> specific style in two steps, and can step back", () => {
     let q = startQuiz();
-    expect(boardsFor(closet, q).map((b) => b.option.id).sort()).toEqual(FAMILIES.map((f) => f.id).sort());
+    expect(boardsFor(womens, q, "womens").map((b) => b.option.id).sort()).toEqual(["easy", "edgy", "preppy", "soft"]);
     q = choose(q, "edgy");
     expect(boardsFor(closet, q).map((b) => b.option.id).sort()).toEqual(["goth", "grunge", "moto", "punk"]);
     expect(options(choose(startQuiz(), "easy"), closet).map((o) => o.id)).toContain("everyday");
@@ -175,6 +178,40 @@ describe("never suggests a mis-match", () => {
       const v = judgeOutfit(tops[t], bottoms[b], extras);
       expect(v.match, `${tops[t].name} + ${bottoms[b].name}: ${v.reason}`).toBe(true);
     }
+  });
+});
+
+describe("menswear", () => {
+  it("the menswear quiz never offers womenswear-only styles", () => {
+    const families = options(startQuiz(), mens, "mens").map((o) => o.id);
+    expect(families).not.toContain("soft");
+    expect(families).toContain("rugged");
+    for (const f of FAMILIES) {
+      for (const o of options(choose(startQuiz(), f.id), mens, "mens")) expect(leaf(o.id)?.audience, o.id).not.toBe("womens");
+    }
+    expect(options(choose(startQuiz(), "rugged"), mens, "mens").map((o) => o.id).sort()).toEqual(["gorpcore", "skate", "western", "workwear"]);
+  });
+
+  it("the menswear closet has no skirts or tights, and dresses every rugged style", () => {
+    expect(mens.some((g) => g.category === "skirts" || g.category === "pantyhose")).toBe(false);
+    for (const id of ["workwear", "gorpcore", "skate", "western", "everyday", "oldmoney", "tennis"]) expect(coverage(mens, id), id).toBeGreaterThan(0);
+  });
+
+  it("menswear boards are whole, matching outfits", () => {
+    for (const fam of ["rugged", "easy", "preppy", "edgy"]) {
+      for (const b of boardsFor(mens, choose(startQuiz(), fam), "mens")) {
+        const gs = b.items.map((i) => i.garment);
+        const top = gs.find((g) => g.slot === "top");
+        const bottom = gs.find((g) => g.slot === "bottom");
+        expect(top && bottom && gs.some((g) => g.category === "shoes"), b.option.id).toBeTruthy();
+        expect(judgeOutfit(top!, bottom!, gs.filter((g) => !g.slot)).match, b.option.id).toBe(true);
+      }
+    }
+  });
+
+  it("a mix of both can get every family", () => {
+    const all = FAMILIES.flatMap((f) => options(choose(startQuiz(), f.id), closet, "both"));
+    expect(all.some((o) => o.id === "coquette") && all.some((o) => o.id === "western")).toBe(true);
   });
 });
 

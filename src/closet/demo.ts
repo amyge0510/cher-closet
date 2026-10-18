@@ -1,3 +1,4 @@
+import { forWardrobe, type Wardrobe } from "../style/styles";
 import type { Garment, Pattern } from "./types";
 
 // Placeholder closet used until a user has uploaded their own clothes.
@@ -18,9 +19,13 @@ export type Shape =
   | "sneakers" | "boots" | "heels" | "flats" | "loafers"
   | "hoops" | "pendant" | "pearls" | "chain" | "studs"
   | "scarf" | "tights" | "socks" | "bralette"
-  | "shoulderBag" | "tote" | "miniBag";
+  | "shoulderBag" | "tote" | "miniBag"
+  | "chore" | "puffer" | "joggers" | "cowboyBoots" | "watch" | "bandana" | "backpack"
+  | "cap" | "beanie" | "cowboyHat" | "bucketHat";
 
-export type DemoSpec = Omit<Garment, "image" | "slot"> & { shape: Shape; fill: Fill; band?: string };
+// `audience` says which demo closet a piece is in: womenswear, menswear, or
+// (left out) both.
+export type DemoSpec = Omit<Garment, "image" | "slot"> & { shape: Shape; fill: Fill; band?: string; audience?: "womens" | "mens" };
 
 const solid = (base: string): Fill => ({ kind: "solid", base });
 const plaid = (base: string, a: string, b: string, step = 9): Fill => ({ kind: "plaid", base, lines: [a, b], step });
@@ -156,3 +161,94 @@ export const DEMO_SPECS: DemoSpec[] = [
   item("bags", "miniBag", "Rhinestone Mini Bag", dots("#c8ccd8", "#ffffff", 6), ["silver"], ["y2k", "goth"]),
   item("bags", "shoulderBag", "Canvas Crossbody", solid("#6a6a48"), ["olive"], ["street", "grunge", "athleisure", "everyday"]),
 ];
+
+// Pieces from the rack above that belong in the menswear closet too.
+const UNISEX = new Set([
+  "Faded Band Tee", "Studded Leather Jacket", "Biker Jacket", "White Button-Up", "Navy Blazer", "Tweed Blazer", "White Polo",
+  "Red Flannel Shirt", "Gray Zip Hoodie", "Oversized Black Hoodie",
+  "Cream Cable Knit", "Black Turtleneck", "Gray Crewneck", "Argyle Sweater Vest", "Navy Quarter Zip",
+  "Light Wash Jeans", "Ripped Black Jeans", "Beige Trousers", "Black Wide-Leg Trousers", "Cargo Pants", "Linen Pants",
+  "White Sneakers", "Combat Boots", "Brown Loafers", "Black Loafers", "Chunky Sneakers", "Lace-Up Boots",
+  "Silver Chain", "Gold Pendant", "Burgundy Wool Scarf", "Leather Tote", "Canvas Crossbody",
+]);
+for (const spec of DEMO_SPECS) if (!UNISEX.has(spec.name)) spec.audience = "womens";
+
+const mens = (...args: Parameters<typeof item>) => {
+  const spec = item(...args);
+  spec.audience = "mens";
+  return spec;
+};
+const buffalo = plaid("#b0182a", "#141018", "#141018", 12);
+
+// The menswear rack, including the RUGGED styles (workwear, gorpcore, skate,
+// western). Hats aren't a built-in category, so they land under MORE.
+DEMO_SPECS.push(
+  // tops
+  mens("tops", "tee", "White Crew Tee", solid("#f4f4f2"), ["white"], ["everyday", "minimal", "street", "skate"]),
+  mens("tops", "tee", "Heather Gray Tee", solid("#a8a8ae"), ["gray"], ["everyday", "athleisure", "street"]),
+  mens("tops", "tee", "Black Pocket Tee", solid("#1c1c20"), ["black"], ["minimal", "street", "everyday", "moto"]),
+  mens("tops", "tee", "Navy Polo", solid("#22305a"), ["navy"], ["tennis", "oldmoney", "everyday"]),
+  mens("tops", "blouse", "Light Blue Oxford", solid("#b8cce8"), ["blue"], ["oldmoney", "academia", "everyday"]),
+  mens("tops", "blouse", "Buffalo Check Flannel", buffalo, ["red", "black"], ["workwear", "grunge", "western"]),
+  mens("tops", "blouse", "Pearl Snap Shirt", solid("#6a86b0"), ["denim"], ["western"]),
+  mens("tops", "tee", "Graphic Skate Tee", dots("#f2f2f0", "#c82030", 14), ["white", "red"], ["skate", "street"]),
+  mens("tops", "blouse", "Camp Collar Shirt", dots("#e8dcc0", "#2a6a4a", 10), ["cream", "green"], ["street", "skate"]),
+  mens("tops", "chore", "Tan Chore Coat", solid("#b08a5a"), ["brown"], ["workwear", "everyday"]),
+  mens("tops", "chore", "Denim Trucker Jacket", solid("#5a78a8"), ["denim"], ["workwear", "western", "everyday"]),
+  mens("tops", "blouse", "Olive Fleece", solid("#6a7044"), ["olive"], ["gorpcore"]),
+  mens("tops", "puffer", "Black Puffer", solid("#1c1c22"), ["black"], ["gorpcore", "street"]),
+  mens("tops", "puffer", "Orange Shell Jacket", solid("#d8641c"), ["orange"], ["gorpcore"]),
+  mens("tops", "chore", "Varsity Jacket", solid("#22305a"), ["navy", "cream"], ["street", "everyday"], { band: "#efe4cc" }),
+
+  // sweaters
+  mens("sweaters", "blouse", "Navy Crewneck", knit("#22305a", "#2c3c6a"), ["navy"], ["oldmoney", "academia", "everyday"]),
+  mens("sweaters", "blazer", "Charcoal Cardigan", knit("#4a4a52", "#5a5a62"), ["gray"], ["academia", "minimal"]),
+  mens("sweaters", "blouse", "Fair Isle Sweater", dots("#efe4cc", "#b0182a", 9), ["cream", "red"], ["gorpcore", "academia"]),
+
+  // bottoms
+  mens("bottoms", "pants", "Khaki Chinos", solid("#c8b088"), ["beige"], ["oldmoney", "academia", "everyday", "workwear"]),
+  mens("bottoms", "pants", "Navy Chinos", solid("#26304e"), ["navy"], ["oldmoney", "everyday"]),
+  mens("bottoms", "pants", "Carpenter Pants", solid("#8a6238"), ["brown"], ["workwear", "skate"]),
+  mens("bottoms", "wideLeg", "Baggy Skate Jeans", solid("#6c88b4"), ["denim"], ["skate", "street", "grunge"]),
+  mens("bottoms", "joggers", "Gray Sweatpants", solid("#9c9ca4"), ["gray"], ["athleisure", "everyday", "street"]),
+  mens("bottoms", "joggers", "Black Joggers", solid("#1c1c20"), ["black"], ["athleisure", "street", "gorpcore"]),
+  mens("bottoms", "shorts", "Hiking Shorts", solid("#b4a47c"), ["beige"], ["gorpcore", "everyday"]),
+  mens("bottoms", "shorts", "White Tennis Shorts", solid("#f6f6f4"), ["white"], ["tennis", "athleisure"]),
+  mens("bottoms", "pants", "Bootcut Jeans", solid("#34466c"), ["denim"], ["western", "workwear", "everyday"]),
+  mens("bottoms", "pants", "Brown Corduroys", solid("#7a5434"), ["brown"], ["academia", "workwear"]),
+
+  // shoes
+  mens("shoes", "boots", "Work Boots", solid("#9a6a3a"), ["brown"], ["workwear", "western", "grunge"]),
+  mens("shoes", "cowboyBoots", "Cowboy Boots", solid("#6a3a20"), ["brown"], ["western"]),
+  mens("shoes", "sneakers", "Skate Shoes", solid("#1c1c22"), ["black", "white"], ["skate", "street"]),
+  mens("shoes", "sneakers", "Trail Runners", solid("#8a8e86"), ["gray", "orange"], ["gorpcore", "athleisure"]),
+  mens("shoes", "loafers", "Boat Shoes", solid("#8a5a34"), ["brown"], ["oldmoney", "tennis"]),
+
+  // jewelry
+  mens("jewelry", "watch", "Steel Watch", solid("#c8ccd4"), ["silver"], ["minimal", "oldmoney", "everyday", "athleisure"]),
+  mens("jewelry", "watch", "Leather Watch", solid("#6a4024"), ["brown"], ["academia", "workwear", "western", "oldmoney"]),
+  mens("jewelry", "pearls", "Bead Necklace", solid("#e8e0cc"), ["cream"], ["skate", "street"]),
+
+  // scarves
+  mens("scarves", "bandana", "Red Bandana", dots("#b02028", "#f4f0e8", 8), ["red", "white"], ["western", "workwear", "skate"]),
+  mens("scarves", "scarf", "Gray Knit Scarf", knit("#9a9aa2", "#8a8a92"), ["gray"], ["gorpcore", "minimal", "everyday"]),
+
+  // bags
+  mens("bags", "backpack", "Black Backpack", solid("#1c1c20"), ["black"], ["everyday", "skate", "street", "gorpcore"]),
+  mens("bags", "backpack", "Hiking Pack", solid("#c86420"), ["orange"], ["gorpcore"]),
+  mens("bags", "shoulderBag", "Leather Messenger", solid("#6a4428"), ["brown"], ["academia", "workwear", "oldmoney"]),
+
+  // hats
+  mens("hats", "cap", "Navy Baseball Cap", solid("#22305a"), ["navy"], ["everyday", "street", "athleisure", "tennis"]),
+  mens("hats", "beanie", "Black Beanie", knit("#1c1c20", "#2c2c32"), ["black"], ["skate", "grunge", "workwear", "street"]),
+  mens("hats", "beanie", "Orange Beanie", knit("#d8641c", "#c45414"), ["orange"], ["gorpcore", "workwear"]),
+  mens("hats", "cowboyHat", "Cowboy Hat", solid("#c8a070"), ["beige"], ["western"]),
+  mens("hats", "bucketHat", "Bucket Hat", solid("#6a7044"), ["olive"], ["gorpcore", "street"]),
+
+  // underwear
+  mens("underwear", "shorts", "Gray Boxer Briefs", solid("#8a8a94"), ["gray"], ["everyday", "athleisure"]),
+  mens("underwear", "tank", "White Undershirt", solid("#f6f6f4"), ["white"], ["everyday", "minimal"]),
+);
+
+// The demo pieces for someone's wardrobe choice (everything for "both").
+export const demoSpecsFor = (wardrobe: Wardrobe | null | undefined) => DEMO_SPECS.filter((s) => forWardrobe(s, wardrobe));

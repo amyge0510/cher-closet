@@ -3,7 +3,7 @@ import type { Garment } from "../closet/types";
 import { PixelImage } from "../pixel/PixelImage";
 import { PixelLines, PixelText } from "../pixel/PixelText";
 import { back, boardsFor, choose, newOutfits, QUESTIONS, result, resultBoard, startQuiz, STEP_TITLES, type BoardItem, type QuizState } from "../style/quiz";
-import { family, leaf, type MyStyle } from "../style/styles";
+import { family, leaf, type MyStyle, type Wardrobe } from "../style/styles";
 import { C } from "../stage/palette";
 import { L } from "../stage/layout";
 import { Bevel } from "./Parts";
@@ -60,15 +60,17 @@ function SmallButton({ x, y, w, label, hint, tone = "gray", onClick }: {
 
 // The MY STYLE pop-up: two rounds of "which of these is you?", each a row
 // of outfit boards made from the user's own closet, then the result.
-export function StyleQuiz({ closet, saved, onSave, onClose }: {
+export function StyleQuiz({ closet, wardrobe, saved, onSave, onClose }: {
   closet: Garment[];
+  /** leaves out styles cut only for the other side of the store */
+  wardrobe?: Wardrobe;
   saved: MyStyle | null;
   /** the chosen style, and the board to dress in */
   onSave: (s: MyStyle, board: BoardItem[]) => void;
   onClose: () => void;
 }) {
   const [q, setQ] = useState<QuizState>(() => (saved ? { step: 2, family: saved.family, leaf: saved.leaf, seed: 1 } : startQuiz()));
-  const boards = useMemo(() => (q.step < QUESTIONS ? boardsFor(closet, q) : []), [closet, q]);
+  const boards = useMemo(() => (q.step < QUESTIONS ? boardsFor(closet, q, wardrobe) : []), [closet, q, wardrobe]);
   const box = L.styleQuiz;
   const { y: by, w: bw, h: bh, gap } = L.quizBoard;
   const chosen = result(q);

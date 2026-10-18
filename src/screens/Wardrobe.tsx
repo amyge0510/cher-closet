@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from "react";
-import type { Category } from "../closet/categories";
+import { categoriesFor, type Category } from "../closet/categories";
 import { judgeOutfit, matchingPairs } from "../closet/match";
 import type { Garment, Look, Slot } from "../closet/types";
 import { PixelImage } from "../pixel/PixelImage";
@@ -8,11 +8,12 @@ import { C } from "../stage/palette";
 import { extraSpot, L, type Box } from "../stage/layout";
 import type { Action, State } from "../state/machine";
 import { accessoriesFor, rankPairs, type BoardItem } from "../style/quiz";
-import { leaf, type MyStyle } from "../style/styles";
+import { leaf, WARDROBES, type MyStyle, type Wardrobe as WardrobeChoice } from "../style/styles";
 import { Inventory, MoreMenu } from "./Inventory";
+import { Upload } from "./Upload";
 import { SavedLooks } from "./SavedLooks";
 import { StyleQuiz } from "./StyleQuiz";
-import { Bevel, ButtonLabel, CategoryBar, ControlStrip, Header, Leopard, overflowCategories, pos } from "./Parts";
+import { Bevel, ButtonLabel, CategoryBar, ControlStrip, Header, Leopard, overflowCategories, pos, tabCenter } from "./Parts";
 import { Reveal } from "./Reveal";
 
 const MATCH_HOLD_MS = 1400; // black panels stay up this long before the reveal
@@ -45,12 +46,36 @@ function ExtraSticker({ garment, onTakeOff }: { garment: Garment; onTakeOff: () 
   );
 }
 
-type Popup = { kind: "closet"; category: string } | { kind: "more" } | { kind: "style" } | { kind: "looks" } | null;
+type Popup = { kind: "closet"; category: string } | { kind: "more" } | { kind: "style" } | { kind: "looks" } | { kind: "upload" } | null;
+
+const FLY_MS = 1000;
+const FLASH_MS = 1500;
+
+// A freshly filed upload, floating from the upload pop-up down into its
+// category tab on the bar.
+function FlyingItem({ garment, from, to, onLanded }: { garment: Garment; from: { x: number; y: number; size: number }; to: { x: number; y: number }; onLanded: () => void }) {
+  const dx = to.x - (from.x + from.size / 2);
+  const dy = to.y - (from.y + from.size / 2);
+  const land = useRef(onLanded);
+  land.current = onLanded;
+  useEffect(() => {
+    const t = window.setTimeout(() => land.current(), FLY_MS);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div
+      className="fly-to-tab"
+      style={{ position: "absolute", left: from.x, top: from.y, width: from.size, height: from.size, zIndex: 40, pointerEvents: "none", ["--dx" as string]: `${dx}px`, ["--dy" as string]: `${dy}px`, animationDuration: `${FLY_MS}ms` }}
+    >
+      <PixelImage src={garment.image} w={from.size} h={from.size} pixel={2} fill={0.9} outline={C.white} />
+    </div>
+  );
+}
 
 const MAX_LOOKS = 48;
 const SAVED_FLASH_MS = 1500;
 
-export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut, myStyle, onSaveStyle, looks, onSaveLooks }: {
+export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut, myStyle, onSaveStyle, looks, onSaveLooks, wardrobe, onChangeWardrobe, onUploaded, notice }: {
   state: State;
   dispatch: Dispatch<Action>;
   closet: Garment[];
@@ -61,6 +86,13 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   onSaveStyle: (s: MyStyle) => void;
   looks: Look[];
   onSaveLooks: (l: Look[]) => void;
+  /** womenswear / menswear / both: which styles and demo clothes to show */
+  wardrobe: WardrobeChoice;
+  onChangeWardrobe: (w: WardrobeChoice) => void;
+  /** a garment that was just uploaded and tagged */
+  onUploaded: (g: Garment, png: Blob) => void;
+  /** a short message to show for a moment, e.g. a failed save */
+  notice?: string | null;
 }) {
   const { screen } = state;
   const tops = useMemo(() => closet.filter((g) => g.slot === "top"), [closet]);
@@ -94,8 +126,10 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
     [dispatch, tops, bottoms, state.top, state.bottom],
   );
   const showRack = useCallback(() => dispatch({ type: "SHOW_RACK" }), [dispatch]);
-  const top = tops[state.top];
-  const bottom = bottoms[state.bottom];
+  // the closet can shrink (the demo rack goes once someone has their own
+  // top and bottom), so keep the indices in range
+  const top = tops[state.top % Math.max(1, tops.length)];
+  const bottom = bottoms[state.bottom % Math.max(1, bottoms.length)];
   const scanTimer = useRef(0);
 
   // ♥ SAVE on the dressed screen: remember this outfit (skipping exact repeats)
@@ -189,6 +223,39 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
 
   const revealDone = useCallback(() => dispatch({ type: "REVEAL_DONE" }), [dispatch]);
 
+  // UPLOAD: photos can be pasted anywhere on the closet, not just in the pop-up
+  const [incoming, setIncoming] = useState<{ files: Blob[]; key: number } | null>(null);
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith("image/"));
+      if (!files.length) return;
+      e.preventDefault();
+      setIncoming({ files, key: Date.now() });
+      setPopup({ kind: "upload" });
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, []);
+  const [flying, setFlying] = useState<{ garment: Garment; from: { x: number; y: number; size: number }; to: { x: number; y: number } }[]>([]);
+  const [flash, setFlash] = useState<string | null>(null);
+  const filed = useCallback(
+    (g: Garment, png: Blob, from: { x: number; y: number; size: number }) => {
+      onUploaded(g, png);
+      // aim at the tab as it will be once the garment is in (a new category gets a tab)
+      setFlying((f) => [...f, { garment: g, from, to: tabCenter(categoriesFor([...closet, g]), g.category) }]);
+    },
+    [onUploaded, closet],
+  );
+  const landed = useCallback((g: Garment) => {
+    setFlying((f) => f.filter((x) => x.garment.id !== g.id));
+    setFlash(g.category);
+  }, []);
+  useEffect(() => {
+    if (!flash) return;
+    const t = window.setTimeout(() => setFlash(null), FLASH_MS);
+    return () => clearTimeout(t);
+  }, [flash]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && popup) return setPopup(null);
@@ -220,7 +287,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
 
       {fullBody && top && bottom ? (
         <div style={{ ...pos(L.revealPanel), background: C.panel }}>
-          <Reveal w={L.revealPanel.w} h={L.revealPanel.h} top={top} bottom={bottom} extras={worn} animate={screen === "reveal"} onDone={revealDone} />
+          <Reveal w={L.revealPanel.w} h={L.revealPanel.h} top={top} bottom={bottom} extras={worn} figure={wardrobe === "mens" ? "mens" : "womens"} animate={screen === "reveal"} onDone={revealDone} />
         </div>
       ) : (
         <>
@@ -272,7 +339,19 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
         onPick={(id) => setPopup(popup?.kind === "closet" && popup.category === id ? null : { kind: "closet", category: id })}
         onMore={() => setPopup(popup?.kind === "more" ? null : { kind: "more" })}
         onLooks={() => setPopup(popup?.kind === "looks" ? null : { kind: "looks" })}
+        onUpload={() => setPopup(popup?.kind === "upload" ? null : { kind: "upload" })}
+        flash={flash}
       />
+
+      {popup?.kind === "upload" && <Upload categories={categories} wardrobe={wardrobe} incoming={incoming} onFile={filed} onClose={closePopup} />}
+      {flying.map((f) => (
+        <FlyingItem key={f.garment.id} garment={f.garment} from={f.from} to={f.to} onLanded={() => landed(f.garment)} />
+      ))}
+      {notice && (
+        <div role="status" style={{ ...pos(L.bannerReason), background: C.navy, display: "grid", placeItems: "center", zIndex: 41 }}>
+          <PixelText text={notice} color={C.lavender} sx={1.4} sy={1.8} />
+        </div>
+      )}
 
       {popup?.kind === "closet" && (
         <Inventory category={popup.category} categories={categories} closet={closet} onClose={closePopup} onWear={wear} onDragStart={showRack} />
@@ -280,6 +359,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       {popup?.kind === "style" && (
         <StyleQuiz
           closet={closet}
+          wardrobe={wardrobe}
           saved={myStyle}
           onSave={(s, board) => {
             onSaveStyle(s);
@@ -303,6 +383,14 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
           categories={overflowCategories(categories)}
           onPick={(id) => setPopup({ kind: "closet", category: id })}
           onSignOut={onSignOut}
+          settings={[
+            {
+              key: "wardrobe",
+              label: `CLOTHES: ${WARDROBES.find((w) => w.id === wardrobe)?.label}`,
+              title: "Switch between womenswear, menswear and a mix of both",
+              act: () => onChangeWardrobe(WARDROBES[(WARDROBES.findIndex((w) => w.id === wardrobe) + 1) % WARDROBES.length].id),
+            },
+          ]}
           onClose={closePopup}
         />
       )}

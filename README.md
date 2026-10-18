@@ -25,7 +25,14 @@ settles on an outfit; press it again to stop. Once you're dressed, it becomes
 then they give their first name, and the header becomes "AMY'S WARDROBE".
 Sign-ins aren't remembered, so every visit starts on the sign-in screen and
 needs a new code. Returning users skip the name step, since their name is
-kept with the account. When running locally, a SKIP (DEV) button bypasses sign-in.
+kept with the account.
+
+Right after the name, first sign-in only, it asks **"What do you like to
+wear?"**: WOMENSWEAR, MENSWEAR or A MIX OF BOTH. It asks about the clothes,
+not the person's gender, so anyone can pick any answer and nobody has to
+label themselves. The answer picks which demo clothes and quiz styles they
+see, and the stand-in figure on the reveal. It's kept with the account and
+can be switched any time under MORE (CLOTHES: ...). When running locally, a SKIP (DEV) button bypasses sign-in.
 To look at the sign-in screens while signed in, add `?preview=signin` to the
 address: every step works without sending a text or saving anything.
 
@@ -55,8 +62,12 @@ the open category.
 **MY STYLE.** The pencil button in the header opens a two-step style quiz.
 Each step shows four outfit boards built from the user's own closet:
 
-1. a family (preppy, edgy, soft, easy)
+1. a family (preppy, edgy, soft, easy, rugged)
 2. a specific style inside it (e.g. goth, punk, grunge, moto)
+
+The menswear quiz is the same quiz: it leaves out the styles cut only for
+womenswear (the SOFT family and CLEAN GIRL) and adds the RUGGED family:
+WORKWEAR, GORPCORE, SKATE and WESTERN. A mix of both gets everything.
 
 Only styles the closet can really dress are offered: a style needs a top and
 a bottom that are both tagged with it and go together. The ones with the most
@@ -74,8 +85,12 @@ that style's name under its label, and changes everything on each press,
 accessories included. The style map lives
 in `src/style/styles.ts`, and the quiz and board logic in `src/style/quiz.ts`.
 
-**The demo closet.** 91 drawn pieces across every category, plus a
-BAGS category to show how custom categories land under MORE. Every piece is
+**The demo closet.** 139 drawn pieces: a womenswear rack, a menswear rack
+(48 pieces, including hats), and about 30 pieces in both, such as jeans,
+hoodies, loafers and blazers. Each person sees the rack for their answer.
+BAGS and HATS show how custom categories land under MORE. Empty built-in
+categories are hidden from the bar (a menswear closet has no SKIRTS), except
+TOPS and BOTTOMS. Every piece is
 tagged with styles, colors and a pattern, so the quiz and matching have
 something to work with until real uploads exist.
 
@@ -107,6 +122,48 @@ MIS-MATCH! clears itself after three seconds.
 boards. Click one to wear it again, or use its X to delete it. Looks are kept
 with the account.
 
+**UPLOAD.** The UPLOAD button on the bottom bar opens a pop-up. Photos can
+be added in three ways:
+
+- click UPLOAD FROM COMPUTER (several at once is fine)
+- drop them on it
+- paste one with Ctrl+V or Cmd+V (this works anywhere on the closet)
+
+Each photo goes through:
+
+1. **Removing the background.** The photo turns into chunky pixels with a
+   scan bar sweeping over it. When the cut-out is ready, the background
+   blocks flash pink and pop away one by one.
+2. **Tagging.** It gets a category, a short name, colors, a pattern and
+   styles, all from the app's own lists, so MIS-MATCH! and the quiz can use
+   them.
+3. **A quick look.** FIX IT lets you rename it or move it to another
+   category. Claude's tags file themselves after about three seconds, while
+   a guess waits for FILE IT.
+4. **Filing.** The piece floats down into its tab on the bar (or into MORE),
+   and the tab blinks.
+
+Uploads are saved to the account. Until someone has uploaded at least one
+top and one bottom, their pieces are mixed in with the demo rack (theirs
+come first in each category). After that, only their own clothes show.
+
+Background removal runs in the browser with
+[`@imgly/background-removal`](https://github.com/imgly/background-removal-js).
+It's free, needs no account or key, and the photo never leaves the computer.
+The first upload downloads the model (about 40MB) from IMG.LY's servers, and
+the browser keeps it after that. If the model can't load, a simple fallback
+clears everything that matches the photo's edges, which works for clothes
+laid on a plain bed, floor or wall. The library is AGPL-licensed: that's
+fine while this repo's code is public. A closed-source or paid app would
+need IMG.LY's commercial license, or a hosted service instead, such as
+remove.bg or a BiRefNet model on Replicate or fal. A hosted service would be
+called from an Edge Function like the tagger, so its key stays private.
+
+Tagging uses Claude, through the Supabase Edge Function in
+`supabase/functions/tag-garment`, which keeps the API key on the server (see
+"Claude tagging" below). Until that's set up, or for anyone not signed in,
+the app guesses the colors and category from the pixels.
+
 ## Matching the film: the ghost overlay
 
 In dev mode, press **`** (backtick) to lay a film frame over the live screen.
@@ -130,7 +187,9 @@ production build.
 | `src/pixel/` | The pixel look: a hand-drawn 7-row bitmap font, nearest-neighbour image pixelation with a sticker outline, the procedural leopard tile |
 | `src/state/machine.ts` | splash → browse → mismatch / match → reveal → dressed |
 | `src/closet/` | Garment types, match rules, a procedurally drawn demo closet, and the placeholder body with its garment anchors |
-| `src/screens/` | Splash (swinging hangers), Wardrobe (browse/mismatch/match), Reveal (body + block dissolve) |
+| `src/screens/` | Splash (swinging hangers), Wardrobe (browse/mismatch/match), Reveal (body + block dissolve), Upload |
+| `src/upload/` | Background removal, the pixel scanner animation, and tagging (Claude or the pixel guess) |
+| `supabase/functions/` | The tag-garment Edge Function (Claude) |
 | `src/dev/` | The ghost overlay (dev only) |
 | `supabase/migrations/` | Database schema for per-user closets |
 
@@ -165,7 +224,28 @@ SMS service such as Twilio.
 
 Until someone uploads their own clothes, they see the demo closet.
 
+## Claude tagging (the tag-garment Edge Function)
+
+`supabase/functions/tag-garment/index.ts` sends each cut-out to Claude
+(`claude-opus-5-5`). It uses structured output, so the answer always uses
+the app's category, color, pattern and style lists. Refusal fallbacks are
+switched on (`fallbacks: "default"`): if the model declines a photo,
+Anthropic retries it on its recommended fallback model instead of failing.
+Only signed-in users can call the function. Each tag costs a cent or two.
+
+To switch it on:
+
+1. Make an API key at [console.anthropic.com](https://console.anthropic.com)
+   (Settings → API Keys) and add a little credit under Billing.
+2. In Supabase, go to **Edge Functions → Secrets**. Add one named
+   `ANTHROPIC_API_KEY` with the key as its value. Never put this key in
+   `.env` or anywhere in the app.
+3. Deploy the function, either way:
+   - **Dashboard:** Edge Functions → Deploy a new function → Via Editor.
+     Name it `tag-garment`, paste in the file, and deploy.
+   - **CLI:** `supabase functions deploy tag-garment`.
+
 ## Next
 
-1. Upload pipeline: background removal or garment segmentation, tagging, and a confirm screen.
-2. Full-body photo upload, with anchor placement for the reveal.
+1. Full-body photo upload, with anchor placement for the reveal.
+2. Editing a filed piece's tags from the closet pop-up.

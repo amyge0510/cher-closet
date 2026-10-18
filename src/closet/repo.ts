@@ -46,3 +46,24 @@ export async function loadCloset(): Promise<Garment[]> {
       set: r.set_name ?? undefined,
     }));
 }
+
+// Files an uploaded garment: the cut-out goes to the private "closet" bucket
+// under the owner's folder, and a ready row goes in the garments table.
+export async function saveGarment(owner: string, g: Garment, png: Blob): Promise<void> {
+  if (!supabase) return;
+  const path = `${owner}/garments/${g.id}.png`;
+  const up = await supabase.storage.from("closet").upload(path, png, { contentType: "image/png", upsert: true });
+  if (up.error) throw up.error;
+  const { error } = await supabase.from("garments").insert({
+    id: g.id,
+    category: g.category,
+    slot: g.slot,
+    name: g.name,
+    cutout_path: path,
+    colors: g.colors,
+    pattern: g.pattern,
+    styles: g.styles,
+    status: "ready",
+  });
+  if (error) throw error;
+}

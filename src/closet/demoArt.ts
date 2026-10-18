@@ -1,6 +1,7 @@
 import { makeCanvas, trimCanvas } from "../pixel/raster";
 import { slotFor } from "./categories";
-import { DEMO_SPECS, type DemoSpec, type Fill, type Shape } from "./demo";
+import { demoSpecsFor, type DemoSpec, type Fill, type Shape } from "./demo";
+import type { Wardrobe } from "../style/styles";
 import type { Garment } from "./types";
 
 // Shapes on a 100x100 grid. Tops hang from the shoulders, bottoms from the
@@ -16,6 +17,7 @@ const heel: Pt[] = [[4, 56], [14, 50], [40, 66], [46, 76], [36, 76], [33, 92], [
 const flat: Pt[] = [[4, 60], [16, 52], [38, 56], [46, 66], [44, 74], [4, 74]];
 const loafer: Pt[] = [[4, 54], [14, 48], [36, 52], [46, 64], [46, 74], [4, 74]];
 const leg: Pt[] = [[30, 0], [48, 0], [46, 96], [32, 96]];
+const cowboyBoot: Pt[] = [[10, 4], [30, 4], [30, 62], [48, 80], [44, 90], [8, 90]];
 
 const SHAPES: Record<Shape, ShapeDef> = {
   vest: { polys: [[[28, 4], [42, 4], [50, 34], [58, 4], [72, 4], [74, 18], [84, 30], [84, 96], [16, 96], [16, 30], [26, 18]]] },
@@ -58,6 +60,18 @@ const SHAPES: Record<Shape, ShapeDef> = {
   shoulderBag: { ellipses: [[50, 64, 40, 26]], strokes: [{ pts: [[16, 56], [30, 14], [70, 14], [84, 56]], w: 5 }] },
   tote: { polys: [[[14, 34], [86, 34], [80, 96], [20, 96]]], strokes: [{ pts: [[30, 36], [32, 8], [68, 8], [70, 36]], w: 4 }] },
   miniBag: { polys: [[[22, 46], [78, 46], [74, 86], [26, 86]]], strokes: [{ pts: [[34, 48], [40, 20], [60, 20], [66, 48]], w: 4 }] },
+
+  chore: { polys: [[[32, 4], [68, 4], [92, 14], [96, 86], [84, 88], [80, 44], [80, 98], [20, 98], [20, 44], [16, 88], [4, 86], [8, 14]]] },
+  puffer: { polys: [[[34, 2], [66, 2], [90, 12], [98, 80], [84, 84], [80, 46], [82, 94], [18, 94], [20, 46], [16, 84], [2, 80], [10, 12]]] },
+  joggers: { polys: [[[28, 2], [72, 2], [70, 86], [66, 98], [54, 98], [52, 86], [50, 30], [48, 86], [46, 98], [34, 98], [30, 86]]] },
+  cowboyBoots: { polys: [cowboyBoot, mirror(cowboyBoot, 50)] },
+  watch: { polys: [[[42, 0], [58, 0], [58, 100], [42, 100]]], rings: [[50, 50, 20, 13]] },
+  bandana: { polys: [[[6, 14], [94, 14], [50, 90]]] },
+  backpack: { polys: [[[20, 22], [80, 22], [84, 96], [16, 96]]], strokes: [{ pts: [[38, 22], [40, 8], [60, 8], [62, 22]], w: 4 }] },
+  cap: { polys: [[[10, 66], [14, 42], [28, 28], [50, 24], [72, 28], [86, 42], [88, 62], [98, 64], [96, 74], [10, 74]]] },
+  beanie: { polys: [[[16, 84], [16, 46], [28, 26], [50, 18], [72, 26], [84, 46], [84, 84]]], ellipses: [[50, 14, 9, 8]] },
+  cowboyHat: { polys: [[[30, 60], [32, 30], [42, 22], [50, 28], [58, 22], [68, 30], [70, 60], [98, 56], [92, 74], [8, 74], [2, 56]]] },
+  bucketHat: { polys: [[[26, 30], [74, 30], [80, 60], [96, 76], [4, 76], [20, 60]]] },
 };
 
 const SIZE = 160;
@@ -163,12 +177,13 @@ export function drawDemo(spec: DemoSpec): string {
   return trimCanvas(canvas).toDataURL();
 }
 
-let cache: Garment[] | null = null;
+const images = new Map<string, string>();
 
-export function demoCloset(): Garment[] {
-  cache ??= DEMO_SPECS.map((spec) => {
-    const { shape, fill, band, ...garment } = spec;
-    return { ...garment, slot: slotFor(garment.category), image: drawDemo(spec) };
+// The demo rack for someone's wardrobe choice: womenswear, menswear, or both.
+export function demoCloset(wardrobe?: Wardrobe | null): Garment[] {
+  return demoSpecsFor(wardrobe).map((spec) => {
+    const { shape, fill, band, audience, ...garment } = spec;
+    if (!images.has(spec.id)) images.set(spec.id, drawDemo(spec));
+    return { ...garment, slot: slotFor(garment.category), image: images.get(spec.id)! };
   });
-  return cache;
 }

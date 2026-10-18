@@ -54,7 +54,11 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
   const q = query.trim().toLowerCase();
   // search stays inside the open category, and matches tags as well as names
   const items = useMemo(
-    () => closet.filter((g) => g.category === category && (!q || searchText(g).includes(q))),
+    () =>
+      closet
+        .filter((g) => g.category === category && (!q || searchText(g).includes(q)))
+        // the user's own pieces come before the demo rack
+        .sort((a, b) => Number(a.id.startsWith("demo-")) - Number(b.id.startsWith("demo-"))),
     [closet, category, q],
   );
 
@@ -264,13 +268,20 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
 }
 
 // The list that pops up from MORE: categories that didn't fit on the bar.
-export function MoreMenu({ categories, onPick, onSignOut, onClose }: {
+export function MoreMenu({ categories, onPick, onSignOut, settings = [], onClose }: {
   categories: Category[];
   onPick: (id: string) => void;
   onSignOut?: () => void;
+  /** rows above SIGN OUT, e.g. CLOTHES: MENSWEAR (click to switch) */
+  settings?: { key: string; label: string; title?: string; act: () => void }[];
   onClose: () => void;
 }) {
-  const rows = [...categories.map((c) => ({ key: c.id, label: c.label, act: () => onPick(c.id) })), ...(onSignOut ? [{ key: "sign-out", label: "SIGN OUT", act: onSignOut }] : [])];
+  const rows: { key: string; label: string; title?: string; act: () => void }[] = [
+    ...categories.map((c) => ({ key: c.id, label: c.label, act: () => onPick(c.id) })),
+    ...settings.map((r) => ({ ...r, key: `setting-${r.key}` })),
+    ...(onSignOut ? [{ key: "sign-out", label: "SIGN OUT", act: onSignOut }] : []),
+  ];
+  const firstSetting = rows.findIndex((r) => r.key.startsWith("setting-") || r.key === "sign-out");
   const { x, w, rowH } = L.moreMenu;
   const h = rows.length * rowH + 10;
   return (
@@ -297,6 +308,7 @@ export function MoreMenu({ categories, onPick, onSignOut, onClose }: {
             key={r.key}
             type="button"
             role="menuitem"
+            title={r.title}
             onClick={r.act}
             className="menu-row"
             style={{
@@ -306,7 +318,7 @@ export function MoreMenu({ categories, onPick, onSignOut, onClose }: {
               height: rowH,
               padding: "0 6px",
               border: 0,
-              borderTop: r.key === "sign-out" && i > 0 ? `2px solid ${C.invSlot}` : 0,
+              borderTop: i === firstSetting && i > 0 ? `2px solid ${C.invSlot}` : 0,
               background: "transparent",
               cursor: "pointer",
             }}

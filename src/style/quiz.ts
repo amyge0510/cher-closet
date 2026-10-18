@@ -1,11 +1,11 @@
 import { judge, judgeOutfit } from "../closet/match";
 import { rng } from "../pixel/raster";
 import type { Garment } from "../closet/types";
-import { EVERYDAY, FAMILIES, familiesOf, leaf as leafOf, stylesOf, type MyStyle } from "./styles";
+import { EVERYDAY, FAMILIES, familiesOf, forWardrobe, leaf as leafOf, stylesOf, type MyStyle, type Wardrobe } from "./styles";
 
 // The style quiz narrows in two steps, each showing up to four outfit boards
 // built from the user's own closet:
-//   1. family  (preppy / edgy / soft / easy)
+//   1. family  (preppy / edgy / soft / easy / rugged)
 //   2. specific style inside that family (e.g. goth, punk, grunge, moto)
 // Only styles the closet can actually dress are offered, most outfits first,
 // so a closet of jeans and tees gets EVERYDAY, not GOTH. The answer is the
@@ -46,11 +46,18 @@ export function coverage(closet: Garment[], leafId: string): number {
 }
 
 // The choices for a step: only what this closet can dress, best-stocked first.
-export function options(q: QuizState, closet: Garment[]): Option[] {
+// `wardrobe` (womenswear / menswear / both) leaves out styles cut for the
+// other side of the store, so a menswear closet never gets COQUETTE.
+export function options(q: QuizState, closet: Garment[], wardrobe?: Wardrobe | null): Option[] {
   const dressable = (leaves: string[]) =>
-    leaves.map((id) => ({ id, n: coverage(closet, id) })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n);
+    leaves
+      .filter((id) => forWardrobe(leafOf(id)!, wardrobe))
+      .map((id) => ({ id, n: coverage(closet, id) }))
+      .filter((x) => x.n > 0)
+      .sort((a, b) => b.n - a.n);
   if (q.step === 0)
-    return FAMILIES.map((f) => ({ f, leaves: dressable(f.leaves) }))
+    return FAMILIES.filter((f) => forWardrobe(f, wardrobe))
+      .map((f) => ({ f, leaves: dressable(f.leaves) }))
       .filter((x) => x.leaves.length)
       .sort((a, b) => b.leaves.reduce((s, l) => s + l.n, 0) - a.leaves.reduce((s, l) => s + l.n, 0))
       .slice(0, MAX_OPTIONS)
@@ -218,9 +225,9 @@ export function accessoriesFor(closet: Garment[], outfit: Garment[], style: MySt
 }
 
 // The boards for a step, each kept distinct from the ones before it.
-export function boardsFor(closet: Garment[], q: QuizState): { option: Option; items: BoardItem[] }[] {
+export function boardsFor(closet: Garment[], q: QuizState, wardrobe?: Wardrobe | null): { option: Option; items: BoardItem[] }[] {
   const avoid = new Set<string>();
-  return options(q, closet).map((option, i) => ({ option, items: buildBoard(closet, option.target, q.seed * 97 + i * 13 + q.step, avoid) }));
+  return options(q, closet, wardrobe).map((option, i) => ({ option, items: buildBoard(closet, option.target, q.seed * 97 + i * 13 + q.step, avoid) }));
 }
 
 // Auto Dress with a saved style: among matching outfits, prefer the ones that
