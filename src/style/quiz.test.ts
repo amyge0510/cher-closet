@@ -177,3 +177,18 @@ describe("never suggests a mis-match", () => {
     }
   });
 });
+
+describe("tights are rare", () => {
+  it("auto dress only adds tights when the style names them", () => {
+    const tops = closet.filter((g) => g.slot === "top");
+    const bottoms = closet.filter((g) => g.slot === "bottom");
+    for (const [t, b] of matchingPairs(tops, bottoms).slice(0, 80)) {
+      const style = { family: "soft", leaf: "coquette" };
+      const ids = Object.values(accessoriesFor(closet, [tops[t], bottoms[b]], style, [], t + b));
+      for (const id of ids) {
+        const g = closet.find((x) => x.id === id)!;
+        if (g.category === "pantyhose") expect(g.styles, g.name).toContain("coquette");
+      }
+    }
+  });
+});

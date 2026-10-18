@@ -81,3 +81,18 @@ describe("judgeOutfit (accessories count too)", () => {
     expect(v.match).toBe(false);
   });
 });
+
+describe("tights", () => {
+  it("black tights don't go with a pink outfit", () => {
+    expect(judgeOutfit(g("demo-pink"), g("demo-white-mini"), [n("Sheer Black Tights")])).toMatchObject({ match: false, reason: "BLACK TIGHTS DON'T GO WITH THIS OUTFIT" });
+  });
+
+  it("black tights go with an all-dark or an all-white outfit", () => {
+    expect(judgeOutfit(n("Black Turtleneck"), g("demo-black-skirt"), [n("Sheer Black Tights")]).match).toBe(true);
+    expect(judgeOutfit(g("demo-tee"), g("demo-white-mini"), [n("Sheer Black Tights")]).match).toBe(true);
+  });
+
+  it("white tights are fine with a light, pink outfit", () => {
+    expect(judgeOutfit(g("demo-pink"), g("demo-white-mini"), [n("White Knee Socks")]).match).toBe(true);
+  });
+});

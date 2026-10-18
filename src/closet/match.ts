@@ -52,7 +52,7 @@ export function judge(top: Garment, bottom: Garment): Verdict {
 }
 
 // The whole look: top, bottom and every accessory. The top and bottom must
-// pass judge(). Accessory problems are only "strikes", and it takes two to
+// pass judge(), and black tights need an all-dark or all-white/cream outfit. Accessory problems are only "strikes", and it takes two to
 // make a MIS-MATCH! (one odd bag is a choice; an odd bag and an odd scarf is
 // a mess). Strikes:
 // - an accessory from a different style family (plain, neutral shoes are
@@ -66,6 +66,10 @@ export const STRIKES_FOR_MISMATCH = 2;
 export function judgeOutfit(top: Garment, bottom: Garment, extras: Garment[] = []): Verdict {
   const base = judge(top, bottom);
   if (!base.match) return base;
+  // black tights only go with an all-dark outfit or an all-white/cream one
+  const darkTights = extras.find((e) => e.category === "pantyhose" && onlyIn(e, DARK));
+  if (darkTights && !(onlyIn(top, DARK) && onlyIn(bottom, DARK)) && !(onlyIn(top, LIGHT) && onlyIn(bottom, LIGHT)))
+    return { match: false, reason: "BLACK TIGHTS DON'T GO WITH THIS OUTFIT", strikes: 0 };
   const sameSet = !!top.set && top.set === bottom.set;
   const outfitAccents = new Set([...accents(top), ...accents(bottom)]);
   const lightOutfit = [top, bottom].every((g) => onlyIn(g, LIGHT) || [...accents(g)].every((h) => h === "pink"));

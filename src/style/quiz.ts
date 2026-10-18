@@ -171,12 +171,19 @@ const NEUTRAL = new Set(["black", "white", "cream", "beige", "brown", "gray", "n
 // only a few pairs of shoes, so shoes may repeat across boards (a small
 // penalty, not a big one), and if none suit the style the most neutral pair
 // that still goes stands in. Jewelry, bags and scarves are optional.
-function accessories(closet: Garment[], top: Garment | undefined, bottom: Garment | undefined, best: ReturnType<typeof picker>, bestShoes: ReturnType<typeof picker>) {
+// Most people don't wear tights, so they're only suggested when the style
+// calls for them by name (fishnets for goth, knee socks for Clueless).
+function accessories(closet: Garment[], top: Garment | undefined, bottom: Garment | undefined, t: Target, best: ReturnType<typeof picker>, bestShoes: ReturnType<typeof picker>) {
   const chosen: Garment[] = [];
+  const wanted = (g: Garment) => g.category !== "pantyhose" || stylesOf(g).some((s) => t.leaves.includes(s));
   // suggestions stay spotless: no strikes at all, not just under the limit
-  const goes = (g: Garment) => !top || !bottom || judgeOutfit(top, bottom, [...chosen, g]).strikes === 0;
+  const goes = (g: Garment) => {
+    if (!top || !bottom) return true;
+    const v = judgeOutfit(top, bottom, [...chosen, g]);
+    return v.match && v.strikes === 0;
+  };
   return ACCESSORY_ROLES.map(([spot, cats]) => {
-    const pool = closet.filter((g) => cats.includes(g.category) && goes(g));
+    const pool = closet.filter((g) => cats.includes(g.category) && wanted(g) && goes(g));
     const pick = spot !== "shoes" ? best(pool) : (bestShoes(pool) ?? [...pool].sort((a, b) => neutrality(b) - neutrality(a))[0]);
     if (pick) chosen.push(pick);
     return [spot, pick] as const;
@@ -194,7 +201,7 @@ export function buildBoard(closet: Garment[], t: Target, seed: number, avoid = n
   const picks: (readonly [keyof typeof SPOTS, Garment | undefined])[] = [
     ["top", top],
     ["bottom", bottom],
-    ...accessories(closet, top, bottom, best, picker(t, seed + 1, avoid, 0.5)),
+    ...accessories(closet, top, bottom, t, best, picker(t, seed + 1, avoid, 0.5)),
   ];
   const items = picks.filter(([, g]) => g).map(([spot, g]) => ({ garment: g!, box: SPOTS[spot] }));
   items.forEach((i) => avoid.add(i.garment.id));
@@ -207,7 +214,7 @@ export function accessoriesFor(closet: Garment[], outfit: Garment[], style: MySt
   const styles = outfit.flatMap(stylesOf);
   const t = style ? targetFor(style) : { leaves: styles, families: familiesOf(styles) };
   const best = picker(t, seed, new Set(wearing), 100);
-  return Object.fromEntries(accessories(closet, outfit[0], outfit[1], best, best).flatMap(([, g]) => (g ? [[g.category, g.id]] : [])));
+  return Object.fromEntries(accessories(closet, outfit[0], outfit[1], t, best, best).flatMap(([, g]) => (g ? [[g.category, g.id]] : [])));
 }
 
 // The boards for a step, each kept distinct from the ones before it.

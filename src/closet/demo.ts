@@ -138,7 +138,7 @@ export const DEMO_SPECS: DemoSpec[] = [
   item("scarves", "scarf", "Black Velvet Scarf", solid("#16121a"), ["black"], ["goth", "minimal"]),
 
   // pantyhose
-  item("pantyhose", "tights", "Sheer Black Tights", solid("#2a2630"), ["black"], ["minimal", "academia", "coquette"]),
+  item("pantyhose", "tights", "Sheer Black Tights", solid("#2a2630"), ["black"], ["minimal", "academia", "goth"]),
   item("pantyhose", "tights", "Fishnets", plaid("#18161c", "#3a3640", "#3a3640", 5), ["black"], ["goth", "punk", "grunge"]),
   item("pantyhose", "socks", "White Knee Socks", solid("#f6f6f6"), ["white"], ["clueless", "coquette", "y2k"]),
   item("pantyhose", "socks", "Leg Warmers", knit("#f2d6dc", "#e4bcc6"), ["babypink"], ["ballet", "y2k"]),

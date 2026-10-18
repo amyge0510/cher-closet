@@ -83,7 +83,9 @@ something to work with until real uploads exist.
 under the banner. The top and bottom must have at most one pattern, share a
 style family, and not mix warm colors (brown, burgundy, red, yellow, olive,
 gold) with cool ones (navy, blue, pink, purple, green, silver). Black, white,
-gray, denim, cream and beige go with either. Accessories only count as
+gray, denim, cream and beige go with either. Black tights only go with an
+all-dark or an all-white/cream outfit; with anything else they're a
+MIS-MATCH! on their own. Other accessories only count as
 "strikes", and it takes two to make a MIS-MATCH! (one odd bag is a choice;
 an odd bag and an odd scarf is a mess). Strikes:
 
@@ -95,7 +97,9 @@ an odd bag and an odd scarf is a mess). Strikes:
 - at most one patterned piece among top, bottom, scarf and bag
 - no more than two accent colors in the whole look
 
-Quiz boards and AUTO DRESS only ever suggest outfits with no strikes at all.
+Quiz boards and AUTO DRESS only ever suggest outfits with no strikes at all,
+and only add tights when the style calls for them by name (fishnets for goth,
+knee socks for Clueless), since most people don't wear tights.
 MIS-MATCH! clears itself after three seconds.
 
 **♥ SAVE** appears on the dressed screen after DRESS ME, and saves that outfit.
