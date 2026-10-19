@@ -3,7 +3,7 @@ import { anchorFor, LAYERS, PLACEHOLDER_ANCHORS, placeholderBody, type Anchor, t
 import type { Garment } from "../closet/types";
 import { jewelryKind } from "../closet/categories";
 import { containBox, loadImage, makeCanvas, rng } from "../pixel/raster";
-import { pixelBody, pixelOutfit, poseAt, REST, type PixelLook } from "../closet/pixelModel";
+import { fitFigure, pixelScene, poseAt, poseKey, REST, type PixelLook } from "../closet/pixelModel";
 
 type Props = {
   w: number;
@@ -89,6 +89,7 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
     let cancelled = false;
     let raf = 0;
     let holdTimer = 0;
+    let warmTimer = 0;
     const cw = Math.round(w / RES);
     const ch = Math.round(h / RES);
     const view = ref.current!;
@@ -97,35 +98,37 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
     const vctx = view.getContext("2d")!;
 
     (async () => {
-      const figureCanvas = pixel ? { canvas: pixelBody(cw, ch, pixel), frame: { x: 0, y: 0, w: cw, h: ch } } : await bodyCanvas(bodySrc, cw, ch, figure);
       const pixelPieces = top.id === bottom.id ? [top, ...extras] : [top, bottom, ...extras];
-      // the pixel model's idle loop: each pose is drawn once, then reused
+      const scene = pixel ? pixelScene(pixel, pixelPieces) : null;
+      const figureCanvas = scene ? { canvas: fitFigure(scene.bare(), cw, ch)!, frame: { x: 0, y: 0, w: cw, h: ch } } : await bodyCanvas(bodySrc, cw, ch, figure);
+      const frame = figureCanvas.frame;
+      // the pixel model's idle loop. The arm positions are drawn ahead, a
+      // few at a time, and a pose waits (keeping the arms where they are)
+      // until its arms are ready, so nothing stutters.
       const idle = () => {
-        if (!pixel || cancelled) return;
-        const frames = new Map<string, HTMLCanvasElement>();
+        if (!scene || cancelled) return;
+        const warm = () => {
+          if (cancelled) return;
+          if (scene.warm()) warmTimer = window.setTimeout(warm, 16);
+        };
+        warm();
         const t0 = performance.now();
-        let shown = `${REST.blink}${REST.smile}${REST.sway}`;
+        let shown = poseKey(REST);
+        let arms = { armL: 0, armR: 0 };
         const step = (now: number) => {
-          const pose = poseAt((now - t0) / 1000);
-          const key = `${pose.blink}${pose.smile}${pose.sway}`;
+          let pose = poseAt((now - t0) / 1000);
+          if (scene.ready(pose)) arms = { armL: pose.armL, armR: pose.armR };
+          else pose = { ...pose, ...arms };
+          const key = poseKey(pose);
           if (key !== shown) {
             shown = key;
-            let frame = frames.get(key);
-            if (!frame) {
-              frame = makeCanvas(cw, ch);
-              const fctx = frame.getContext("2d")!;
-              fctx.drawImage(pixelBody(cw, ch, pixel, pose), 0, 0);
-              fctx.drawImage(pixelOutfit(cw, ch, pixel, pixelPieces, pose), 0, 0);
-              frames.set(key, frame);
-            }
             vctx.clearRect(0, 0, cw, ch);
-            vctx.drawImage(frame, 0, 0);
+            fitFigure(scene.dressed(pose), cw, ch, vctx);
           }
           raf = requestAnimationFrame(step);
         };
         raf = requestAnimationFrame(step);
       };
-      const frame = figureCanvas.frame;
       // what the outfit dissolves onto: the outfit already on, or the figure
       const body = underSrc ? await wholePhoto(underSrc, cw, ch) : figureCanvas.canvas;
       if (cancelled) return;
@@ -149,8 +152,8 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
       }
       const outfit = makeCanvas(cw, ch);
       const octx = outfit.getContext("2d")!;
-      if (pixel) {
-        octx.drawImage(pixelOutfit(cw, ch, pixel, pixelPieces), 0, 0);
+      if (scene) {
+        fitFigure(scene.dressed(), cw, ch, octx);
       } else if (dressedSrc) {
         // the whole dressed photo replaces the figure, block by block
         octx.drawImage(await wholePhoto(dressedSrc, cw, ch), 0, 0);
@@ -221,6 +224,7 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
       cancelled = true;
       cancelAnimationFrame(raf);
       clearTimeout(holdTimer);
+      clearTimeout(warmTimer);
     };
     // extrasKey stands in for `extras`, which is a new array every render
   }, [w, h, top.image, bottom.image, extrasKey, bodySrc, figure, anchors, animate, waiting, dressedSrc, underSrc, pixelKey, onDone]);

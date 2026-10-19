@@ -77,6 +77,8 @@ const HAIRSTYLES = [
 const HAIR_KEY = "cher-hair";
 // a dress fills the whole middle: from the top window down to the bottom one
 const DRESS_PANEL = { x: L.topPanel.x, y: L.topPanel.y, w: L.topPanel.w, h: L.bottomPanel.y + L.bottomPanel.h - L.topPanel.y };
+// the pixel model's LOOK button: bottom left of the picture, across from SAVE
+const LOOK_BUTTON = { x: L.revealPanel.x + 6, y: L.saveLook.y, w: 82, h: L.saveLook.h };
 const HAIR_BUTTON = { x: L.revealPanel.x + L.revealPanel.w - 74, y: L.revealPanel.y + 6, w: 68, h: 22 };
 
 const FLY_MS = 1000;
@@ -547,7 +549,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       )}
 
       {fullBody && pixelModel && (
-        <Bevel box={HAIR_BUTTON} tone={popup?.kind === "look" ? "blue" : "gray"} onClick={() => setPopup(popup?.kind === "look" ? null : { kind: "look" })} label="Change the model's look" style={{ borderWidth: 2, zIndex: 6 }}>
+        <Bevel box={LOOK_BUTTON} tone={popup?.kind === "look" ? "blue" : "gray"} onClick={() => setPopup(popup?.kind === "look" ? null : { kind: "look" })} label="Change the model's look" style={{ borderWidth: 2, zIndex: 6 }}>
           <PixelText text="LOOK ~" color={C.ink} sx={1.4} sy={1.8} bold />
         </Bevel>
       )}
