@@ -1,0 +1,57 @@
+# Keeps Supabase in step with GitHub, the way Vercel already is for the website.
+#
+# On a pull request that touches supabase/: signs in, then does a dry run of
+# the database changes (nothing is changed), so a missing permission or a
+# bad SQL file shows up before merging.
+# On a merge to main: runs any new SQL files in supabase/migrations and
+# deploys the edge functions in supabase/functions.
+#
+# Needs three repository secrets: SUPABASE_ACCESS_TOKEN, SUPABASE_PROJECT_ID
+# and SUPABASE_DB_PASSWORD.
+name: Supabase
+
+on:
+  push:
+    branches: [main]
+    paths: ["supabase/**", ".github/workflows/supabase.yml"]
+  pull_request:
+    paths: ["supabase/**", ".github/workflows/supabase.yml"]
+  workflow_dispatch:
+
+# never two deploys at once
+concurrency:
+  group: supabase
+  cancel-in-progress: false
+
+jobs:
+  supabase:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Connect to the project
+        run: supabase link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+
+      # These four were run by hand in the SQL editor before this automation
+      # existed; recording them stops them being run a second time.
+      - name: Record the migrations already run by hand
+        run: supabase migration repair --status applied 20261017000000 20261018000000 20261019000000 20261020000000
+
+      - name: Database changes (a dry run on pull requests)
+        run: supabase db push ${{ github.event_name == 'pull_request' && '--dry-run' || '' }}
+
+      - name: Check access to edge functions (pull requests)
+        if: github.event_name == 'pull_request'
+        run: supabase functions list --project-ref "$PROJECT_ID"
+
+      - name: Deploy edge functions
+        if: github.event_name != 'pull_request'
+        run: supabase functions deploy --project-ref "$PROJECT_ID"

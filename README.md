@@ -422,9 +422,24 @@ it always uses the app's category, color, pattern and style lists, and the
 app checks every value again before filing. Only signed-in users can call
 the function. Each tag costs a fraction of a cent.
 
-To switch it on, deploy the function: **Edge Functions → Deploy a new
-function → Via Editor**, name it `tag-garment`, paste in the file, and deploy
-(or run `supabase functions deploy tag-garment` with the CLI).
+It deploys itself with the others when a change is merged (see "Supabase
+deploys itself" below).
+
+## Supabase deploys itself
+
+Vercel updates the website on every merge; `.github/workflows/supabase.yml`
+does the same for Supabase. On a merge to main that touches `supabase/`, it
+runs any new SQL files in `supabase/migrations` and deploys every edge
+function in `supabase/functions`. On a pull request it only checks: it signs
+in and does a dry run of the database changes, so a bad file or a missing
+permission fails there, before merging. It needs three repository secrets
+(Settings → Secrets and variables → Actions): `SUPABASE_ACCESS_TOKEN` (a
+token limited to reading the project, database migrations and edge
+functions), `SUPABASE_PROJECT_ID` and `SUPABASE_DB_PASSWORD`. Gemini's key
+stays a Supabase secret and never goes through GitHub.
+
+Some things stay by hand: secrets (like `gemini_api_key`), and data rather
+than structure, such as adding yourself to `admins`.
 
 ## Next
 
