@@ -11,7 +11,8 @@
 //
 // The Gemini key lives here as a secret (GEMINI_API_KEY) and never reaches
 // the browser. Only signed-in users can call this, and each person gets a
-// daily allowance (see LIMITS), counted in the ai_usage table.
+// daily allowance (see LIMITS), counted in the ai_usage table. Accounts on
+// the ai_unlimited list have no cap.
 
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 
@@ -143,10 +144,15 @@ Deno.serve(async (req) => {
   });
   const { data: who } = await db.auth.getUser();
   if (!who.user) return json({ error: "sign in first" }, 401);
-  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-  const { count, error: countError } = await db.from("ai_usage").select("id", { count: "exact", head: true }).eq("kind", kind).gte("created_at", since);
-  if (countError) return json({ error: "usage table missing: run the ai_usage migration" }, 500);
-  if ((count ?? 0) >= LIMITS[kind]) return json({ error: "daily limit", limit: LIMITS[kind] }, 429);
+  // people on the ai_unlimited list skip the daily cap (if the list isn't
+  // set up yet, everyone has the cap)
+  const { data: unlimited } = await db.rpc("has_unlimited_ai");
+  if (unlimited !== true) {
+    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const { count, error: countError } = await db.from("ai_usage").select("id", { count: "exact", head: true }).eq("kind", kind).gte("created_at", since);
+    if (countError) return json({ error: "usage table missing: run the ai_usage migration" }, 500);
+    if ((count ?? 0) >= LIMITS[kind]) return json({ error: "daily limit", limit: LIMITS[kind] }, 429);
+  }
 
   const clean = (v: unknown, max: number) => String(v ?? "").replace(/[^\w ,.'&()/-]/g, "").slice(0, max);
   const name = clean(body.name, 40) || "garment";

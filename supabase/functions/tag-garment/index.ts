@@ -137,7 +137,7 @@ The reason is shown on screen in capitals, so keep it short and say what's wrong
       styles: { type: "ARRAY", items: choice(styles.map((s) => s.id)), description: "1 to 3 styles it clearly fits, best first" },
     };
     const itemOrder = ["category", "name", "colors", "pattern", "styles"];
-    const rules = `- category: where it goes. Sweaters, cardigans and knit vests are "sweaters" if that's listed; shirts, tees, tanks, jackets and coats are "tops"; pants, jeans and shorts are "bottoms"; dresses, gowns and jumpsuits are "dresses"; socks and tights are "pantyhose".
+    const rules = `- category: where it goes. Sweaters, cardigans and knit vests are "sweaters" if that's listed; jackets, blazers, coats and puffers are "jackets" if that's listed; shirts, tees and tanks are "tops"; pants, jeans and shorts are "bottoms"; dresses, gowns and jumpsuits are "dresses"; socks and tights are "pantyhose".
 - name: short and plain, the way you'd label it on a shelf. Say exactly what it is: shorts are shorts, not pants; a tank is a tank, not a shirt.
 - colors: the closest names from the list. Photos are often dim, so judge the fabric's real color, not its shadows (dark olive is "olive", not "black" or "navy"). "denim" is for blue jeans-colored fabric; "babypink" is pale pink. Metals (gold, silver) only for hardware or jewelry.
 - pattern: "solid" unless there's a clear print, plaid, stripe or chunky knit texture. Embroidery or a small motif on a plain piece is "print".

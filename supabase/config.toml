@@ -1,0 +1,12 @@
+# Settings for the Supabase command-line tool, used by the deploy automation
+# (.github/workflows/supabase.yml). The live project is chosen by the
+# SUPABASE_PROJECT_ID secret, not this name.
+project_id = "cher-closet"
+
+# Both functions check the signed-in user themselves, and also require a
+# valid Supabase key on every call.
+[functions.gemini-image]
+verify_jwt = true
+
+[functions.tag-garment]
+verify_jwt = true

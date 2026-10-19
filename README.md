@@ -120,6 +120,10 @@ yours once you've uploaded a top and a bottom, and uploading something always
 switches back to yours. Until then, MINE keeps the pixel clothes mixed in so
 there's always an outfit to make. The choice is remembered on this browser.
 
+**Jackets.** JACKETS is its own category for jackets, blazers, coats and
+puffers. A jacket is worn as the top (like SWEATERS), and the AI files new
+uploads there. The demo closets' jackets and blazers live there too.
+
 **Dresses.** DRESSES is its own category. A dress rides the top carousel and
 is a whole outfit: the two windows in the middle become one tall window for
 the dress, and its controls (and ← →) flip through dresses only. BROWSE
@@ -371,6 +375,13 @@ remembered for the visit. **HAIR**, in the top-right corner above the head,
 re-dresses you in another hairstyle (or your own). If the AI can't answer,
 the clothes are placed on the figure instead.
 
+**Stopping an upload.** While a photo is being scanned (finding the
+clothes, cutting, redrawing or tagging), a STOP button sits next to the X.
+It drops that photo and any queued after it and goes back to the start;
+anything still running is ignored when it finishes (each run of the upload
+has a number, and STOP starts a new one). A picture already sent to the AI
+still counts toward the day's allowance.
+
 **Deleting.** Hover over one of your own pieces in the closet pop-up and an
 X appears. It asks to confirm, with a red DELETE button, and removes the
 piece and its picture from your account. The demo rack can't be deleted.
@@ -396,7 +407,9 @@ image model and returns the redraw. It asks Google which image models the key
 can use and takes the newest Flash one, so it keeps working when Google
 renames models. To pin one, add a `GEMINI_IMAGE_MODEL` secret. Each person
 gets 60 garment pictures (uploads, TIDY UP, REDRAW, DRESS ME) and 5 model
-photos a day. Every prompt with a person in it stresses keeping their face,
+photos a day. Accounts on the `ai_unlimited` list have no cap (the owner,
+everyone in `admins`, starts on it; add others with an insert by phone in
+the SQL editor, as for admins). Every prompt with a person in it stresses keeping their face,
 skin, body and age exactly the same. Requests are counted in the
 `ai_usage` table, and people can't delete their own rows to reset the count.
 Past the limit the app says "YOU'VE REACHED TODAY'S IMAGE LIMIT! COME BACK
@@ -422,9 +435,24 @@ it always uses the app's category, color, pattern and style lists, and the
 app checks every value again before filing. Only signed-in users can call
 the function. Each tag costs a fraction of a cent.
 
-To switch it on, deploy the function: **Edge Functions → Deploy a new
-function → Via Editor**, name it `tag-garment`, paste in the file, and deploy
-(or run `supabase functions deploy tag-garment` with the CLI).
+It deploys itself with the others when a change is merged (see "Supabase
+deploys itself" below).
+
+## Supabase deploys itself
+
+Vercel updates the website on every merge; `.github/workflows/supabase.yml`
+does the same for Supabase. On a merge to main that touches `supabase/`, it
+runs any new SQL files in `supabase/migrations` and deploys every edge
+function in `supabase/functions`. On a pull request it only checks: it signs
+in and does a dry run of the database changes, so a bad file or a missing
+permission fails there, before merging. It needs three repository secrets
+(Settings → Secrets and variables → Actions): `SUPABASE_ACCESS_TOKEN` (a
+token limited to reading the project, database migrations and edge
+functions), `SUPABASE_PROJECT_ID` and `SUPABASE_DB_PASSWORD`. Gemini's key
+stays a Supabase secret and never goes through GitHub.
+
+Some things stay by hand: secrets (like `gemini_api_key`), and data rather
+than structure, such as adding yourself to `admins`.
 
 ## Next
 
