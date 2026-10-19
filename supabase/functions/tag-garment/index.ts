@@ -6,10 +6,11 @@
 // forced into exactly that shape (a JSON schema), so it can be filed without
 // guesswork. The Gemini key lives here as a secret (GEMINI_API_KEY, the same
 // one the gemini-image function uses) and never reaches the browser. Only
-// signed-in users can call this (Supabase checks their sign-in token before
-// the function runs).
+// signed-in users can call this: the app's public key alone is turned away.
 //
 // Setup: deploy this file as "tag-garment" (see the README).
+
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 
 const API = "https://generativelanguage.googleapis.com/v1beta";
 const MAX_IMAGE_CHARS = 2_000_000; // base64 JPEG; the app sends ~512px, far smaller
@@ -63,6 +64,13 @@ Deno.serve(async (req) => {
 
   const key = geminiKey();
   if (!key) return json({ error: "GEMINI_API_KEY is not set" }, 500);
+
+  // a real signed-in user, not just the app's public key
+  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+  });
+  const { data: who } = await db.auth.getUser();
+  if (!who.user) return json({ error: "sign in first" }, 401);
 
   let body: Record<string, unknown>;
   try {
