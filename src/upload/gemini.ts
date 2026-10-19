@@ -7,7 +7,14 @@ import { keyOut } from "./smooth";
 // Function (which holds the key and the daily allowance). Both need someone
 // signed in.
 
-export class RedrawError extends Error {}
+// `limit`: the person has used up today's AI pictures (not something broken)
+export class RedrawError extends Error {
+  constructor(message: string, readonly limit = false) {
+    super(message);
+  }
+}
+
+export const LIMIT_MESSAGE = "YOU'VE REACHED TODAY'S IMAGE LIMIT! COME BACK TOMORROW.";
 
 async function redraw(mode: "tidy" | "extract" | "pose" | "dress", image: string, mimeType: string, extra: Record<string, unknown> = {}): Promise<HTMLCanvasElement> {
   if (!supabase) throw new RedrawError("SIGN IN TO USE THIS.");
@@ -18,7 +25,12 @@ async function redraw(mode: "tidy" | "extract" | "pose" | "dress", image: string
     // no answer at all: almost always the function isn't deployed (Supabase's
     // "not found" reply has no CORS approval, so the browser blocks it)
     if (status === undefined || status === 404) throw new RedrawError("TIDY UP ISN'T SWITCHED ON YET: DEPLOY THE GEMINI-IMAGE FUNCTION IN SUPABASE.");
-    if (status === 429) throw new RedrawError("THAT'S TODAY'S LIMIT FOR REDRAWS. TRY AGAIN TOMORROW.");
+    if (status === 429) {
+      // 429 is either the daily allowance or Gemini being busy for a moment
+      const reply = await (error as { context?: Response }).context?.json().catch(() => null);
+      if (reply?.error === "daily limit") throw new RedrawError(LIMIT_MESSAGE, true);
+      throw new RedrawError("GEMINI IS BUSY RIGHT NOW. TRY AGAIN IN A MINUTE.");
+    }
     if (status === 401) throw new RedrawError("SIGN IN TO USE THIS.");
     if (status === 500) throw new RedrawError("THE REDRAW SERVICE ISN'T SET UP RIGHT. CHECK THE GEMINI KEY AND THE AI_USAGE TABLE.");
     if (status === 422) throw new RedrawError("GEMINI WOULDN'T REDRAW THAT ONE. TRY ANOTHER PHOTO.");

@@ -17,8 +17,9 @@ Controls: click the on-screen buttons, or use the keyboard. ← → flip tops,
 ↑ ↓ flip bottoms, Enter is Dress Me, Esc clears MIS-MATCH! early.
 
 As in the film, the left button is **BROWSE** while you're picking. It flicks
-through the tops on its own (the row's ▶▶ lights up), then the bottoms, and
-settles on an outfit; press it again to stop. Once you're dressed, it becomes
+through the tops and dresses on its own (the row's ▶▶ lights up), then the
+bottoms if it landed on a top, and settles on an outfit with freshly shuffled
+accessories; press it again to stop. Once you're dressed, it becomes
 **AUTO DRESS**.
 
 **Sign-in.** People sign in with their phone number. The screen says the
@@ -57,7 +58,8 @@ plays in every modern browser. Without the file, the TV shows static for a few s
 
 **Dresses.** DRESSES is its own category. A dress rides the top carousel and
 is a whole outfit: the two windows in the middle become one tall window for
-the dress, and its controls (and BROWSE, and ← →) flip through dresses only.
+the dress, and its controls (and ← →) flip through dresses only. BROWSE
+always flicks through everything, so it can land on a dress or a top and bottom.
 Picking a top or bottom brings the two windows back. DRESS ME judges the dress with its accessories, and on the figure
 it hangs from the shoulders to the knees. Auto Dress and the quiz boards
 build two-piece outfits only.
@@ -102,6 +104,8 @@ Each outfit (a top and a bottom that go together) belongs to one style
 only: of the styles both pieces are tagged with, the one they claim most
 strongly (tags are listed best first). So a black mesh corset tagged both
 goth and coquette can't make the same outfit a SOFT board and an EDGY one.
+SOFT also never takes an outfit whose top or bottom is mainly black, navy,
+brown, burgundy, gray or olive, whatever the tags say.
 EVERYDAY is the exception: any outfit both tagged everyday counts for it.
 Boards only use pieces tagged with that style, accessories included: when
 nothing in the closet suits a style, the board goes without it (no party
@@ -333,6 +337,8 @@ gets 60 garment pictures (uploads, TIDY UP, REDRAW, DRESS ME) and 5 model
 photos a day. Every prompt with a person in it stresses keeping their face,
 skin, body and age exactly the same. Requests are counted in the
 `ai_usage` table, and people can't delete their own rows to reset the count.
+Past the limit the app says "YOU'VE REACHED TODAY'S IMAGE LIMIT! COME BACK
+TOMORROW." instead of an error.
 
 To switch it on:
 

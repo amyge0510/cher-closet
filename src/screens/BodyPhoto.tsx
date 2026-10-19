@@ -18,7 +18,7 @@ type Phase =
   | { kind: "intro" }
   | { kind: "working"; photo: HTMLCanvasElement }
   | { kind: "result"; canvas: HTMLCanvasElement; image: string; anchors: BodyAnchors }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string; limit?: boolean };
 
 const PHRASES = ["STRIKING A POSE...", "FINDING YOUR ANGLES...", "STEPPING INTO THE STUDIO...", "ALMOST READY FOR THE RUNWAY..."];
 const pad = 14;
@@ -46,7 +46,7 @@ export function BodyPhoto({ current, canRedraw, initialPhoto, onUse, onReset, on
       setPhase({ kind: "result", canvas, image: canvas.toDataURL("image/png"), anchors });
     } catch (e) {
       console.error(e);
-      setPhase({ kind: "error", message: e instanceof RedrawError ? e.message : "THAT DIDN'T WORK. TRY ANOTHER PHOTO." });
+      setPhase({ kind: "error", message: e instanceof RedrawError ? e.message : "THAT DIDN'T WORK. TRY ANOTHER PHOTO.", limit: e instanceof RedrawError && e.limit });
     }
   }, []);
   const start = useCallback(
@@ -100,16 +100,25 @@ export function BodyPhoto({ current, canRedraw, initialPhoto, onUse, onReset, on
             <GarmentImage src={current.src} w={66} h={116} fill={0.95} />
           </div>
         )}
+        {phase.kind === "error" ? (
+          // something went wrong: say so plainly, in place of the explanation
+          <div role="alert" style={{ position: "absolute", left: box.x + pad, top: box.y + 70, width: current ? inner - 84 : inner, display: "grid", gap: 14, justifyItems: "center" }}>
+            <PixelText text={phase.limit ? "AS IF!" : "UH OH..."} color={C.invEdge} sx={3} sy={3.4} bold />
+            <PixelLines text={phase.message} maxWidth={current ? inner - 84 : inner} color={C.invText} sx={1.7} sy={2.1} />
+          </div>
+        ) : (
         <div style={{ position: "absolute", left: box.x + pad, top: box.y + 48, width: current ? inner - 84 : inner, display: "grid", gap: 10 }}>
           <PixelLines text="PICK A PHOTO OF YOURSELF, HEAD TO TOE IF YOU CAN. ANY POSE OR OUTFIT IS FINE." maxWidth={current ? inner - 84 : inner} color={C.invText} sx={1.4} sy={1.8} align="left" />
           <PixelLines text="GEMINI, GOOGLE'S AI, REDRAWS YOU STANDING STRAIGHT IN A BLACK TANK AND SHORTS, SO THE CLOSET CAN DRESS YOU." maxWidth={current ? inner - 84 : inner} color={C.invText} sx={1.4} sy={1.8} align="left" />
           <PixelLines text="YOUR PHOTO IS SENT TO GOOGLE ONLY TO DO THIS, AND THE RESULT IS KEPT IN YOUR PRIVATE CLOSET." maxWidth={current ? inner - 84 : inner} color={C.invText} sx={1.4} sy={1.8} align="left" />
         </div>
-        {phase.kind === "error" && text(phase.message, box.y + 222, "#a3123a")}
-        <Bevel box={{ x: box.x + pad, y: box.y + 262, w: inner, h: 38 }} tone="blue" onClick={() => input.current?.click()} label="Pick a photo of yourself" style={{ borderWidth: 3 }}>
-          <PixelText text="OK, PICK A PHOTO" color={C.white} sx={2} sy={2.4} bold shadow={C.btnBlueDark} />
-        </Bevel>
-        {text("OR PASTE ONE: CTRL+V OR CMD+V", box.y + 310)}
+        )}
+        {!(phase.kind === "error" && phase.limit) && (
+          <Bevel box={{ x: box.x + pad, y: box.y + 262, w: inner, h: 38 }} tone="blue" onClick={() => input.current?.click()} label="Pick a photo of yourself" style={{ borderWidth: 3 }}>
+            <PixelText text={phase.kind === "error" ? "TRY ANOTHER PHOTO" : "OK, PICK A PHOTO"} color={C.white} sx={2} sy={2.4} bold shadow={C.btnBlueDark} />
+          </Bevel>
+        )}
+        {!(phase.kind === "error" && phase.limit) && text("OR PASTE ONE: CTRL+V OR CMD+V", box.y + 310)}
         {current && (
           <Bevel box={{ x: box.x + pad, y: footY, w: 200, h: 34 }} tone="gray" onClick={onReset} label="Use the stand-in figure" style={{ borderWidth: 2 }}>
             <PixelText text="USE THE STAND-IN" color={C.ink} sx={1.5} sy={2} bold />

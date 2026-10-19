@@ -251,6 +251,10 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   // the next or previous dress (dresses sit in the top carousel among tops)
   const topIndex = useRef(state.top);
   topIndex.current = state.top;
+  const bottomIndex = useRef(state.bottom);
+  bottomIndex.current = state.bottom;
+  const extrasNow = useRef(state.extras);
+  extrasNow.current = state.extras;
   const stepDress = useCallback(
     (delta: number) => {
       const dresses = tops.flatMap((g, i) => (isDress(g) ? [i] : []));
@@ -287,12 +291,21 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
 
   // BROWSE, as in the film: the tops flick by on their own, then the
   // bottoms, then it settles on an outfit. Pressing it again stops it.
+  // BROWSE: the whole top row flicks by (tops and dresses alike); landing on
+  // a top, the bottoms flick by too. Then new accessories that suit
+  // whatever it settled on.
   const browse = useCallback(() => {
     if (scanning) return stopScan();
     dispatch({ type: "BROWSE" });
-    if (wearingDress) scan("top", undefined, () => stepDress(1));
-    else scan("top", () => scan("bottom"));
-  }, [scanning, stopScan, dispatch, scan, wearingDress, stepDress]);
+    const settle = () => {
+      const t = tops[topIndex.current % Math.max(1, tops.length)];
+      const b = isDress(t) ? t : bottoms[bottomIndex.current % Math.max(1, bottoms.length)];
+      if (!t || !b) return;
+      const extras = accessoriesFor(closet, [t, b], myStyle, Object.values(extrasNow.current), Math.floor(Math.random() * 1e9));
+      dispatch({ type: "SET_OUTFIT", top: topIndex.current, bottom: bottomIndex.current, extras });
+    };
+    scan("top", () => (isDress(tops[topIndex.current % Math.max(1, tops.length)]) ? settle() : scan("bottom", settle)));
+  }, [scanning, stopScan, dispatch, scan, tops, bottoms, closet, myStyle]);
   useEffect(() => () => clearInterval(scanTimer.current), []);
 
   // DRESS ME. The demo rack is judged by the rules in match.ts, instantly.

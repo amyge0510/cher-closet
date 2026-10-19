@@ -188,6 +188,12 @@ describe("one style per outfit", () => {
   const corset: Garment = { id: "u1", category: "tops", slot: "top", name: "Black Mesh Corset Top", image: "", colors: ["black"], pattern: "solid", styles: ["goth", "coquette"] };
   const denim: Garment = { id: "u2", category: "skirts", slot: "bottom", name: "Patched Denim Mini", image: "", colors: ["denim"], pattern: "solid", styles: ["grunge", "goth", "y2k", "coquette"] };
   const small = [corset, denim];
+  it("a dark main piece is never SOFT, whatever the tags say", () => {
+    const softFirst: Garment = { ...corset, id: "u3", styles: ["coquette", "goth"] }; // tagged soft first
+    expect(coverage([softFirst, denim], "coquette")).toBe(0);
+    expect(options(startQuiz(), [softFirst, denim]).map((o) => o.id)).toEqual(["edgy"]);
+  });
+
   it("counts the outfit for its strongest shared style only", () => {
     expect(coverage(small, "goth")).toBe(1);
     expect(coverage(small, "coquette")).toBe(0);
