@@ -14,10 +14,12 @@ export const BUILT_IN: Category[] = [
   // go on like an accessory instead of riding the top carousel
   { id: "jackets", label: "JACKETS", slot: null },
   { id: "shoes", label: "SHOES", slot: null },
+  { id: "bags", label: "BAGS", slot: null },
   { id: "jewelry", label: "JEWELRY", slot: null },
   { id: "scarves", label: "SCARVES", slot: null },
   { id: "pantyhose", label: "PANTYHOSE", slot: null },
   { id: "underwear", label: "UNDERWEAR", slot: null },
+  { id: "hats", label: "HATS", slot: null },
 ];
 
 export const isDress = (g: { category: string } | undefined) => g?.category === "dresses";

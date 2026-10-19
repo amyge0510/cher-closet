@@ -111,6 +111,9 @@ export function Header({ title, season = "FALL FASHIONS", onStyle }: {
 }
 
 const labelWidth = (label: string) => layoutText(label).width * L.categoryText.sx;
+// Where the category tabs stop: before UPLOAD, or, on a computer without
+// UPLOAD (Amy's closet), right up to LOOKS.
+const runEnd = (withUpload: boolean) => (withUpload || PHONE ? L.categoryRun.end : L.looks.x - L.categoryRun.gap);
 
 // The bottom bar. Clicking a category opens the closet pop-up on it; whatever
 // doesn't fit goes under MORE. Without handlers it is just decoration.
@@ -128,8 +131,8 @@ export function CategoryBar({ categories, active, onPick, onMore, onLooks, onUpl
   flash?: string | null;
 }) {
   const { sx, sy, y } = L.categoryText;
-  const { start, end, gap } = L.categoryRun;
-  const { shown, more } = splitForBar(categories, labelWidth, start, end, gap);
+  const { start, gap } = L.categoryRun;
+  const { shown, more } = splitForBar(categories, labelWidth, start, runEnd(!!onUpload), gap);
   const moreActive = active === "more" || (!!active && more.some((c) => c.id === active));
   const label = (text: string, on: boolean) => <PixelText text={text} color={on ? C.navy : C.lavender} sx={sx} sy={sy} />;
   const hit = (on: boolean): CSSProperties => ({
@@ -211,9 +214,9 @@ export function CategoryBar({ categories, active, onPick, onMore, onLooks, onUpl
   );
 }
 
-export function overflowCategories(categories: Category[]) {
-  const { start, end, gap } = L.categoryRun;
-  return splitForBar(categories, labelWidth, start, end, gap).more;
+export function overflowCategories(categories: Category[], withUpload = true) {
+  const { start, gap } = L.categoryRun;
+  return splitForBar(categories, labelWidth, start, runEnd(withUpload), gap).more;
 }
 
 // The middle of a category's tab on the bar (or of MORE, if it's under MORE),

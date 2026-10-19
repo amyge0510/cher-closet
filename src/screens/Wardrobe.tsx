@@ -681,7 +681,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       )}
       {popup?.kind === "more" && (
         <MoreMenu
-          categories={overflowCategories(categories)}
+          categories={overflowCategories(categories, source === "mine")}
           onPick={(id) => setPopup({ kind: "closet", category: id })}
           onSignOut={onSignOut}
           settings={[
