@@ -464,6 +464,12 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
   }, [source]);
+  // a pasted photo is handed over once: closing the pop-up forgets it, so
+  // opening UPLOAD again doesn't start on it all over again
+  const uploadOpen = popup?.kind === "upload";
+  useEffect(() => {
+    if (!uploadOpen) setIncoming(null);
+  }, [uploadOpen]);
   const [flying, setFlying] = useState<{ garment: Garment; from: { x: number; y: number; size: number }; to: { x: number; y: number } }[]>([]);
   const [flash, setFlash] = useState<string | null>(null);
   const filed = useCallback(
