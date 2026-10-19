@@ -63,7 +63,7 @@ export const extraSpot = (category: string): Box => EXTRA_SPOTS[category] ?? EXT
 const DESK_L = {
   header: { x: 0, y: 0, w: 640, h: 32 },
   title: { x: 2, y: 9, sx: 1.6, sy: 2 }, // "CHER'S WARDROBE"
-  sourceToggle: { x: 6, y: 37, w: 156, h: 22 }, // PIXEL | MY CLOTHES, under the title
+  sourceToggle: { x: 6, y: 37, w: 176, h: 22 }, // AMY'S CLOSET | MY CLOSET, under the title
   showSeason: true,
   season: { x: 264, y: 8, w: 132, h: 21 }, // "FALL FASHIONS" box
   seasonText: { sx: 1.5, sy: 2 },
@@ -137,12 +137,8 @@ const DESK_L = {
   introSkip: { x: 560, y: 444, w: 70, h: 26 },
   introTitle: { y: 30, sx: 5, sy: 5.4 },
 
-  // MY PIXEL MODEL (the LOOK button on the dressed screen): over the right
-  // leopard, so she stays in view while it changes
-  pixelLookBox: { x: 446, y: 36, w: 190, h: 410 },
-  // STRIKE A POSE: the button (top left of the picture) and the board pop-up
-  poseButton: { x: 212, y: 44, w: 132, h: 24 },
-  poseBox: { x: 176, y: 36, w: 288, h: 410 },
+  // MY CLOSET with nothing in it yet: the pop-up asking for uploads
+  emptyBox: { x: 180, y: 150, w: 280, h: 150 },
 };
 
 type Layout = typeof DESK_L;
@@ -222,10 +218,7 @@ function phoneLayout(W: number): Layout {
     introTv: { x: 10, y: Math.round(250 - ((W - 20) * 9) / 16 / 2 + 112), w: W - 20, h: Math.round(((W - 20) * 9) / 16) },
     introSkip: { x: W - 86, y: 736, w: 76, h: 30 },
     introTitle: { y: 170, sx: 3.4, sy: 4 },
-    // over the lower half of the screen, under her face
-    pixelLookBox: { x: 8, y: 352, w: W - 16, h: 334 },
-    poseButton: { x: px + 6, y: 94, w: 140, h: 26 },
-    poseBox: { x: Math.round((W - 340) / 2), y: 60, w: 340, h: 560 },
+    emptyBox: { x: Math.round((W - 320) / 2), y: 280, w: 320, h: 130 },
   };
 }
 

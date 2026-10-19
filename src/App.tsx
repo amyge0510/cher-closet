@@ -5,7 +5,7 @@ import type { Look } from "./closet/types";
 import type { MyStyle, Wardrobe as WardrobeChoice } from "./style/styles";
 import { categoriesFor } from "./closet/categories";
 import { demoCloset } from "./closet/demoArt";
-import { deleteGarment, loadCloset, saveGarment } from "./closet/repo";
+import { deleteGarment, loadCloset, loadShowcase, saveGarment } from "./closet/repo";
 import { loadImage } from "./pixel/raster";
 import { clearBody, loadBody, saveBody, type Body } from "./closet/bodyPhoto";
 import type { BodyAnchors } from "./closet/body";
@@ -13,7 +13,7 @@ import type { Garment } from "./closet/types";
 import { Intro } from "./screens/Intro";
 import { SignIn } from "./screens/SignIn";
 import { Splash } from "./screens/Splash";
-import { Wardrobe } from "./screens/Wardrobe";
+import { Wardrobe, type Source } from "./screens/Wardrobe";
 import { Stage } from "./stage/Stage";
 import { setTracking, track } from "./lib/track";
 import { initialState, reducer } from "./state/machine";
@@ -130,7 +130,7 @@ const GUEST_STYLE_KEY = "cher-guest-style";
 const GUEST_LOOKS_KEY = "cher-guest-looks";
 const GUEST_INTRO_KEY = "cher-guest-intro-seen";
 const GUEST_WARDROBE_KEY = "cher-guest-wardrobe";
-export type ClosetSource = "mine" | "pixel";
+export type ClosetSource = Source;
 function loadGuest<T>(key: string): T | null {
   try {
     return JSON.parse(localStorage.getItem(key) ?? "null");
@@ -184,28 +184,37 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
     [persistStyle],
   );
   const [own, setOwn] = useState<Garment[]>([]);
-  // the user's own clothes have arrived (or there are none to wait for)
-  const [closetReady, setClosetReady] = useState(!signedIn);
+  // AMY'S CLOSET: the showcase everyone plays with first. The built-in pixel
+  // clothes stand in when it can't be reached (no backend, or not set up).
+  const [amys, setAmys] = useState<Garment[]>([]);
+  // each closet has arrived (or there's nothing to wait for)
+  const [ownReady, setOwnReady] = useState(!signedIn);
+  const [amysReady, setAmysReady] = useState(!signedIn);
   useEffect(() => {
-    if (signedIn)
-      loadCloset()
-        .then((mine) => {
-          setOwn(mine);
-          // start on the pictures of the last outfit while the hangers swing
-          const last = loadGuest<Look>(`cher-last-outfit-${userId ?? "guest"}`);
-          const ids = new Set(last ? [last.top, last.bottom, ...Object.values(last.extras)] : []);
-          for (const g of mine) if (ids.has(g.id)) loadImage(g.image).catch(() => {});
-        }, () => setOwn([]))
-        .finally(() => setClosetReady(true));
+    if (!signedIn || !userId) return;
+    // the last outfit's pictures first, while the hangers swing, then
+    // everything else, so each category opens with its pictures there
+    const last = loadGuest<Look>(`cher-last-outfit-${userId}`);
+    const ids = new Set(last ? [last.top, last.bottom, ...Object.values(last.extras)] : []);
+    const warm = (list: Garment[]) => {
+      for (const g of list) if (ids.has(g.id)) loadImage(g.image).catch(() => {});
+      window.setTimeout(() => {
+        for (const g of list) loadImage(g.image).catch(() => {});
+      }, 1500);
+    };
+    loadShowcase()
+      .then((list) => (setAmys(list), warm(list)), () => setAmys([]))
+      .finally(() => setAmysReady(true));
+    loadCloset(userId)
+      .then((list) => (setOwn(list), warm(list)), () => setOwn([]))
+      .finally(() => setOwnReady(true));
   }, [signedIn, userId]);
-  // PIXEL | MY CLOTHES (under the title): the person's own clothes, or the built-in
-  // pixel rack. Until someone has uploaded at least one top and one bottom,
-  // "my clothes" keeps the pixel rack mixed in so the machine stays usable.
-  // Unset, it's their own once they have an outfit's worth.
+  // AMY'S CLOSET | MY CLOSET (under the title), remembered per account;
+  // everyone starts on Amy's
   const sourceKey = `cher-source-${userId ?? "guest"}`;
   const [source, setSource] = useState(() => loadGuest<ClosetSource>(sourceKey));
-  const complete = own.some((g) => g.slot === "top") && own.some((g) => g.slot === "bottom");
-  const playing: ClosetSource = source ?? (complete ? "mine" : "pixel");
+  const playing: ClosetSource = source === "mine" ? "mine" : "amy";
+  const closetReady = playing === "mine" ? ownReady : amysReady;
   // one "visit" each time the closet opens, for the owner's dashboard
   const visited = useRef(false);
   useEffect(() => {
@@ -219,15 +228,15 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
   }, [signedIn, closetReady, playing]);
   const changeSource = useCallback(
     (s: ClosetSource) => {
+      if (s === playing) return;
       setSource(s);
       saveGuest(sourceKey, s);
+      // a fresh rack: start at the first piece, nothing from the other one on
+      dispatch({ type: "SET_OUTFIT", top: 0, bottom: 0, extras: {} });
     },
-    [sourceKey],
+    [sourceKey, playing],
   );
-  const closet = useMemo(() => {
-    if (playing === "pixel") return demoCloset(wardrobe);
-    return complete ? own : [...demoCloset(wardrobe), ...own];
-  }, [own, wardrobe, playing, complete]);
+  const closet = useMemo(() => (playing === "mine" ? own : amys.length ? amys : demoCloset(wardrobe)), [own, amys, wardrobe, playing]);
   const [notice, setNotice] = useState<string | null>(null);
   const removeGarment = useCallback(
     (g: Garment) => {

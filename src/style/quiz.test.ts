@@ -87,6 +87,25 @@ describe("quiz", () => {
     for (const id of Object.values(next)) expect(fit(closet.find((g) => g.id === id)!, { leaves: ["coquette"], families: ["soft"] })).toBeGreaterThan(0);
   });
 
+  it("browse fills an outfit out to at least 5 pieces, even when styles don't line up", () => {
+    // pieces with no styles at all, like a closet the tagger knew little about
+    const plain = (id: string, category: string): Garment => ({ id, category, slot: slotFor(category), name: id, image: "", colors: ["black"], pattern: "solid", styles: [] });
+    const mine = [plain("t", "tops"), plain("b", "bottoms"), plain("s1", "shoes"), plain("s2", "shoes"), plain("j1", "jewelry"), plain("j2", "jewelry"), plain("bag", "bags")];
+    for (let seed = 1; seed < 20; seed++) {
+      const extras = accessoriesFor(mine, [mine[0], mine[1]], null, [], seed, 5);
+      expect(Object.keys(extras).length, `seed ${seed}`).toBeGreaterThanOrEqual(3);
+      expect(new Set(Object.values(extras)).size).toBe(Object.keys(extras).length);
+    }
+    // on the demo rack, every browse lands on 5 or more, and the accessories change
+    for (const [t, b] of matchingPairs(womens.filter((g) => g.slot === "top"), womens.filter((g) => g.slot === "bottom")).slice(0, 30)) {
+      const top = womens.filter((g) => g.slot === "top")[t];
+      const bottom = womens.filter((g) => g.slot === "bottom")[b];
+      const extras = accessoriesFor(womens, [top, bottom], null, [], t * 31 + b, 5);
+      expect(Object.keys(extras).length, `${top.name} + ${bottom.name}`).toBeGreaterThanOrEqual(3);
+      expect(judgeOutfit(top, bottom, Object.values(extras).map((id) => womens.find((g) => g.id === id)!)).match).toBe(true);
+    }
+  });
+
   it("only ever shows pieces from the closet it was given", () => {
     const small = closet.filter((_, i) => i % 3 === 0); // a smaller, different closet
     const ids = new Set(small.map((g) => g.id));

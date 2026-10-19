@@ -1,14 +1,27 @@
 // Canvas helpers that turn any image (garment cut-outs, body photos) into
 // chunky low-resolution pixels with a hard alpha edge and a reduced palette.
 
+// Closet pictures, once loaded, stay ready to draw (by link), so opening a
+// category shows them at once. The oldest are let go past a few hundred.
+const loaded = new Map<string, Promise<HTMLImageElement>>();
+const KEEP_LOADED = 400;
+
 export function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
+  const kept = loaded.get(src);
+  if (kept) return kept;
+  const p = new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`could not load ${src}`));
+    img.onload = () => (img.decode ? img.decode().catch(() => {}).then(() => resolve(img)) : resolve(img));
+    img.onerror = () => {
+      loaded.delete(src);
+      reject(new Error(`could not load ${src.slice(0, 80)}`));
+    };
     img.src = src;
   });
+  loaded.set(src, p);
+  if (loaded.size > KEEP_LOADED) loaded.delete(loaded.keys().next().value!);
+  return p;
 }
 
 export function makeCanvas(w: number, h: number) {

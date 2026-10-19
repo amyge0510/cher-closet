@@ -4,7 +4,8 @@
 // keeps a copy of each picture in the browser, by path, so a return visit
 // shows them straight away instead of downloading them all again.
 
-const CACHE = "cher-closet-images-v1";
+export const CLOSET_IMAGE_CACHE = "cher-closet-images-v1";
+const CACHE = CLOSET_IMAGE_CACHE;
 // a picture is copied in once it's had time to show (by then the browser has
 // it, so the copy doesn't download it a second time)
 const COPY_AFTER_MS = 4000;
@@ -18,7 +19,8 @@ async function open(): Promise<Cache | null> {
 }
 
 // the Cache API wants a URL; this one never goes over the network
-const keyOf = (path: string) => `${location.origin}/closet-image/${path}`;
+export const closetImageKey = (path: string) => `${location.origin}/closet-image/${path}`;
+const keyOf = closetImageKey;
 
 // Links for these storage paths: kept copies where there are any, and links
 // from `sign` (signed URLs) for the rest, which are kept for next time.
@@ -48,7 +50,8 @@ export async function cachedUrls(paths: string[], sign: (missing: string[]) => P
   return out;
 }
 
-// Forgets a picture (when it's deleted).
+// Forgets a picture. Deleting a garment keeps its copy on purpose, so
+// /#recover can put it back.
 export async function forgetImage(path: string) {
   const cache = await open();
   await cache?.delete(keyOf(path)).catch(() => false);

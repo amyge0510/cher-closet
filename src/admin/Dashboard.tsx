@@ -68,8 +68,8 @@ function prefers(u: UserRow): string {
   const total = u.pixel_uses + u.mine_uses;
   if (!total) return "—";
   const pixel = u.pixel_uses / total;
-  if (pixel >= 0.65) return "Pixel";
-  if (pixel <= 0.35) return "My clothes";
+  if (pixel >= 0.65) return "Amy's closet";
+  if (pixel <= 0.35) return "Own closet";
   return "Both";
 }
 
@@ -88,10 +88,10 @@ const ACTIONS: Record<string, string> = {
 function describe(e: EventRow): string {
   const d = e.detail ?? {};
   const base = ACTIONS[e.kind] ?? e.kind;
-  if (e.kind === "switch_source") return `${base} to ${d.to === "pixel" ? "PIXEL" : "MY CLOTHES"}`;
+  if (e.kind === "switch_source") return `${base} to ${d.to === "mine" ? "MY CLOSET" : "AMY'S CLOSET"}`;
   if (e.kind === "upload_clothes" && d.category) return `${base} (${String(d.category)})`;
   if (e.kind === "style_quiz" && d.style) return `${base}: ${String(d.style)}`;
-  if (d.source) return `${base} · ${d.source === "pixel" ? "pixel" : "my clothes"}`;
+  if (d.source) return `${base} · ${d.source === "mine" ? "own closet" : "Amy's closet"}`;
   return base;
 }
 
@@ -155,7 +155,7 @@ export function Dashboard() {
       { label: "Came back", value: String(back), note: users.length ? `${Math.round((back / users.length) * 100)}% used it on 2+ days` : "" },
       { label: "Tried once", value: String(once), note: "one day, nothing for 3+ days" },
       { label: "Uploaded clothes", value: String(uploaders), note: users.length ? `${Math.round((uploaders / users.length) * 100)}% of people` : "" },
-      { label: "Pixel vs my clothes", value: `${pct(pixel, mine)} pixel`, note: `${pixel} pixel · ${mine} my clothes actions` },
+      { label: "Amy's closet vs their own", value: `${pct(pixel, mine)} Amy's`, note: `${pixel} in Amy's closet · ${mine} in their own (before: pixel)` },
       { label: "Phone vs computer", value: `${pct(phones, computers)} phone`, note: `${phones} phone · ${computers} computer` },
     ];
   }, [users]);

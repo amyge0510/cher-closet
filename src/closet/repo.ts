@@ -1,4 +1,4 @@
-import { cachedUrls, forgetImage } from "../lib/imageCache";
+import { cachedUrls } from "../lib/imageCache";
 import { supabase } from "../lib/supabase";
 import { isBuiltIn, slotFor } from "./categories";
 import type { Garment, Pattern, Slot } from "./types";
@@ -19,12 +19,24 @@ const SIGNED_URL_SECONDS = 60 * 60 * 12;
 
 // The signed-in user's finished garments, with short-lived links to their
 // cut-outs. Empty when there's no backend or nothing has been uploaded yet.
-export async function loadCloset(): Promise<Garment[]> {
+export const loadCloset = (owner: string) => loadGarments([owner]);
+
+// AMY'S CLOSET: the showcase account's clothes, which everyone signed in can
+// see (read-only; see the showcase migration). Empty if it can't be reached.
+export async function loadShowcase(): Promise<Garment[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("showcase").select("owner");
+  if (error || !data?.length) return [];
+  return loadGarments(data.map((r) => r.owner as string));
+}
+
+async function loadGarments(owners: string[]): Promise<Garment[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("garments")
     .select("id, category, slot, name, cutout_path, colors, pattern, styles, set_name")
     .eq("status", "ready")
+    .in("owner", owners)
     .order("created_at");
   const rows = (data ?? []) as Row[];
   if (error || !rows.length) return [];
@@ -79,6 +91,5 @@ export async function deleteGarment(owner: string, id: string): Promise<void> {
   const { error } = await supabase.from("garments").delete().eq("id", id);
   if (error) throw error;
   await supabase.storage.from("closet").remove([`${owner}/garments/${id}.png`]);
-  await forgetImage(`${owner}/garments/${id}.png`);
 }
 

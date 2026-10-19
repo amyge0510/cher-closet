@@ -274,13 +274,51 @@ export function buildBoard(closet: Garment[], t: Target, seed: number, avoid = n
 
 // Fresh accessories for Auto Dress: chosen to suit the saved style (or, with
 // no style yet, the outfit itself), and different from what's being worn.
-export function accessoriesFor(closet: Garment[], outfit: Garment[], style: MyStyle | null, wearing: string[], seed: number): Record<string, string> {
+// `atLeast` is how many pieces the whole outfit should have (top and bottom,
+// or a dress, count): when the strict picks above fall short, more are added
+// from what's left, as long as the outfit still passes.
+export function accessoriesFor(closet: Garment[], outfit: Garment[], style: MyStyle | null, wearing: string[], seed: number, atLeast = 0): Record<string, string> {
   const styles = outfit.flatMap(stylesOf);
   const t = style ? targetFor(style) : { leaves: styles, families: familiesOf(styles) };
   const best = picker(t, seed, new Set(wearing), 100);
   // with no saved style to ask for them, tights stay in the drawer
   const pool = style ? closet : closet.filter((g) => g.category !== "pantyhose");
-  return Object.fromEntries(accessories(pool, outfit[0], outfit[1], t, best, best).flatMap(([, g]) => (g ? [[g.category, g.id]] : [])));
+  const picked = Object.fromEntries(accessories(pool, outfit[0], outfit[1], t, best, best).flatMap(([, g]) => (g ? [[g.category, g.id]] : [])));
+  const pieces = new Set(outfit.map((g) => g.id)).size;
+  return pieces + Object.keys(picked).length >= atLeast ? picked : topUp(pool, outfit, t, picked, new Set(wearing), seed, atLeast - pieces);
+}
+
+// More accessories, one per kind (jewelry can stack), until there are
+// `want`: anything that still lets the outfit pass, favoring pieces that
+// suit the style and aren't on already, with a little randomness.
+const TOP_UP_ORDER = ["shoes", "jewelry", "bags", "scarves", "jackets", "hats", "pantyhose"];
+function topUp(pool: Garment[], outfit: Garment[], t: Target, picked: Record<string, string>, wearing: Set<string>, seed: number, want: number): Record<string, string> {
+  const out = { ...picked };
+  const [top, bottom] = outfit;
+  const rand = rng(seed ^ 0x5eed);
+  const easy = t.families.length > 0 && t.families.every((f) => f === "easy");
+  const byId = new Map(pool.map((g) => [g.id, g]));
+  const worn = () => Object.values(out).flatMap((id) => byId.get(id) ?? []);
+  // style families aren't held against these (real closets are often
+  // tagged sparsely); colors, patterns and the rest still are
+  const same = (g: Garment) => ({ ...g, styles: [EVERYDAY] });
+  const passes = (g: Garment) => !top || !bottom || judgeOutfit(same(top), same(bottom), [...worn(), g].map(same)).match;
+  const score = (g: Garment) => fit(g, t) - (wearing.has(g.id) ? 4 : 0) + rand() * 3;
+  const take = (key: string, cats: string[]) => {
+    const used = new Set(Object.values(out));
+    const options = pool.filter((g) => cats.includes(g.category) && !used.has(g.id) && !(easy && isHeel(g)) && passes(g));
+    if (!options.length) return false;
+    const scored = options.map((g) => ({ g, s: score(g) }));
+    out[key] = scored.reduce((a, b) => (b.s > a.s ? b : a)).g.id;
+    return true;
+  };
+  for (const cat of TOP_UP_ORDER) {
+    if (Object.keys(out).length >= want) return out;
+    if (!(cat in out)) take(cat, [cat]);
+  }
+  // still short: stack more jewelry
+  for (let n = 2; n <= 4 && Object.keys(out).length < want; n++) if (!take(`jewelry:${n}`, ["jewelry"])) break;
+  return out;
 }
 
 // The boards for a step, each kept distinct from the ones before it.

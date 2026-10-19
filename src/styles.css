@@ -130,3 +130,12 @@ body,
     background: #1d1930;
   }
 }
+
+/* the loading ring: eight blocks, the bright one stepping round */
+.loading-ring {
+  animation: ring-step 0.8s steps(8) infinite;
+}
+@keyframes ring-step {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
