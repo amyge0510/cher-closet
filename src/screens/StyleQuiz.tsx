@@ -5,8 +5,8 @@ import { PixelLines, PixelText } from "../pixel/PixelText";
 import { back, boardsFor, choose, newOutfits, QUESTIONS, result, resultBoard, startQuiz, STEP_TITLES, type BoardItem, type QuizState } from "../style/quiz";
 import { family, leaf, type MyStyle, type Wardrobe } from "../style/styles";
 import { C } from "../stage/palette";
-import { L } from "../stage/layout";
-import { Bevel } from "./Parts";
+import { L, PHONE } from "../stage/layout";
+import { Bevel, DIM } from "./Parts";
 
 const pad = 10;
 
@@ -71,16 +71,17 @@ export function StyleQuiz({ closet, wardrobe, saved, onSave, onClose }: {
   const [q, setQ] = useState<QuizState>(() => (saved ? { step: 2, family: saved.family, leaf: saved.leaf, seed: 1 } : startQuiz()));
   const boards = useMemo(() => (q.step < QUESTIONS ? boardsFor(closet, q, wardrobe) : []), [closet, q, wardrobe]);
   const box = L.styleQuiz;
-  const { y: by, w: bw, h: bh, gap } = L.quizBoard;
+  const { y: by, w: bw, h: bh, gap, cols } = L.quizBoard;
   const chosen = result(q);
   const finalBoard = useMemo(() => resultBoard(q, closet), [q, closet]);
 
   const crumbs = [q.family && family(q.family)?.label, q.leaf && leaf(q.leaf)?.label].filter(Boolean).join(" > ");
   const footY = box.y + box.h - pad - 30;
+  const textW = PHONE ? box.w - pad * 2 - 6 : 360;
 
   return (
     <>
-      <div onClick={onClose} style={{ position: "absolute", inset: 0, zIndex: 30, background: "rgba(10,8,30,0.35)" }} />
+      <div onClick={onClose} style={{ ...DIM, zIndex: 30 }} />
       <div
         role="dialog"
         aria-label="My style"
@@ -98,7 +99,8 @@ export function StyleQuiz({ closet, wardrobe, saved, onSave, onClose }: {
         }}
       />
       <div style={{ position: "absolute", left: 0, top: 0, zIndex: 32 }}>
-        <div style={{ position: "absolute", left: box.x + pad + 2, top: box.y + pad + 4, display: "flex", gap: 14, alignItems: "baseline" }}>
+        {/* on a phone the step goes on its own line under MY STYLE */}
+        <div style={{ position: "absolute", left: box.x + pad + 2, top: box.y + pad + 4, display: "flex", flexDirection: PHONE ? "column" : "row", gap: PHONE ? 8 : 14, alignItems: PHONE ? "flex-start" : "baseline" }}>
           <PixelText text="MY STYLE" color={C.invText} sx={2} sy={2.2} bold />
           <PixelText text={q.step < QUESTIONS ? `STEP ${q.step + 1} OF ${QUESTIONS}: ${STEP_TITLES[q.step]}` : STEP_TITLES[q.step]} color={C.invText} sx={1.5} sy={2} />
         </div>
@@ -121,16 +123,19 @@ export function StyleQuiz({ closet, wardrobe, saved, onSave, onClose }: {
 
         {/* only what the closet can really make is offered; say how to get more */}
         {q.step < QUESTIONS && boards.length > 0 && boards.length < 4 && (
-          <div style={{ position: "absolute", left: box.x + pad + 2, top: box.y + pad + 26 }}>
-            <PixelText text="THAT'S WHAT YOUR CLOSET CAN MAKE SO FAR. UPLOAD MORE CLOTHES TO SEE MORE STYLES." color={C.invText} sx={1.2} sy={1.5} />
+          <div style={{ position: "absolute", left: box.x + pad + 2, top: PHONE ? footY - 34 : box.y + pad + 26, width: box.w - pad * 2 - 4 }}>
+            <PixelLines text="THAT'S WHAT YOUR CLOSET CAN MAKE SO FAR. UPLOAD MORE CLOTHES TO SEE MORE STYLES." maxWidth={box.w - pad * 2 - 4} color={C.invText} sx={1.2} sy={1.5} align="left" />
           </div>
         )}
         {q.step < QUESTIONS &&
           boards.map(({ option, items }, i) => {
-            // fewer styles than slots (a smaller closet): centre the boards
-            const x = box.x + pad + 3 + ((4 - boards.length) * (bw + gap)) / 2 + i * (bw + gap);
+            // a row of four (a 2x2 grid on a phone); fewer styles than slots
+            // (a smaller closet): centre the boards
+            const inRow = Math.min(cols, boards.length - Math.floor(i / cols) * cols);
+            const x = box.x + (box.w - inRow * bw - (inRow - 1) * gap) / 2 + (i % cols) * (bw + gap);
+            const y = by + Math.floor(i / cols) * (bh + 30);
             return (
-              <div key={option.id} style={{ position: "absolute", left: x, top: by }}>
+              <div key={option.id} style={{ position: "absolute", left: x, top: y }}>
                 <Board items={items} bg={option.bg} w={bw} h={bh} label={option.label} onPick={() => setQ(choose(q, option.id, items))} />
                 <div style={{ width: bw, marginTop: 6 }}>
                   <PixelLines text={option.label} maxWidth={bw} color={C.invText} sx={1.6} sy={2} bold />
@@ -147,30 +152,31 @@ export function StyleQuiz({ closet, wardrobe, saved, onSave, onClose }: {
 
         {q.step === QUESTIONS && chosen && (
           <>
-            <div style={{ position: "absolute", left: box.x + pad + 3, top: by }}>
-              <Board items={finalBoard} bg={leaf(chosen.leaf)?.bg ?? C.white} w={200} h={bh} label="Your style board" />
+            {/* the board, with the result beside it (under it on a phone) */}
+            <div style={{ position: "absolute", left: PHONE ? box.x + (box.w - 200) / 2 : box.x + pad + 3, top: PHONE ? box.y + 70 : by }}>
+              <Board items={finalBoard} bg={leaf(chosen.leaf)?.bg ?? C.white} w={200} h={PHONE ? 250 : bh} label="Your style board" />
             </div>
-            <div style={{ position: "absolute", left: box.x + pad + 230, top: by + 10, width: 360, display: "grid", gap: 14 }}>
+            <div style={{ position: "absolute", left: PHONE ? box.x + pad + 3 : box.x + pad + 230, top: PHONE ? box.y + 332 : by + 10, width: textW, display: "grid", gap: PHONE ? 10 : 14 }}>
               <PixelText text="YOU'RE" color={C.invText} sx={2} sy={2} />
-              <PixelLines text={leaf(chosen.leaf)?.label ?? ""} maxWidth={360} color={C.invEdge} sx={4.5} sy={5} bold align="left" shadow={C.invSlot} />
-              <PixelLines text={`FROM THE ${family(chosen.family)?.label} FAMILY.`} maxWidth={360} color={C.invText} sx={1.8} sy={2.2} align="left" />
-              <PixelLines text="WEAR IT PUTS THIS OUTFIT ON. AUTO DRESS WILL KEEP PICKING FROM YOUR CLOSET IN THIS STYLE." maxWidth={360} color={C.invText} sx={1.5} sy={1.8} align="left" />
+              <PixelLines text={leaf(chosen.leaf)?.label ?? ""} maxWidth={textW} color={C.invEdge} sx={4.5} sy={5} bold align="left" shadow={C.invSlot} />
+              <PixelLines text={`FROM THE ${family(chosen.family)?.label} FAMILY.`} maxWidth={textW} color={C.invText} sx={1.8} sy={2.2} align="left" />
+              <PixelLines text="WEAR IT PUTS THIS OUTFIT ON. AUTO DRESS WILL KEEP PICKING FROM YOUR CLOSET IN THIS STYLE." maxWidth={textW} color={C.invText} sx={1.5} sy={1.8} align="left" />
             </div>
           </>
         )}
 
         <div style={{ position: "absolute", left: box.x + pad + 3, top: footY + 9 }}>
-          {q.step < QUESTIONS && crumbs && <PixelText text={crumbs} color={C.invText} sx={1.5} sy={1.8} />}
+          {q.step < QUESTIONS && crumbs && !PHONE && <PixelText text={crumbs} color={C.invText} sx={1.5} sy={1.8} />}
         </div>
-        {q.step > 0 && q.step < QUESTIONS && <SmallButton x={box.x + box.w - pad - 292} y={footY} w={110} label="BACK" onClick={() => setQ(back(q))} />}
+        {q.step > 0 && q.step < QUESTIONS && <SmallButton x={PHONE ? box.x + pad + 3 : box.x + box.w - pad - 292} y={footY} w={110} label="BACK" onClick={() => setQ(back(q))} />}
         {q.step < QUESTIONS && (
           <SmallButton x={box.x + box.w - pad - 175} y={footY} w={172} label="OTHER OUTFITS" hint="Same choices, different pieces from your closet" onClick={() => setQ(newOutfits(q, closet))} />
         )}
         {q.step === QUESTIONS && (
           <>
-            <SmallButton x={box.x + box.w - pad - 425} y={footY} w={127} label="RETAKE" onClick={() => setQ(startQuiz(q.seed + 1))} />
-            <SmallButton x={box.x + box.w - pad - 290} y={footY} w={152} label="NEW OUTFIT" hint="Same style, different pieces from your closet" onClick={() => setQ(newOutfits(q, closet))} />
-            <SmallButton x={box.x + box.w - pad - 130} y={footY} w={127} label="WEAR IT" tone="blue" onClick={() => onSave(chosen!, finalBoard)} />
+            <SmallButton x={box.x + box.w - pad - (PHONE ? 362 : 425)} y={footY} w={PHONE ? 100 : 127} label="RETAKE" onClick={() => setQ(startQuiz(q.seed + 1))} />
+            <SmallButton x={box.x + box.w - pad - (PHONE ? 256 : 290)} y={footY} w={PHONE ? 122 : 152} label="NEW OUTFIT" hint="Same style, different pieces from your closet" onClick={() => setQ(newOutfits(q, closet))} />
+            <SmallButton x={box.x + box.w - pad - (PHONE ? 128 : 130)} y={footY} w={PHONE ? 125 : 127} label="WEAR IT" tone="blue" onClick={() => onSave(chosen!, finalBoard)} />
           </>
         )}
       </div>

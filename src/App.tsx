@@ -1,15 +1,11 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { closetTitle, wardrobeTitle } from "./auth/names";
 import { introSeenOf, looksOf, styleOf, useAuth, wardrobeOf } from "./auth/useAuth";
 import type { Look } from "./closet/types";
 import type { MyStyle, Wardrobe as WardrobeChoice } from "./style/styles";
 import { categoriesFor } from "./closet/categories";
 import { demoCloset } from "./closet/demoArt";
-import { deleteGarment, loadCloset, saveGarment, saveStyles } from "./closet/repo";
-import { categoriesFor as categoriesOf } from "./closet/categories";
-import { loadImage, makeCanvas } from "./pixel/raster";
-import { jpegOf } from "./upload/gemini";
-import { retagStyles, tagCategories } from "./upload/tags";
+import { deleteGarment, loadCloset, saveGarment } from "./closet/repo";
 import { clearBody, loadBody, saveBody, type Body } from "./closet/bodyPhoto";
 import type { BodyAnchors } from "./closet/body";
 import type { Garment } from "./closet/types";
@@ -18,6 +14,7 @@ import { SignIn } from "./screens/SignIn";
 import { Splash } from "./screens/Splash";
 import { Wardrobe } from "./screens/Wardrobe";
 import { Stage } from "./stage/Stage";
+import { setTracking, track } from "./lib/track";
 import { initialState, reducer } from "./state/machine";
 
 const DevOverlay = import.meta.env.DEV ? lazy(() => import("./dev/DevOverlay").then((m) => ({ default: m.DevOverlay }))) : null;
@@ -120,7 +117,6 @@ export function App() {
         persistLooks={auth.status === "signedIn" ? saveLooks : (l) => saveGuest(GUEST_LOOKS_KEY, l)}
         afterIntro={introDone}
         wardrobe={wardrobe ?? "both"}
-        persistWardrobe={auth.status === "signedIn" ? saveWardrobe : saveGuestWardrobe}
         userId={auth.status === "signedIn" ? auth.user.id : null}
       />
     );
@@ -133,6 +129,7 @@ const GUEST_STYLE_KEY = "cher-guest-style";
 const GUEST_LOOKS_KEY = "cher-guest-looks";
 const GUEST_INTRO_KEY = "cher-guest-intro-seen";
 const GUEST_WARDROBE_KEY = "cher-guest-wardrobe";
+export type ClosetSource = "mine" | "pixel";
 function loadGuest<T>(key: string): T | null {
   try {
     return JSON.parse(localStorage.getItem(key) ?? "null");
@@ -150,7 +147,7 @@ async function saveGuest(key: string, value: unknown) {
 const loadGuestStyle = () => loadGuest<MyStyle>(GUEST_STYLE_KEY);
 const saveGuestStyle = (style: MyStyle) => saveGuest(GUEST_STYLE_KEY, style);
 
-function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLooks, persistLooks, afterIntro, wardrobe: savedWardrobe, persistWardrobe, userId }: {
+function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLooks, persistLooks, afterIntro, wardrobe: savedWardrobe, userId }: {
   title: string;
   signedIn: boolean;
   onSignOut?: () => void;
@@ -161,30 +158,25 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
   /** just came out of the intro: the hangers start under its pink smoke */
   afterIntro: boolean;
   wardrobe: WardrobeChoice;
-  persistWardrobe: (w: WardrobeChoice) => Promise<void>;
   /** where uploads are saved; null keeps them in this tab only */
   userId: string | null;
 }) {
-  const [wardrobe, setWardrobe] = useState(savedWardrobe);
-  const changeWardrobe = useCallback(
-    (w: WardrobeChoice) => {
-      setWardrobe(w);
-      persistWardrobe(w).catch(() => {});
-    },
-    [persistWardrobe],
-  );
+  // chosen once, at sign-up ("what do you like to wear?")
+  const wardrobe = savedWardrobe;
   const [looks, setLooks] = useState(savedLooks);
   const saveMyLooks = useCallback(
     (l: Look[]) => {
+      if (l.length > looks.length) track("save_look");
       setLooks(l);
       persistLooks(l).catch(() => {});
     },
-    [persistLooks],
+    [persistLooks, looks.length],
   );
   const [state, dispatch] = useReducer(reducer, initialState);
   const [myStyle, setMyStyle] = useState(savedStyle);
   const saveMyStyle = useCallback(
     (s: MyStyle) => {
+      track("style_quiz", { style: s.leaf });
       setMyStyle(s);
       persistStyle(s).catch(() => {});
     },
@@ -199,38 +191,37 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
         .then(setOwn, () => setOwn([]))
         .finally(() => setClosetReady(true));
   }, [signedIn]);
-  // Until someone has uploaded at least one top and one bottom of their own,
-  // the demo rack (for their wardrobe choice) keeps the machine usable, with
-  // their uploads mixed in.
+  // PIXEL | MY CLOTHES (under the title): the person's own clothes, or the built-in
+  // pixel rack. Until someone has uploaded at least one top and one bottom,
+  // "my clothes" keeps the pixel rack mixed in so the machine stays usable.
+  // Unset, it's their own once they have an outfit's worth.
+  const sourceKey = `cher-source-${userId ?? "guest"}`;
+  const [source, setSource] = useState(() => loadGuest<ClosetSource>(sourceKey));
+  const complete = own.some((g) => g.slot === "top") && own.some((g) => g.slot === "bottom");
+  const playing: ClosetSource = source ?? (complete ? "mine" : "pixel");
+  // one "visit" each time the closet opens, for the owner's dashboard
+  const visited = useRef(false);
+  useEffect(() => {
+    setTracking(signedIn);
+    return () => setTracking(false);
+  }, [signedIn]);
+  useEffect(() => {
+    if (!signedIn || !closetReady || visited.current) return;
+    visited.current = true;
+    track("visit", { source: playing });
+  }, [signedIn, closetReady, playing]);
+  const changeSource = useCallback(
+    (s: ClosetSource) => {
+      setSource(s);
+      saveGuest(sourceKey, s);
+    },
+    [sourceKey],
+  );
   const closet = useMemo(() => {
-    const complete = own.some((g) => g.slot === "top") && own.some((g) => g.slot === "bottom");
+    if (playing === "pixel") return demoCloset(wardrobe);
     return complete ? own : [...demoCloset(wardrobe), ...own];
-  }, [own, wardrobe]);
+  }, [own, wardrobe, playing, complete]);
   const [notice, setNotice] = useState<string | null>(null);
-  // RE-TAG MY CLOSET: the AI reads the styles of every uploaded piece again
-  // (names and categories stay as they are)
-  const retagCloset = useCallback(async () => {
-    const mine = own;
-    if (!mine.length) return setNotice("NOTHING UPLOADED YET TO RE-TAG.");
-    setNotice(`RE-TAGGING ${mine.length} ${mine.length === 1 ? "PIECE" : "PIECES"}...`);
-    const cats = tagCategories(categoriesOf(mine));
-    let done = 0;
-    for (const g of mine) {
-      try {
-        const img = await loadImage(g.image);
-        const c = makeCanvas(img.width, img.height);
-        c.getContext("2d")!.drawImage(img, 0, 0);
-        const styles = await retagStyles(jpegOf(c, 512), g.category, cats, wardrobe);
-        if (!styles) continue;
-        setOwn((o) => o.map((x) => (x.id === g.id ? { ...x, styles } : x)));
-        await saveStyles(g.id, styles);
-        done++;
-      } catch (e) {
-        console.warn("couldn't re-tag", g.name, e);
-      }
-    }
-    setNotice(done ? `RE-TAGGED ${done} ${done === 1 ? "PIECE" : "PIECES"}. TRY MY STYLE AGAIN.` : "COULDN'T RE-TAG. SIGN IN AND TRY AGAIN.");
-  }, [own, wardrobe]);
   const removeGarment = useCallback(
     (g: Garment) => {
       setOwn((o) => o.filter((x) => x.id !== g.id));
@@ -249,6 +240,7 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
   }, [signedIn]);
   const applyBody = useCallback(
     (canvas: HTMLCanvasElement, anchors: BodyAnchors) => {
+      track("upload_me");
       setBody({ src: canvas.toDataURL("image/png"), anchors });
       if (userId)
         saveBody(userId, canvas, anchors).catch((e) => {
@@ -269,14 +261,17 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
   }, [notice]);
   const uploaded = useCallback(
     (g: Garment, png: Blob) => {
+      track("upload_clothes", { category: g.category });
       setOwn((o) => [...o, g]);
+      // a new upload should be in the closet they're looking at
+      changeSource("mine");
       if (userId)
         saveGarment(userId, g, png).catch((e) => {
           console.error("could not save the upload:", e);
           setNotice("COULDN'T SAVE THAT TO YOUR ACCOUNT. IT'S HERE UNTIL YOU LEAVE.");
         });
     },
-    [userId],
+    [userId, changeSource],
   );
   const categories = useMemo(() => categoriesFor(closet), [closet]);
   const splashDone = useCallback(() => dispatch({ type: "SPLASH_DONE" }), []);
@@ -286,7 +281,7 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
       {state.screen === "splash" ? (
         <Splash onDone={splashDone} smokeIn={afterIntro} />
       ) : (
-        <Wardrobe state={state} dispatch={dispatch} closet={closet} categories={categories} title={title} onSignOut={onSignOut} myStyle={myStyle} onSaveStyle={saveMyStyle} looks={looks} onSaveLooks={saveMyLooks} wardrobe={wardrobe} onChangeWardrobe={changeWardrobe} onUploaded={uploaded} onDeleteGarment={removeGarment} onRetag={signedIn ? retagCloset : undefined} notice={notice} body={body} canRedraw={signedIn} onBody={applyBody} onResetBody={resetBody} closetReady={closetReady} outfitKey={`cher-last-outfit-${userId ?? "guest"}`} />
+        <Wardrobe state={state} dispatch={dispatch} closet={closet} categories={categories} title={title} onSignOut={onSignOut} myStyle={myStyle} onSaveStyle={saveMyStyle} looks={looks} onSaveLooks={saveMyLooks} wardrobe={wardrobe} source={playing} onChangeSource={changeSource} onUploaded={uploaded} onDeleteGarment={removeGarment} notice={notice} body={body} canRedraw={signedIn} onBody={applyBody} onResetBody={resetBody} closetReady={closetReady} outfitKey={`cher-last-outfit-${userId ?? "guest"}`} />
       )}
       {DevOverlay && (
         <Suspense fallback={null}>

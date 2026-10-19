@@ -3,12 +3,12 @@ import type { Garment, Look } from "../closet/types";
 import { PixelLines, PixelText } from "../pixel/PixelText";
 import { boardFromOutfit } from "../style/quiz";
 import { C } from "../stage/palette";
-import { L } from "../stage/layout";
-import { Bevel } from "./Parts";
+import { L, PHONE } from "../stage/layout";
+import { Bevel, DIM } from "./Parts";
 import { Board } from "./StyleQuiz";
 
 const pad = 10;
-const COLS = 4;
+const COLS = PHONE ? 2 : 4; // a 2-wide grid on a phone
 const ROWS = 2;
 const PER_PAGE = COLS * ROWS;
 const BOARD_BGS = ["#f6dd7a", "#f7cdd8", "#cde0ee", "#dfe8c5", "#d9c9f3", "#e9dfcc"];
@@ -29,13 +29,13 @@ export function SavedLooks({ looks, closet, onWear, onDelete, onClose }: {
   const pages = Math.max(1, Math.ceil(wearable.length / PER_PAGE));
   const shown = wearable.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
   const box = L.styleQuiz;
-  const bw = 145;
-  const bh = 150;
+  const bw = PHONE ? 170 : 145;
+  const bh = PHONE ? 200 : 150;
   const gap = 8;
 
   return (
     <>
-      <div onClick={onClose} style={{ position: "absolute", inset: 0, zIndex: 30, background: "rgba(10,8,30,0.35)" }} />
+      <div onClick={onClose} style={{ ...DIM, zIndex: 30 }} />
       <div
         role="dialog"
         aria-label="Saved looks"
@@ -82,7 +82,7 @@ export function SavedLooks({ looks, closet, onWear, onDelete, onClose }: {
 
         {shown.map((look, i) => {
           const garments = [look.top, look.bottom, ...Object.values(look.extras)].map(byId).filter((g): g is Garment => !!g);
-          const x = box.x + pad + 3 + (i % COLS) * (bw + gap);
+          const x = box.x + (PHONE ? (box.w - COLS * bw - gap) / 2 : pad + 3) + (i % COLS) * (bw + gap);
           const y = box.y + 46 + Math.floor(i / COLS) * (bh + gap);
           const n = page * PER_PAGE + i + 1;
           return (

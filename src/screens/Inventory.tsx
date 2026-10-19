@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { DIM, wide } from "./Parts";
 import type { Category } from "../closet/categories";
 import type { Garment, Slot } from "../closet/types";
 import { PixelField } from "../pixel/PixelField";
 import { GarmentImage } from "../pixel/GarmentImage";
 import { PixelLines, PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
-import { extraSpot, L, type Box } from "../stage/layout";
+import { extraSpot, L, STAGE_W, type Box } from "../stage/layout";
 import { useToStage } from "../stage/Stage";
 
 const DELETE_RED = "#c0183a";
@@ -135,7 +136,7 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
   return (
     <>
       {/* click outside to close; the category bar stays usable as tabs */}
-      <div onClick={onClose} style={{ position: "absolute", left: 0, top: 0, width: 640, height: 450, zIndex: 20, display: drag ? "none" : "block" }} />
+      <div onClick={onClose} style={{ ...wide({ x: 0, y: 0, w: STAGE_W, h: L.categoryBar.y }), zIndex: 20, display: drag ? "none" : "block" }} />
 
       <div
         role="dialog"
@@ -161,7 +162,7 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
           <PixelText text={title} color={C.invText} sx={2} sy={2} />
         </div>
         <PixelField
-          box={{ x: box.x + 150, y: box.y + pad, w: 168, h: invHeader }}
+          box={{ x: box.x + L.invSearch.dx, y: box.y + pad, w: L.invSearch.w, h: invHeader }}
           label={`Search ${title.toLowerCase()}`}
           value={query}
           onChange={setQuery}
@@ -264,8 +265,8 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
 
       {confirming && (
         <>
-          <div onClick={() => setConfirming(null)} style={{ position: "absolute", inset: 0, zIndex: 25, background: "rgba(10,8,30,0.35)" }} />
-          <div role="alertdialog" aria-label="Delete this piece?" style={{ position: "absolute", left: 200, top: 150, width: 240, height: 150, boxSizing: "border-box", padding: 12, background: C.invBg, border: `3px solid ${C.invEdge}`, zIndex: 26, display: "grid", gridTemplateRows: "1fr auto", gap: 10 }}>
+          <div onClick={() => setConfirming(null)} style={{ ...DIM, zIndex: 25 }} />
+          <div role="alertdialog" aria-label="Delete this piece?" style={{ position: "absolute", left: (STAGE_W - 240) / 2, top: L.categoryBar.y / 2 - 75, width: 240, height: 150, boxSizing: "border-box", padding: 12, background: C.invBg, border: `3px solid ${C.invEdge}`, zIndex: 26, display: "grid", gridTemplateRows: "1fr auto", gap: 10 }}>
             <div style={{ display: "grid", gap: 8, alignContent: "start" }}>
               <PixelLines text={`DELETE THE ${confirming.name.toUpperCase()}?`} maxWidth={210} color={C.invEdge} sx={1.6} sy={2} bold />
               <PixelLines text="IT'S REMOVED FROM YOUR CLOSET FOR GOOD. THIS CAN'T BE UNDONE." maxWidth={210} color={C.invText} sx={1.3} sy={1.7} />
@@ -336,7 +337,7 @@ export function MoreMenu({ categories, onPick, onSignOut, settings = [], onClose
   const h = rows.length * rowH + 10;
   return (
     <>
-      <div onClick={onClose} style={{ position: "absolute", left: 0, top: 0, width: 640, height: 450, zIndex: 20 }} />
+      <div onClick={onClose} style={{ ...wide({ x: 0, y: 0, w: STAGE_W, h: L.categoryBar.y }), zIndex: 20 }} />
       <div
         role="menu"
         style={{

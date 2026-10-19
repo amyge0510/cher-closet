@@ -48,11 +48,19 @@ export function outfitStyle(top: Garment, bottom: Garment): string | null {
   let score = 0;
   for (const l of stylesOf(top)) {
     const b = claim(bottom, l);
-    if (!b || !leafOf(l)) continue;
+    if (!b || !leafOf(l) || !looksLike(leafOf(l)!.family, top, bottom)) continue;
     const s = claim(top, l) + b;
     if (s > score) [best, score] = [l, s];
   }
   return best;
+}
+
+// Whatever the tags say, some looks need the right colors. SOFT is light and
+// pretty: a black corset or a brown skirt as the main piece rules it out.
+const DARK_MAIN = new Set(["black", "navy", "brown", "burgundy", "gray", "olive"]);
+function looksLike(familyId: string, top: Garment, bottom: Garment): boolean {
+  if (familyId === "soft") return ![top, bottom].some((g) => DARK_MAIN.has(g.colors[0]));
+  return true;
 }
 
 // Every outfit (a top and a bottom that go together) that belongs to one of
@@ -196,6 +204,11 @@ function picker(t: Target, seed: number, avoid: Set<string>, penalty: number) {
   };
 }
 
+// Heels are never easy, whatever the tags say (the tagger sometimes files
+// plain pumps under minimal or clean girl).
+const HEELS = /heel|pump|stiletto|slingback|wedge|platform sandal/i;
+export const isHeel = (g: Garment) => g.category === "shoes" && HEELS.test(g.name);
+
 // The accessories that go with an outfit: shoes, jewelry, a bag, and a scarf
 // or tights.
 const ACCESSORY_ROLES: [keyof typeof SPOTS, string[]][] = [
@@ -216,7 +229,9 @@ const ACCESSORY_ROLES: [keyof typeof SPOTS, string[]][] = [
 // calls for them by name (fishnets for goth, knee socks for Clueless).
 function accessories(closet: Garment[], top: Garment | undefined, bottom: Garment | undefined, t: Target, best: ReturnType<typeof picker>, bestShoes: ReturnType<typeof picker>) {
   const chosen: Garment[] = [];
-  const wanted = (g: Garment) => g.category !== "pantyhose" || stylesOf(g).some((s) => t.leaves.includes(s));
+  const easy = t.families.length > 0 && t.families.every((f) => f === "easy");
+  const wanted = (g: Garment) =>
+    (g.category !== "pantyhose" || stylesOf(g).some((s) => t.leaves.includes(s))) && !(easy && isHeel(g));
   // suggestions stay spotless: no strikes at all, not just under the limit
   const goes = (g: Garment) => {
     if (!top || !bottom) return true;
@@ -263,7 +278,9 @@ export function accessoriesFor(closet: Garment[], outfit: Garment[], style: MySt
   const styles = outfit.flatMap(stylesOf);
   const t = style ? targetFor(style) : { leaves: styles, families: familiesOf(styles) };
   const best = picker(t, seed, new Set(wearing), 100);
-  return Object.fromEntries(accessories(closet, outfit[0], outfit[1], t, best, best).flatMap(([, g]) => (g ? [[g.category, g.id]] : [])));
+  // with no saved style to ask for them, tights stay in the drawer
+  const pool = style ? closet : closet.filter((g) => g.category !== "pantyhose");
+  return Object.fromEntries(accessories(pool, outfit[0], outfit[1], t, best, best).flatMap(([, g]) => (g ? [[g.category, g.id]] : [])));
 }
 
 // The boards for a step, each kept distinct from the ones before it.

@@ -17,8 +17,9 @@ Controls: click the on-screen buttons, or use the keyboard. ← → flip tops,
 ↑ ↓ flip bottoms, Enter is Dress Me, Esc clears MIS-MATCH! early.
 
 As in the film, the left button is **BROWSE** while you're picking. It flicks
-through the tops on its own (the row's ▶▶ lights up), then the bottoms, and
-settles on an outfit; press it again to stop. Once you're dressed, it becomes
+through the tops and dresses on its own (the row's ▶▶ lights up), then the
+bottoms if it landed on a top, and settles on an outfit with freshly shuffled
+accessories; press it again to stop. Once you're dressed, it becomes
 **AUTO DRESS**.
 
 **Sign-in.** People sign in with their phone number. The screen says the
@@ -35,8 +36,7 @@ Right after the name, first sign-in only, it asks **"What do you like to
 wear?"**: WOMENSWEAR, MENSWEAR or A MIX OF BOTH. It asks about the clothes,
 not the person's gender, so anyone can pick any answer and nobody has to
 label themselves. The answer picks which demo clothes and quiz styles they
-see, and the stand-in figure on the reveal. It's kept with the account and
-can be switched any time under MORE (CLOTHES: ...). When running locally, a SKIP (DEV) button bypasses sign-in.
+see, and the stand-in figure on the reveal. It's kept with the account. When running locally, a SKIP (DEV) button bypasses sign-in.
 To look at the sign-in screens while signed in, add `?preview=signin` to the
 address: every step works without sending a text or saving anything, and
 the welcome intro plays at the end, as it does for a new user.
@@ -55,9 +55,75 @@ the computer scene: hangers → browsing → MIS-MATCH! → her reaction), cut f
 4.5s to 18.75s of the source and scaled down to 640px wide. An H.264 MP4
 plays in every modern browser. Without the file, the TV shows static for a few seconds before the whirlpool.
 
+**Phones.** On a phone held upright the screen is 400x780 instead of
+640x480 (`PHONE_L` in `src/stage/layout.ts`): the same leopard, panels and
+buttons, stacked. The two windows run down the middle with narrow leopard
+columns for accessories either side, BROWSE and DRESS ME sit underneath, and
+the bottom bar gets a second row for UPLOAD, LOOKS and MORE. Sign-in, the
+style quiz, saved looks and upload open as pop-ups in the middle of the
+leopard. The navy bars and the leopard run on to the edges of any phone
+wider than that shape (`--bleed` in `Stage.tsx`, `wide()` in `Parts.tsx`).
+Turning the phone sideways reloads into the computer layout.
+
+**Strike a pose.** On the dressed screen in PIXEL mode, STRIKE A POSE puts
+the model in a pose (a wave, hands on hips, a peace sign; each press is the
+next one) with a big smile, and makes a keepsake board from it
+(`src/closet/poseBoard.ts`): a pastel background with pixel hearts, a
+polaroid with sparkles, an AS IF! sticker, her name, the date and the
+outfit. SAVE PICTURE opens the share sheet on a phone (Save Image) or
+downloads a PNG on a computer. Arms are built from shoulder, elbow and wrist
+for each pose, and sleeves are cut from the arms, so clothes follow.
+
+**Analytics (owner only).** The app logs what signed-in people do (opening
+the closet, BROWSE, DRESS ME, AUTO DRESS, saved looks, the style quiz,
+uploads, switching between PIXEL and MY CLOTHES), each marked phone or
+computer (`src/lib/track.ts`). Guests aren't logged. The dashboard is at
+`/#admin` on the site: totals, then one row per person (came back, tried
+once, new; uploads; which closet they use) and a timeline when you tap them.
+Setup, once: run `supabase/migrations/20261020000000_analytics.sql` in the
+Supabase SQL editor, then add yourself as the admin with your phone number
+(country code first, no plus sign):
+
+```sql
+insert into public.admins (user_id)
+select id from auth.users where phone = '12135550123';
+```
+
+People can add their own events but can't read any; only admins can, through
+`admin_users()` and `admin_events()`.
+
+**The pixel model.** With the closet on PIXEL, DRESS ME shows a pixel-art
+figure instead of a photo: a girl with long dark hair, curtain bangs and white
+bows, or a guy with messy brown hair for menswear (`src/closet/pixelModel.ts`). Both are about
+6 1/2 heads tall, the legs parting a little over half way down. Each pixel
+garment is cut from the figure's own torso, arms and legs (a tee is the
+torso and the tops of the arms, jeans are the legs, a skirt flares from the
+hips), filled with its pattern, shaded at the sides and outlined, so it fits
+the body instead of being laid on top; every skirt reaches well past where
+the legs part. The figure is laid out on a 64x128 grid and drawn at 2 pixels
+per step, so fingers, knees and toes show. The face and hair are pixel art
+in bigger pixels (one per step), placed by hand in the code: each hairstyle
+lists where every column of hair starts and ends (the pointed bang locks,
+the strands framing the face, the part), then gets a base color, darker lock
+lines, shadow by the face, a shiny arc and an outline; the eyes have a thick
+upper lash with a flick, a two-tone iris with catchlights and a soft lower
+lash, with blush and full two-tone lips. Once dressed she sways her arms (each on
+its own beat), blinks, glances side to side and smiles, brows lifting
+(`poseAt`); the frames are built in layers (`pixelScene`) so this stays
+smooth. LOOK (bottom left of the picture) changes girl or guy, nine
+hairstyles, hair color, eye color and skin tone, kept in this browser. No
+photo, Gemini or HAIR in this mode.
+
+**Pixel or my clothes.** The PIXEL | MY CLOTHES pill under the title switches the rack
+between your own uploaded clothes and the built-in pixel clothes. It starts on
+yours once you've uploaded a top and a bottom, and uploading something always
+switches back to yours. Until then, MINE keeps the pixel clothes mixed in so
+there's always an outfit to make. The choice is remembered on this browser.
+
 **Dresses.** DRESSES is its own category. A dress rides the top carousel and
 is a whole outfit: the two windows in the middle become one tall window for
-the dress, and its controls (and BROWSE, and ← →) flip through dresses only.
+the dress, and its controls (and ← →) flip through dresses only. BROWSE
+always flicks through everything, so it can land on a dress or a top and bottom.
 Picking a top or bottom brings the two windows back. DRESS ME judges the dress with its accessories, and on the figure
 it hangs from the shoulders to the knees. Auto Dress and the quiz boards
 build two-piece outfits only.
@@ -102,6 +168,10 @@ Each outfit (a top and a bottom that go together) belongs to one style
 only: of the styles both pieces are tagged with, the one they claim most
 strongly (tags are listed best first). So a black mesh corset tagged both
 goth and coquette can't make the same outfit a SOFT board and an EDGY one.
+Heels and pumps never go on an EASY board (everyday, clean girl, minimal,
+athleisure, streetwear), whatever their tags say.
+SOFT also never takes an outfit whose top or bottom is mainly black, navy,
+brown, burgundy, gray or olive, whatever the tags say.
 EVERYDAY is the exception: any outfit both tagged everyday counts for it.
 Boards only use pieces tagged with that style, accessories included: when
 nothing in the closet suits a style, the board goes without it (no party
@@ -301,10 +371,6 @@ remembered for the visit. **HAIR**, in the top-right corner above the head,
 re-dresses you in another hairstyle (or your own). If the AI can't answer,
 the clothes are placed on the figure instead.
 
-**RE-TAG MY CLOSET** (under MORE, signed in) has the AI read the styles of
-everything you've uploaded again, with the current rules (names and
-categories stay as they are).
-
 **Deleting.** Hover over one of your own pieces in the closet pop-up and an
 X appears. It asks to confirm, with a red DELETE button, and removes the
 piece and its picture from your account. The demo rack can't be deleted.
@@ -333,6 +399,8 @@ gets 60 garment pictures (uploads, TIDY UP, REDRAW, DRESS ME) and 5 model
 photos a day. Every prompt with a person in it stresses keeping their face,
 skin, body and age exactly the same. Requests are counted in the
 `ai_usage` table, and people can't delete their own rows to reset the count.
+Past the limit the app says "YOU'VE REACHED TODAY'S IMAGE LIMIT! COME BACK
+TOMORROW." instead of an error.
 
 To switch it on:
 

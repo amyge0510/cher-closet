@@ -8,8 +8,10 @@ body,
 }
 
 .viewport {
+  position: relative; /* the stage is pinned to its exact middle (Stage.tsx) */
   width: 100vw;
   height: 100vh;
+  height: 100dvh; /* phones: the height between the browser's bars */
   display: grid;
   place-items: center;
 }
@@ -117,4 +119,14 @@ body,
   animation-name: fly-to-tab;
   animation-timing-function: steps(14);
   animation-fill-mode: forwards;
+}
+
+/* phones held upright: the bands above and below the screen match the navy bars */
+@media (orientation: portrait) and (max-width: 700px) {
+  html,
+  body,
+  #root,
+  .viewport {
+    background: #1d1930;
+  }
 }

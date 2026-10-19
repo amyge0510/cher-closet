@@ -8,10 +8,10 @@ import { judgeWithAi } from "../upload/tags";
 import { GarmentImage } from "../pixel/GarmentImage";
 import { PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
-import { extraSpot, L, type Box } from "../stage/layout";
+import { extraSpot, L, STAGE_W, type Box } from "../stage/layout";
 import type { Action, State } from "../state/machine";
 import { accessoriesFor, rankPairs, type BoardItem } from "../style/quiz";
-import { WARDROBES, type MyStyle, type Wardrobe as WardrobeChoice } from "../style/styles";
+import { type MyStyle, type Wardrobe as WardrobeChoice } from "../style/styles";
 import { Inventory, MoreMenu } from "./Inventory";
 import { Upload } from "./Upload";
 import { BodyPhoto } from "./BodyPhoto";
@@ -19,8 +19,13 @@ import type { Body } from "../closet/bodyPhoto";
 import type { BodyAnchors } from "../closet/body";
 import { SavedLooks } from "./SavedLooks";
 import { StyleQuiz } from "./StyleQuiz";
-import { Bevel, ButtonLabel, CategoryBar, ControlStrip, Header, Leopard, overflowCategories, pos, tabCenter } from "./Parts";
+import { Bevel, ButtonLabel, CategoryBar, ControlStrip, Header, Leopard, overflowCategories, pos, tabCenter, wide } from "./Parts";
 import { Reveal } from "./Reveal";
+import { canWearPixel, defaultLook, pixelScene, REST, STANCES, validLook, type PixelLook, type Stance } from "../closet/pixelModel";
+import { poseBoard, saveBoard } from "../closet/poseBoard";
+import { PosePopup } from "./PosePopup";
+import { PixelLookMenu } from "./PixelLookMenu";
+import { track } from "../lib/track";
 
 const MATCH_HOLD_MS = 1400; // black panels stay up this long before the reveal
 const MISMATCH_MS = 3000; // MIS-MATCH! clears itself after this long
@@ -56,7 +61,7 @@ function ExtraSticker({ garment, index = 0, of = 1, onTakeOff }: { garment: Garm
   );
 }
 
-type Popup = { kind: "closet"; category: string } | { kind: "more" } | { kind: "style" } | { kind: "looks" } | { kind: "upload" } | { kind: "body"; photo?: HTMLCanvasElement } | { kind: "hair" } | null;
+type Popup = { kind: "closet"; category: string } | { kind: "more" } | { kind: "style" } | { kind: "looks" } | { kind: "upload" } | { kind: "body"; photo?: HTMLCanvasElement } | { kind: "hair" } | { kind: "look" } | { kind: "pose" } | null;
 
 // Hairstyles for the dressed-up figure (HAIR, above the head). The id is
 // what Gemini is asked for; "" keeps the user's own hair.
@@ -74,6 +79,8 @@ const HAIRSTYLES = [
 const HAIR_KEY = "cher-hair";
 // a dress fills the whole middle: from the top window down to the bottom one
 const DRESS_PANEL = { x: L.topPanel.x, y: L.topPanel.y, w: L.topPanel.w, h: L.bottomPanel.y + L.bottomPanel.h - L.topPanel.y };
+// the pixel model's LOOK button: bottom left of the picture, across from SAVE
+const LOOK_BUTTON = { x: L.revealPanel.x + 6, y: L.saveLook.y, w: 82, h: L.saveLook.h };
 const HAIR_BUTTON = { x: L.revealPanel.x + L.revealPanel.w - 74, y: L.revealPanel.y + 6, w: 68, h: 22 };
 
 const FLY_MS = 1000;
@@ -103,7 +110,7 @@ function FlyingItem({ garment, from, to, onLanded }: { garment: Garment; from: {
 const MAX_LOOKS = 48;
 const SAVED_FLASH_MS = 1500;
 
-export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut, myStyle, onSaveStyle, looks, onSaveLooks, wardrobe, onChangeWardrobe, onUploaded, onDeleteGarment, onRetag, notice, body, canRedraw, onBody, onResetBody, closetReady = true, outfitKey }: {
+export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut, myStyle, onSaveStyle, looks, onSaveLooks, wardrobe, source = "pixel", onChangeSource, onUploaded, onDeleteGarment, notice, body, canRedraw, onBody, onResetBody, closetReady = true, outfitKey }: {
   state: State;
   dispatch: Dispatch<Action>;
   closet: Garment[];
@@ -116,13 +123,13 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   onSaveLooks: (l: Look[]) => void;
   /** womenswear / menswear / both: which styles and demo clothes to show */
   wardrobe: WardrobeChoice;
-  onChangeWardrobe: (w: WardrobeChoice) => void;
+  /** whose clothes are on the rack: the person's own uploads, or the built-in pixel ones */
+  source?: "mine" | "pixel";
+  onChangeSource?: (s: "mine" | "pixel") => void;
   /** a garment that was just uploaded and tagged */
   onUploaded: (g: Garment, png: Blob) => void;
   /** one of the user's own pieces, deleted from the closet pop-up */
   onDeleteGarment: (g: Garment) => void;
-  /** RE-TAG MY CLOSET (signed in only) */
-  onRetag?: () => void;
   /** a short message to show for a moment, e.g. a failed save */
   notice?: string | null;
   /** the user's own figure for the reveal (MY MODEL PHOTO), if any */
@@ -140,6 +147,28 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   const tops = useMemo(() => closet.filter((g) => g.slot === "top"), [closet]);
   const bottoms = useMemo(() => closet.filter((g) => g.slot === "bottom"), [closet]);
   const [popup, setPopup] = useState<Popup>(null);
+  // the pixel model's look (hair, eyes, skin), kept in this browser
+  const lookKey = outfitKey ? outfitKey.replace("last-outfit", "pixel-look") : null;
+  const [look, setLookState] = useState<PixelLook>(() => {
+    try {
+      const saved = lookKey ? (JSON.parse(localStorage.getItem(lookKey) ?? "null") as PixelLook | null) : null;
+      if (validLook(saved)) return saved;
+    } catch {
+      /* storage unavailable */
+    }
+    return defaultLook(wardrobe === "mens" ? "mens" : "womens");
+  });
+  const setLook = useCallback(
+    (l: PixelLook) => {
+      setLookState(l);
+      try {
+        if (lookKey) localStorage.setItem(lookKey, JSON.stringify(l));
+      } catch {
+        /* storage unavailable: it lasts until reload */
+      }
+    },
+    [lookKey],
+  );
   const closePopup = useCallback(() => setPopup(null), []);
   const wear = useCallback(
     (g: Garment) => {
@@ -251,6 +280,10 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   // the next or previous dress (dresses sit in the top carousel among tops)
   const topIndex = useRef(state.top);
   topIndex.current = state.top;
+  const bottomIndex = useRef(state.bottom);
+  bottomIndex.current = state.bottom;
+  const extrasNow = useRef(state.extras);
+  extrasNow.current = state.extras;
   const stepDress = useCallback(
     (delta: number) => {
       const dresses = tops.flatMap((g, i) => (isDress(g) ? [i] : []));
@@ -287,12 +320,22 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
 
   // BROWSE, as in the film: the tops flick by on their own, then the
   // bottoms, then it settles on an outfit. Pressing it again stops it.
+  // BROWSE: the whole top row flicks by (tops and dresses alike); landing on
+  // a top, the bottoms flick by too. Then new accessories that suit
+  // whatever it settled on.
   const browse = useCallback(() => {
     if (scanning) return stopScan();
+    track("browse", { source });
     dispatch({ type: "BROWSE" });
-    if (wearingDress) scan("top", undefined, () => stepDress(1));
-    else scan("top", () => scan("bottom"));
-  }, [scanning, stopScan, dispatch, scan, wearingDress, stepDress]);
+    const settle = () => {
+      const t = tops[topIndex.current % Math.max(1, tops.length)];
+      const b = isDress(t) ? t : bottoms[bottomIndex.current % Math.max(1, bottoms.length)];
+      if (!t || !b) return;
+      const extras = accessoriesFor(closet, [t, b], myStyle, Object.values(extrasNow.current), Math.floor(Math.random() * 1e9));
+      dispatch({ type: "SET_OUTFIT", top: topIndex.current, bottom: bottomIndex.current, extras });
+    };
+    scan("top", () => (isDress(tops[topIndex.current % Math.max(1, tops.length)]) ? settle() : scan("bottom", settle)));
+  }, [scanning, stopScan, dispatch, scan, tops, bottoms, closet, myStyle, source]);
   useEffect(() => () => clearInterval(scanTimer.current), []);
 
   // DRESS ME. The demo rack is judged by the rules in match.ts, instantly.
@@ -304,6 +347,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   const verdicts = useRef(new Map<string, Verdict>());
   const dressMe = useCallback(async () => {
     if (!top || !bottom || judging) return;
+    track("dress_me", { source });
     const rules = judgeOutfit(top, bottom, worn);
     const pieces = wearingDress ? [top, ...worn] : [top, bottom, ...worn];
     if (!canRedraw || pieces.every((g) => g.id.startsWith("demo-"))) return dispatch({ type: "DRESS_ME", verdict: rules });
@@ -329,17 +373,18 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       }
     }
     dispatch({ type: "DRESS_ME", verdict: verdict ?? rules });
-  }, [dispatch, top, bottom, worn, canRedraw, judging, wardrobe]);
+  }, [dispatch, top, bottom, worn, canRedraw, judging, wardrobe, source]);
 
   const autoDress = useCallback(() => {
     const pairs = rankPairs(matchingPairs(tops, bottoms), tops, bottoms, myStyle);
     if (!pairs.length) return;
+    track("auto_dress", { source });
     const others = pairs.filter(([t, b]) => t !== state.top || b !== state.bottom);
     const [t, b] = (others.length ? others : pairs)[Math.floor(Math.random() * (others.length || pairs.length))];
     // everything changes, accessories included
     const extras = accessoriesFor(closet, [tops[t], bottoms[b]], myStyle, Object.values(state.extras), Math.floor(Math.random() * 1e9));
     dispatch({ type: "AUTO_DRESS", top: t, bottom: b, extras });
-  }, [dispatch, closet, tops, bottoms, state.top, state.bottom, state.extras, myStyle]);
+  }, [dispatch, closet, tops, bottoms, state.top, state.bottom, state.extras, myStyle, source]);
 
   useEffect(() => {
     if (screen !== "match") return;
@@ -384,8 +429,28 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   // while a new hairstyle is drawn, so the outfit never disappears
   const lastDressed = useRef<{ outfit: string; src: string } | null>(null);
   const outfitPieces = useMemo(() => (top && bottom ? (top === bottom ? [top, ...worn] : [top, bottom, ...worn]) : []), [top, bottom, worn]);
+  // PIXEL closet: the pixel-art model wears the pixel clothes (no photo, no AI)
+  const pixelModel = source === "pixel" && outfitPieces.length > 0 && canWearPixel(outfitPieces);
+  // STRIKE A POSE: she holds a pose (the next of the three each time) while
+  // the board is made from it
+  const [stance, setStance] = useState<Stance | null>(null);
+  const [board, setBoard] = useState<{ canvas: HTMLCanvasElement; url: string } | null>(null);
+  const poses = useRef(0);
+  const strikeAPose = useCallback(() => {
+    const next = STANCES[poses.current++ % STANCES.length];
+    setStance(next);
+    setBoard(null);
+    setPopup({ kind: "pose" });
+    track("strike_a_pose", { pose: next });
+    const name = title.replace(/['’]S WARDROBE$/i, "").trim() || "MY";
+    window.setTimeout(() => {
+      const figure = pixelScene(look, outfitPieces).dressed({ ...REST, stance: next, mouth: 2, brow: 1 });
+      const canvas = poseBoard(figure, outfitPieces, name, poses.current - 1);
+      setBoard({ canvas, url: canvas.toDataURL("image/png") });
+    }, 450);
+  }, [look, outfitPieces, title]);
   const dressKey =
-    body && canRedraw && outfitPieces.length && (screen === "reveal" || screen === "dressed")
+    !pixelModel && body && canRedraw && outfitPieces.length && (screen === "reveal" || screen === "dressed")
       ? [body.src.length, body.src.slice(-48), ...outfitPieces.map((g) => g.id), hair].join("|")
       : null;
   useEffect(() => {
@@ -477,11 +542,12 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       />
       <Leopard box={L.leopardLeft} />
       <Leopard box={L.leopardRight} />
+      {onChangeSource && <SourceToggle source={source} onChange={(s) => (s !== source && track("switch_source", { to: s }), onChangeSource(s))} />}
       <div style={{ ...pos(L.center), background: C.frameDark, borderLeft: `2px solid ${C.frame}`, borderRight: `2px solid ${C.frame}`, boxSizing: "border-box" }} />
 
       {fullBody && top && bottom ? (
         <div style={{ ...pos(L.revealPanel), background: C.panel }}>
-          <Reveal w={L.revealPanel.w} h={L.revealPanel.h} top={top} bottom={bottom} extras={worn} figure={wardrobe === "mens" ? "mens" : "womens"} bodySrc={body?.src} anchors={body?.anchors} animate={screen === "reveal"} dressed={dressed && dressed.key === dressKey ? dressed : undefined} onDone={revealDone} />
+          <Reveal w={L.revealPanel.w} h={L.revealPanel.h} top={top} bottom={bottom} extras={worn} figure={wardrobe === "mens" ? "mens" : "womens"} bodySrc={pixelModel ? null : body?.src} anchors={pixelModel ? undefined : body?.anchors} animate={screen === "reveal"} dressed={!pixelModel && dressed && dressed.key === dressKey ? dressed : undefined} pixel={pixelModel ? look : null} stance={pixelModel ? stance : null} onDone={revealDone} />
         </div>
       ) : (
         <>
@@ -502,14 +568,28 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
         </>
       )}
 
-      {fullBody && body && canRedraw && (
+      {fullBody && pixelModel && (
+        <Bevel box={LOOK_BUTTON} tone={popup?.kind === "look" ? "blue" : "gray"} onClick={() => setPopup(popup?.kind === "look" ? null : { kind: "look" })} label="Change the model's look" style={{ borderWidth: 2, zIndex: 6 }}>
+          <PixelText text="LOOK ~" color={C.ink} sx={1.4} sy={1.8} bold />
+        </Bevel>
+      )}
+      {popup?.kind === "look" && <PixelLookMenu look={look} onChange={setLook} onClose={closePopup} />}
+      {fullBody && pixelModel && (
+        <Bevel box={L.poseButton} tone={popup?.kind === "pose" ? "blue" : "gray"} onClick={strikeAPose} label="Strike a pose" style={{ borderWidth: 2, zIndex: 6 }}>
+          <PixelText text="STRIKE A POSE" color={C.ink} sx={1.3} sy={1.7} bold />
+        </Bevel>
+      )}
+      {popup?.kind === "pose" && (
+        <PosePopup image={board?.url ?? null} onSave={() => board && saveBoard(board.canvas)} onAgain={strikeAPose} onClose={() => (setStance(null), closePopup())} />
+      )}
+      {fullBody && body && canRedraw && !pixelModel && (
         <Bevel box={HAIR_BUTTON} tone={popup?.kind === "hair" ? "blue" : "gray"} onClick={() => setPopup(popup?.kind === "hair" ? null : { kind: "hair" })} label="Change the hairstyle" style={{ borderWidth: 2, zIndex: 6 }}>
           <PixelText text="HAIR ~" color={C.ink} sx={1.4} sy={1.8} bold />
         </Bevel>
       )}
       {popup?.kind === "hair" && (
         <>
-          <div onClick={closePopup} style={{ position: "absolute", left: 0, top: 0, width: 640, height: 450, zIndex: 20 }} />
+          <div onClick={closePopup} style={{ ...wide({ x: 0, y: 0, w: STAGE_W, h: L.categoryBar.y }), zIndex: 20 }} />
           <div role="menu" style={{ position: "absolute", left: HAIR_BUTTON.x + HAIR_BUTTON.w - 170, top: HAIR_BUTTON.y + HAIR_BUTTON.h + 4, width: 170, boxSizing: "border-box", padding: 3, background: C.invBg, border: `3px solid ${C.invEdge}`, zIndex: 21 }}>
             {HAIRSTYLES.map((h) => (
               <button
@@ -647,17 +727,36 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
           onSignOut={onSignOut}
           settings={[
             { key: "body", label: "MY MODEL PHOTO", title: "Use a photo of yourself on the dressed-up screen", act: () => setPopup({ kind: "body" }) },
-            ...(onRetag ? [{ key: "retag", label: "RE-TAG MY CLOSET", title: "Have the AI read the styles of your uploads again", act: () => (setPopup(null), onRetag()) }] : []),
-            {
-              key: "wardrobe",
-              label: `CLOTHES: ${WARDROBES.find((w) => w.id === wardrobe)?.label}`,
-              title: "Switch between womenswear, menswear and a mix of both",
-              act: () => onChangeWardrobe(WARDROBES[(WARDROBES.findIndex((w) => w.id === wardrobe) + 1) % WARDROBES.length].id),
-            },
           ]}
           onClose={closePopup}
         />
       )}
+    </div>
+  );
+}
+
+// PIXEL | MY CLOTHES, under the title: which clothes are on the rack.
+function SourceToggle({ source, onChange }: { source: "mine" | "pixel"; onChange: (s: "mine" | "pixel") => void }) {
+  const box = L.sourceToggle;
+  const half = (id: "pixel" | "mine", text: string) => {
+    const on = source === id;
+    return (
+      <button
+        type="button"
+        role="radio"
+        aria-checked={on}
+        aria-label={id === "pixel" ? "Play with the pixel clothes" : "Play with my clothes"}
+        onClick={() => onChange(id)}
+        style={{ flex: id === "pixel" ? 4 : 6, height: "100%", padding: 0, border: 0, cursor: "pointer", background: on ? C.btnBlue : "transparent", borderRadius: box.h, display: "grid", placeItems: "center" }}
+      >
+        <PixelText text={text} color={on ? C.white : C.lavender} sx={1.2} sy={1.6} bold={on} />
+      </button>
+    );
+  };
+  return (
+    <div role="radiogroup" aria-label="Clothes on the rack" style={{ ...pos(box), boxSizing: "border-box", display: "flex", padding: 2, gap: 2, background: C.navy, border: `2px solid ${C.lavender}`, borderRadius: box.h, zIndex: 5 }}>
+      {half("pixel", "PIXEL")}
+      {half("mine", "MY CLOTHES")}
     </div>
   );
 }
