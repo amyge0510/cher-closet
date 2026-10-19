@@ -396,7 +396,9 @@ image model and returns the redraw. It asks Google which image models the key
 can use and takes the newest Flash one, so it keeps working when Google
 renames models. To pin one, add a `GEMINI_IMAGE_MODEL` secret. Each person
 gets 60 garment pictures (uploads, TIDY UP, REDRAW, DRESS ME) and 5 model
-photos a day. Every prompt with a person in it stresses keeping their face,
+photos a day. Accounts on the `ai_unlimited` list have no cap (the owner,
+everyone in `admins`, starts on it; add others with an insert by phone in
+the SQL editor, as for admins). Every prompt with a person in it stresses keeping their face,
 skin, body and age exactly the same. Requests are counted in the
 `ai_usage` table, and people can't delete their own rows to reset the count.
 Past the limit the app says "YOU'VE REACHED TODAY'S IMAGE LIMIT! COME BACK
