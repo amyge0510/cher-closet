@@ -371,6 +371,13 @@ remembered for the visit. **HAIR**, in the top-right corner above the head,
 re-dresses you in another hairstyle (or your own). If the AI can't answer,
 the clothes are placed on the figure instead.
 
+**Stopping an upload.** While a photo is being scanned (finding the
+clothes, cutting, redrawing or tagging), a STOP button sits next to the X.
+It drops that photo and any queued after it and goes back to the start;
+anything still running is ignored when it finishes (each run of the upload
+has a number, and STOP starts a new one). A picture already sent to the AI
+still counts toward the day's allowance.
+
 **Deleting.** Hover over one of your own pieces in the closet pop-up and an
 X appears. It asks to confirm, with a red DELETE button, and removes the
 piece and its picture from your account. The demo rack can't be deleted.

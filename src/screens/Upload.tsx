@@ -81,6 +81,9 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
   const meInput = useRef<HTMLInputElement>(null);
   const box = L.uploadBox;
   const cats = tagCategories(categories);
+  // STOP: each run of the upload has a number; STOP starts a new one, so
+  // whatever the old run was still waiting on is ignored when it lands
+  const run = useRef(0);
 
   const add = useCallback((files: Blob[]) => {
     if (!files.length) return;
@@ -98,15 +101,18 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
     async (photo: HTMLCanvasElement, job: Job) => {
       if (job.kind === "cut") return setPhase({ kind: "popping", photo, cut: job.piece.canvas, hint: job.piece.hint });
       const { item } = job;
+      const id = run.current;
       setPhase({ kind: "drawing", photo, name: item.name });
       try {
         const final = finishCutout(await extractItem(photo, item.name, item.description, item.colors));
         const png = await pngBlob(final);
+        if (id !== run.current) return;
         setPhase({
           kind: "show", image: final.toDataURL("image/png"), png, canvas: final, tags: item, how: "ai", fixing: false, source: { photo, item },
           note: item.partial ? "ONLY PART OF IT WAS IN THE PHOTO, SO SOME OF IT IS A GUESS. CHECK IT OVER." : undefined,
         });
       } catch (e) {
+        if (id !== run.current) return;
         setPhase({ kind: "error", message: e instanceof RedrawError ? e.message : `COULDN'T REDRAW THE ${item.name.toUpperCase()}. TRY ANOTHER PHOTO.` });
       }
     },
@@ -167,9 +173,11 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
   // once the background has popped away: tag it
   const tag = useCallback(
     async (photo: HTMLCanvasElement, cut: HTMLCanvasElement, hint?: string) => {
+      const id = run.current;
       setPhase({ kind: "tagging", photo, cut });
       const final = finishCutout(cut);
       const [{ tags, how }, png] = await Promise.all([tagGarment(final, await forTagging(final), cats, wardrobe, hint), pngBlob(final)]);
+      if (id !== run.current) return;
       setPhase({ kind: "show", image: final.toDataURL("image/png"), png, canvas: final, tags, how, fixing: false });
     },
     [cats.join(), wardrobe],
@@ -473,6 +481,15 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
   }
 
   const busy = phase.kind === "cutting" || phase.kind === "popping" || phase.kind === "tagging" || phase.kind === "drawing";
+  // STOP: drops this photo and any waiting after it, back to the start.
+  // (A picture already sent to the AI still finishes there; its answer is ignored.)
+  const stop = () => {
+    run.current++;
+    setQueue([]);
+    setPieces(null);
+    setTotal(0);
+    setPhase({ kind: "pick" });
+  };
   return (
     <>
       <div onClick={busy ? undefined : onClose} style={{ ...DIM, zIndex: 30 }} />
@@ -498,9 +515,10 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
         }}
       />
       <div style={{ position: "absolute", left: 0, top: 0, zIndex: 32 }}>
-        <div style={{ position: "absolute", left: box.x + pad, top: box.y + pad + 2, display: "flex", gap: 12, alignItems: "baseline" }}>
+        {/* the count goes under the title, clear of STOP and X */}
+        <div style={{ position: "absolute", left: box.x + pad, top: box.y + pad + 2, display: "grid", gap: 4, justifyItems: "start" }}>
           <PixelText text="UPLOAD" color={C.invText} sx={2} sy={2.2} bold />
-          {position && <PixelText text={position} color={C.invText} sx={1.5} sy={2} />}
+          {position && <PixelText text={position} color={C.invText} sx={1.2} sy={1.5} />}
         </div>
         <button
           type="button"
@@ -518,6 +536,11 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
         >
           <PixelText text="X" color={C.ink} sx={2} sy={2} />
         </button>
+        {busy && (
+          <Bevel box={{ x: box.x + box.w - pad - 26 - 8 - 76, y: box.y + pad - 4, w: 76, h: 26 }} tone="gray" onClick={stop} label="Stop scanning" title="Stop and go back" style={{ borderWidth: 2 }}>
+            <PixelText text="STOP" color={C.ink} sx={1.6} sy={1.9} bold />
+          </Bevel>
+        )}
         {body}
       </div>
       <input
