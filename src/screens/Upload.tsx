@@ -45,7 +45,6 @@ type Phase =
     }
   | { kind: "error"; message: string };
 
-const AUTO_FILE_MS = 3200; // The AI's tags file themselves after this long
 const CUT_PHRASES = ["SNIPPING...", "FINDING THE CLOTHES...", "LOSING THE BACKGROUND...", "AS IF!", "ALMOST..."];
 const TAG_PHRASES = ["READING THE TAG...", "NAMING IT...", "PICKING ITS STYLE..."];
 const AI_PHRASES = ["LOOKING CLOSELY...", "STRAIGHTENING IT OUT...", "GETTING EVERY DETAIL...", "AS IF!", "ALMOST..."];
@@ -215,12 +214,6 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
     advance();
   }, [phase, onFile, advance]);
 
-  // The AI's tags file themselves after a moment, unless you hit FIX IT
-  useEffect(() => {
-    if (phase.kind !== "show" || phase.fixing || phase.redrawing || phase.original || phase.note || phase.how !== "ai" || !phase.tags.isClothing) return;
-    const t = window.setTimeout(file, AUTO_FILE_MS);
-    return () => clearTimeout(t);
-  }, [phase, file]);
 
   // TIDY UP (a browser cut-out) or REDRAW (an AI item): Gemini draws the
   // piece again as a straight-on product shot; the button then switches

@@ -135,12 +135,11 @@ straight away). Signed in,
 every photo goes to the AI first: Gemini lists every piece in it (tagged,
 with a description of what's visible), then redraws each piece straight-on
 as a product shot from the whole photo, faithful to what it can see and
-never adding details. A piece that was mostly hidden says so and waits for a
-check. If there's a person in the photo, it then offers to make them the
+never adding details. A piece that was mostly hidden says so. If there's a person in the photo, it then offers to make them the
 model (MY MODEL PHOTO). Without the AI, the in-browser steps below take over. Photos can
 be added in three ways:
 
-- click UPLOAD FROM COMPUTER (several at once is fine)
+- click UPLOAD CLOTHES (several at once is fine)
 - drop them on it
 - paste one with Ctrl+V or Cmd+V (this works anywhere on the closet)
 
@@ -152,9 +151,10 @@ Each photo goes through:
 2. **Tagging.** It gets a category, a short name, colors, a pattern and
    styles, all from the app's own lists, so MIS-MATCH! and the quiz can use
    them.
-3. **A quick look.** FIX IT lets you rename it or move it to another
-   category. The AI's tags file themselves after about three seconds, while
-   a guess waits for FILE IT.
+3. **A quick look.** Nothing is filed until you say so: every piece waits
+   on FILE IT. SKIP drops it (a bad redraw, or something you don't want),
+   REDRAW or TIDY UP asks Gemini to draw it again, and FIX IT lets you
+   rename it or move it to another category.
    Edges are cleaned up automatically: bits of background stuck to the edge
    (in colors the garment doesn't have) are trimmed, jagged steps are
    rounded off, and the edge is softened by a pixel.
