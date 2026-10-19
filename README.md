@@ -25,8 +25,10 @@ settles on an outfit; press it again to stop. Once you're dressed, it becomes
 number is only used to sign in and keep the closet saved. A code arrives by
 text and lets them in as soon as all six digits are typed (there's no
 button for it), then they give their first name, and the header becomes "AMY'S WARDROBE".
-Sign-ins aren't remembered, so every visit starts on the sign-in screen and
-needs a new code. Returning users skip the name step, since their name is
+The browser is remembered, so coming back skips the code, but only while it's
+in use: after a week without a visit, the next visit asks for a new code
+(`REMEMBER_DAYS` in `src/lib/supabase.ts`). SIGN OUT forgets the browser
+straight away.
 kept with the account.
 
 Right after the name, first sign-in only, it asks **"What do you like to

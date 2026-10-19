@@ -1,6 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { forgetBrowser, supabase, touchBrowser } from "../lib/supabase";
 import type { Look } from "../closet/types";
 import type { MyStyle, Wardrobe } from "../style/styles";
 
@@ -21,7 +21,7 @@ export const wardrobeOf = (user: User): Wardrobe | null => (user.user_metadata?.
 const nameOf = (user: User): string | null => (user.user_metadata?.display_name as string | undefined)?.trim() || null;
 
 // Phone-number sign-in: text a one-time code, check it, then ask for a name.
-// Sign-ins aren't remembered (see lib/supabase.ts), so every visit starts here.
+// The browser is remembered for a week of not visiting (see lib/supabase.ts).
 export function useAuth() {
   const [state, setState] = useState<AuthState>(supabase ? { status: "loading" } : { status: "guest", name: "Cher" });
 
@@ -71,9 +71,25 @@ export function useAuth() {
     await supabase?.auth.updateUser({ data: { intro_seen: true } });
   }, []);
 
+  // while signed in, the browser counts as in use (see lib/supabase.ts):
+  // now, whenever the tab comes back into view, and every few minutes
+  const signedIn = state.status === "signedIn";
+  useEffect(() => {
+    if (!signedIn) return;
+    touchBrowser();
+    const onVisible = () => document.visibilityState === "visible" && touchBrowser();
+    document.addEventListener("visibilitychange", onVisible);
+    const t = window.setInterval(touchBrowser, 5 * 60 * 1000);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      clearInterval(t);
+    };
+  }, [signedIn]);
+
   const signOut = useCallback(async () => {
     setState({ status: "signedOut" });
     await supabase?.auth.signOut();
+    forgetBrowser();
   }, []);
 
   const skip = useCallback(() => setState({ status: "guest", name: "Cher" }), []);
