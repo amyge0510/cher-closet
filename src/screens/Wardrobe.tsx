@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from "react";
-import { categoriesFor, type Category } from "../closet/categories";
+import { categoriesFor, isDress, type Category } from "../closet/categories";
 import { judgeOutfit, matchingPairs } from "../closet/match";
 import type { Garment, Look, Slot, Verdict } from "../closet/types";
 import { loadImage, makeCanvas } from "../pixel/raster";
@@ -159,7 +159,10 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   // the closet can shrink (the demo rack goes once someone has their own
   // top and bottom), so keep the indices in range
   const top = tops[state.top % Math.max(1, tops.length)];
-  const bottom = bottoms[state.bottom % Math.max(1, bottoms.length)];
+  // a dress is the whole outfit: it stands in as its own bottom
+  const wearingDress = isDress(top);
+  const bottom = wearingDress ? top : bottoms[state.bottom % Math.max(1, bottoms.length)];
+  const shownBottom = bottoms[state.bottom % Math.max(1, bottoms.length)];
   const scanTimer = useRef(0);
 
   // ♥ SAVE on the dressed screen: remember this outfit (skipping exact repeats)
@@ -179,12 +182,13 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   const wearLook = useCallback(
     (look: Look) => {
       const t = tops.findIndex((g) => g.id === look.top);
-      const b = bottoms.findIndex((g) => g.id === look.bottom);
+      // a dress look saves the dress as its bottom too; the bottom row stays put
+      const b = look.bottom === look.top ? state.bottom : bottoms.findIndex((g) => g.id === look.bottom);
       if (t < 0 || b < 0) return;
       dispatch({ type: "SET_OUTFIT", top: t, bottom: b, extras: look.extras });
       setPopup(null);
     },
-    [dispatch, tops, bottoms],
+    [dispatch, tops, bottoms, state.bottom],
   );
 
   const step = useCallback(
@@ -234,7 +238,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   const dressMe = useCallback(async () => {
     if (!top || !bottom || judging) return;
     const rules = judgeOutfit(top, bottom, worn);
-    const pieces = [top, bottom, ...worn];
+    const pieces = wearingDress ? [top, ...worn] : [top, bottom, ...worn];
     if (!canRedraw || pieces.every((g) => g.id.startsWith("demo-"))) return dispatch({ type: "DRESS_ME", verdict: rules });
     const key = pieces.map((g) => g.id).sort().join("|");
     let verdict = verdicts.current.get(key);
@@ -308,27 +312,36 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
     return () => clearTimeout(t);
   }, [note]);
   const dressedPhotos = useRef(new Map<string, string>());
-  const [dressed, setDressed] = useState<{ key: string; src: string | null; waiting: boolean } | null>(null);
-  const outfitPieces = useMemo(() => (top && bottom ? [top, bottom, ...worn] : []), [top, bottom, worn]);
+  const [dressed, setDressed] = useState<{ key: string; src: string | null; waiting: boolean; under?: string } | null>(null);
+  // the last dressed photo of this outfit (any hairstyle): it stays on screen
+  // while a new hairstyle is drawn, so the outfit never disappears
+  const lastDressed = useRef<{ outfit: string; src: string } | null>(null);
+  const outfitPieces = useMemo(() => (top && bottom ? (top === bottom ? [top, ...worn] : [top, bottom, ...worn]) : []), [top, bottom, worn]);
   const dressKey =
     body && canRedraw && outfitPieces.length && (screen === "reveal" || screen === "dressed")
       ? [body.src.length, body.src.slice(-48), ...outfitPieces.map((g) => g.id), hair].join("|")
       : null;
   useEffect(() => {
     if (!dressKey || !body) return;
+    const outfit = dressKey.slice(0, dressKey.lastIndexOf("|"));
+    const under = lastDressed.current?.outfit === outfit ? lastDressed.current.src : undefined;
+    const done = (src: string) => {
+      lastDressed.current = { outfit, src };
+      setDressed({ key: dressKey, src, waiting: false, under });
+    };
     const cached = dressedPhotos.current.get(dressKey);
-    if (cached) return setDressed({ key: dressKey, src: cached, waiting: false });
+    if (cached) return done(cached);
     let cancelled = false;
-    setDressed({ key: dressKey, src: null, waiting: true });
+    setDressed({ key: dressKey, src: null, waiting: true, under });
     dressUp(body.src, outfitPieces.map((g) => ({ label: `${g.slot ?? g.category}: ${g.name}`, image: g.image })), hair)
       .then((src) => {
         dressedPhotos.current.set(dressKey, src);
-        if (!cancelled) setDressed({ key: dressKey, src, waiting: false });
+        if (!cancelled) done(src);
       })
       .catch((e) => {
         console.warn("couldn't dress the model photo:", e);
         if (cancelled) return;
-        setDressed({ key: dressKey, src: null, waiting: false });
+        setDressed({ key: dressKey, src: under ?? null, waiting: false });
         setNote(e instanceof RedrawError ? e.message : "COULDN'T DRESS YOUR PHOTO, SO HERE'S A QUICK PREVIEW.");
       });
     return () => {
@@ -407,8 +420,14 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
         <>
           <GarmentPanel box={L.topPanel} garment={top} matched={matched} />
           <ControlStrip box={L.topControls} onPrev={() => step("top", -1)} onNext={() => step("top", 1)} onScan={() => scan("top")} lit={scanning === "top" ? 2 : undefined} disabled={matched} />
-          <GarmentPanel box={L.bottomPanel} garment={bottom} matched={matched} />
-          <ControlStrip box={L.bottomControls} onPrev={() => step("bottom", -1)} onNext={() => step("bottom", 1)} onScan={() => scan("bottom")} lit={scanning === "bottom" ? 2 : undefined} disabled={matched} />
+          {wearingDress ? (
+            <div style={{ ...pos(L.bottomPanel), background: matched ? C.panelMatch : C.panel, display: "grid", placeItems: "center", opacity: 0.85 }}>
+              <PixelText text="A DRESS: NO BOTTOM NEEDED" color={matched ? C.lavender : C.frame} sx={1.4} sy={1.8} />
+            </div>
+          ) : (
+            <GarmentPanel box={L.bottomPanel} garment={shownBottom} matched={matched} />
+          )}
+          <ControlStrip box={L.bottomControls} onPrev={() => step("bottom", -1)} onNext={() => step("bottom", 1)} onScan={() => scan("bottom")} lit={scanning === "bottom" ? 2 : undefined} disabled={matched || wearingDress} />
         </>
       )}
 

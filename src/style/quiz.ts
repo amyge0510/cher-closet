@@ -38,7 +38,7 @@ const MAX_OPTIONS = 4;
 export function coverage(closet: Garment[], leafId: string): number {
   if (!leafOf(leafId)) return 0;
   const exact = (g: Garment) => stylesOf(g).includes(leafId);
-  const tops = closet.filter((g) => g.slot === "top" && exact(g));
+  const tops = closet.filter((g) => g.slot === "top" && g.category !== "dresses" && exact(g));
   const bottoms = closet.filter((g) => g.slot === "bottom" && exact(g));
   let n = 0;
   for (const top of tops) for (const bottom of bottoms) if (judge(top, bottom).match) n++;
@@ -147,6 +147,8 @@ export function boardFromOutfit(garments: Garment[]): BoardItem[] {
 // Picks the best-fitting piece from a pool, with a little randomness.
 // Pieces in `avoid` lose `penalty` points, so they're only picked if nothing
 // else fits.
+// Only pieces tagged with one of the target's own styles count (fit 3): a
+// piece that's merely in the same family isn't "in" the style.
 function picker(t: Target, seed: number, avoid: Set<string>, penalty: number) {
   const rand = rng(seed);
   return (pool: Garment[], bonus: (g: Garment) => number = () => 0) => {
@@ -154,7 +156,7 @@ function picker(t: Target, seed: number, avoid: Set<string>, penalty: number) {
     let top = -Infinity;
     for (const g of pool) {
       const base = fit(g, t);
-      if (!base) continue;
+      if (base < 3) continue;
       const s = base + bonus(g) - (avoid.has(g.id) ? penalty : 0) + rand() * 1.5;
       if (s > top) [top, pick] = [s, g];
     }
@@ -171,13 +173,13 @@ const ACCESSORY_ROLES: [keyof typeof SPOTS, string[]][] = [
   ["extra", ["scarves", "pantyhose"]],
 ];
 
-const NEUTRAL = new Set(["black", "white", "cream", "beige", "brown", "gray", "navy", "denim"]);
 
-// Accessories are only picked if the whole look still passes judgeOutfit, so
-// quiz boards and Auto Dress never hand you a MIS-MATCH!. Most people own
-// only a few pairs of shoes, so shoes may repeat across boards (a small
-// penalty, not a big one), and if none suit the style the most neutral pair
-// that still goes stands in. Jewelry, bags and scarves are optional.
+// Accessories are only picked if they're tagged with the style itself and the
+// whole look still passes judgeOutfit, so quiz boards and Auto Dress never
+// hand you a MIS-MATCH! or force something in (no party heels on an easy
+// board). Most people own only a few pairs of shoes, so shoes may repeat
+// across boards (a small penalty, not a big one). When nothing in a role
+// suits the style, the board simply goes without it.
 // Most people don't wear tights, so they're only suggested when the style
 // calls for them by name (fishnets for goth, knee socks for Clueless).
 function accessories(closet: Garment[], top: Garment | undefined, bottom: Garment | undefined, t: Target, best: ReturnType<typeof picker>, bestShoes: ReturnType<typeof picker>) {
@@ -191,19 +193,18 @@ function accessories(closet: Garment[], top: Garment | undefined, bottom: Garmen
   };
   return ACCESSORY_ROLES.map(([spot, cats]) => {
     const pool = closet.filter((g) => cats.includes(g.category) && wanted(g) && goes(g));
-    const pick = spot !== "shoes" ? best(pool) : (bestShoes(pool) ?? [...pool].sort((a, b) => neutrality(b) - neutrality(a))[0]);
+    const pick = spot !== "shoes" ? best(pool) : bestShoes(pool);
     if (pick) chosen.push(pick);
     return [spot, pick] as const;
   });
 }
 
-const neutrality = (g: Garment) => g.colors.filter((c) => NEUTRAL.has(c)).length / Math.max(1, g.colors.length);
 
 // Builds one outfit board for a target. `avoid` holds garment ids already used
 // on the other boards of the same step, so the four boards look different.
 export function buildBoard(closet: Garment[], t: Target, seed: number, avoid = new Set<string>()): BoardItem[] {
   const best = picker(t, seed, avoid, 2.5);
-  const top = best(closet.filter((g) => g.slot === "top"));
+  const top = best(closet.filter((g) => g.slot === "top" && g.category !== "dresses"));
   const bottom = best(closet.filter((g) => g.slot === "bottom"), (g) => (top && judge(top, g).match ? 3 : 0));
   const picks: (readonly [keyof typeof SPOTS, Garment | undefined])[] = [
     ["top", top],

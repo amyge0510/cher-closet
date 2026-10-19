@@ -139,7 +139,7 @@ export function CategoryBar({ categories, active, onPick, onMore, onLooks, onUpl
         </button>
       ))}
       {onUpload && (
-        <Bevel box={L.upload} tone={active === "upload" ? "blue" : "gray"} onClick={onUpload} label="Upload clothes" style={{ borderWidth: 2 }}>
+        <Bevel box={L.upload} tone={active === "upload" ? "blue" : "gray"} onClick={onUpload} label="Upload" style={{ borderWidth: 2 }}>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <PixelText text="UPLOAD" color={C.ink} sx={1.5} sy={1.8} bold />
             <PixelText text="^" color={C.ink} sx={1.5} sy={1.8} />

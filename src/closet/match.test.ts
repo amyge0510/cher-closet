@@ -96,3 +96,15 @@ describe("tights", () => {
     expect(judgeOutfit(g("demo-pink"), g("demo-white-mini"), [n("White Knee Socks")]).match).toBe(true);
   });
 });
+
+describe("dresses", () => {
+  const dress = n("Little Black Dress");
+  it("a dress is a whole outfit on its own", () => {
+    expect(judgeOutfit(dress, dress, [n("Black Loafers")]).match).toBe(true);
+  });
+  it("auto dress never pairs a dress with a bottom", () => {
+    const tops = [dress, g("demo-tee")];
+    const bottoms = [g("demo-jeans")];
+    expect(matchingPairs(tops, bottoms).every(([t]) => t !== 0)).toBe(true);
+  });
+});

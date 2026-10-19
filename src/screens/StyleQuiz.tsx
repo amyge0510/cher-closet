@@ -119,6 +119,12 @@ export function StyleQuiz({ closet, wardrobe, saved, onSave, onClose }: {
           <PixelText text="X" color={C.ink} sx={2} sy={2} />
         </button>
 
+        {/* only what the closet can really make is offered; say how to get more */}
+        {q.step < QUESTIONS && boards.length > 0 && boards.length < 4 && (
+          <div style={{ position: "absolute", left: box.x + pad + 2, top: box.y + pad + 26 }}>
+            <PixelText text="THAT'S WHAT YOUR CLOSET CAN MAKE SO FAR. UPLOAD MORE CLOTHES TO SEE MORE STYLES." color={C.invText} sx={1.2} sy={1.5} />
+          </div>
+        )}
         {q.step < QUESTIONS &&
           boards.map(({ option, items }, i) => {
             // fewer styles than slots (a smaller closet): centre the boards
@@ -135,7 +141,7 @@ export function StyleQuiz({ closet, wardrobe, saved, onSave, onClose }: {
 
         {q.step < QUESTIONS && boards.length === 0 && (
           <div style={{ position: "absolute", left: box.x + 60, top: by + 90, width: box.w - 120 }}>
-            <PixelLines text="ADD AT LEAST ONE TOP AND ONE BOTTOM THAT GO TOGETHER, AND WE'LL FIND YOUR STYLE FROM THEM." maxWidth={box.w - 120} color={C.invText} sx={2} sy={2.4} />
+            <PixelLines text="UPLOAD AT LEAST ONE TOP AND ONE BOTTOM THAT GO TOGETHER, AND WE'LL FIND YOUR STYLE FROM THEM." maxWidth={box.w - 120} color={C.invText} sx={2} sy={2.4} />
           </div>
         )}
 

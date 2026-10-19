@@ -22,7 +22,7 @@ export type Tags = { category: string; name: string; colors: string[]; pattern: 
 
 // Categories the tagger may pick: the built-ins, BAGS and HATS (which most
 // closets need), and any the user has made up.
-export const tagCategories = (categories: Category[]) => [...new Set([...categories.map((c) => c.id), "shoes", "jewelry", "scarves", "pantyhose", "underwear", "sweaters", "skirts", "bags", "hats"])];
+export const tagCategories = (categories: Category[]) => [...new Set([...categories.map((c) => c.id), "shoes", "jewelry", "scarves", "pantyhose", "underwear", "sweaters", "skirts", "dresses", "bags", "hats"])];
 
 const cleanName = (s: unknown) =>
   String(s ?? "")
@@ -48,7 +48,7 @@ export function normalizeTags(raw: unknown, categories: string[]): Tags | null {
 
 const SINGULAR: Record<string, string> = {
   tops: "Top", bottoms: "Pants", skirts: "Skirt", shoes: "Shoes", jewelry: "Jewelry", scarves: "Scarf",
-  pantyhose: "Tights", underwear: "Underwear", sweaters: "Sweater", bags: "Bag", hats: "Hat",
+  pantyhose: "Tights", underwear: "Underwear", sweaters: "Sweater", bags: "Bag", hats: "Hat", dresses: "Dress",
 };
 // `aspect` is height / width of the cut-out: short, wide bottoms are shorts.
 const defaultName = (colors: string[], category: string, aspect = 2) =>

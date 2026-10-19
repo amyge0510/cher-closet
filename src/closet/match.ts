@@ -38,6 +38,8 @@ const short = (g: Garment) => g.name.toUpperCase();
 // style family, no warm/cool mix, and accent colors that agree. Simple and
 // deterministic; the reason is shown under MIS-MATCH!.
 export function judge(top: Garment, bottom: Garment): Verdict {
+  // a dress is judged on its own (passed as both top and bottom)
+  if (top === bottom || top.id === bottom.id) return { match: true, reason: "one piece" };
   if (top.set && top.set === bottom.set) return { match: true, reason: "same set" };
   if (isBusy(top) && isBusy(bottom)) return { match: false, reason: "TWO PATTERNS FIGHTING" };
   if (!sharesFamily(top, bottom)) return { match: false, reason: "THE TOP AND BOTTOM ARE DIFFERENT STYLES" };
@@ -82,7 +84,7 @@ export function judgeOutfit(top: Garment, bottom: Garment, extras: Garment[] = [
     const heavy = ["scarves", "bags", "jewelry"].includes(e.category) && onlyIn(e, DARK);
     if (heavy && lightOutfit) strikes.push(`THE ${short(e)} IS TOO DARK FOR THIS OUTFIT`);
   }
-  const patterned = [top, bottom, ...extras.filter((e) => e.category === "scarves" || e.category === "bags")].filter(isBusy);
+  const patterned = [...new Set([top, bottom, ...extras.filter((e) => e.category === "scarves" || e.category === "bags")])].filter(isBusy);
   if (patterned.length > (sameSet ? 2 : 1)) strikes.push("TOO MANY PATTERNS");
   const hues = new Set([...outfitAccents, ...extras.flatMap((e) => [...accents(e)])]);
   if (hues.size > 2) strikes.push("TOO MANY COLORS");
@@ -92,9 +94,9 @@ export function judgeOutfit(top: Garment, bottom: Garment, extras: Garment[] = [
   return { match: true, reason: extras.length ? "the whole look goes" : base.reason, strikes: 0 };
 }
 
-// Every matching (top, bottom) pair, for Auto Dress.
+// Every matching (top, bottom) pair, for Auto Dress. Dresses don't pair.
 export function matchingPairs(tops: Garment[], bottoms: Garment[]) {
   const pairs: [number, number][] = [];
-  tops.forEach((t, i) => bottoms.forEach((b, j) => judge(t, b).match && pairs.push([i, j])));
+  tops.forEach((t, i) => t.category !== "dresses" && bottoms.forEach((b, j) => judge(t, b).match && pairs.push([i, j])));
   return pairs;
 }

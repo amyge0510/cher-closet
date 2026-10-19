@@ -48,9 +48,8 @@ export type Piece = { canvas: HTMLCanvasElement; hint?: string };
 export type Found = { pieces: Piece[]; how: "clothes" | "subject" | "edges" | "none"; problem?: string };
 
 // The clothes model's labels that are clothes, and where they're filed.
-// Dresses are left for the tagger to decide.
 const GARMENT_LABELS: Record<string, string | undefined> = {
-  "Upper-clothes": "tops", Skirt: "skirts", Pants: "bottoms", Dress: undefined,
+  "Upper-clothes": "tops", Skirt: "skirts", Pants: "bottoms", Dress: "dresses",
   "Left-shoe": "shoes", "Right-shoe": "shoes", Hat: "hats", Bag: "bags", Scarf: "scarves",
 };
 const PERSON_LABELS = ["Face", "Hair", "Left-arm", "Right-arm", "Left-leg", "Right-leg"];
@@ -121,7 +120,7 @@ async function clothesPieces(photo: HTMLCanvasElement, progress?: Progress): Pro
     pieces.push({ canvas: c, hint });
   }
   // tops first, then bottoms, then the rest, as you'd dress
-  const order = ["tops", undefined, "skirts", "bottoms", "shoes", "bags", "scarves", "hats"];
+  const order = ["dresses", "tops", undefined, "skirts", "bottoms", "shoes", "bags", "scarves", "hats"];
   return pieces.sort((a, b) => order.indexOf(a.hint) - order.indexOf(b.hint));
 }
 

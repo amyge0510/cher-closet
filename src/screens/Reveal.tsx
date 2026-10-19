@@ -19,7 +19,7 @@ type Props = {
   /** Gemini dressing the user's own figure: while `waiting`, the bare figure
    * shows with a scan bar; then `src`, the dressed photo, replaces the
    * placed-on clothes */
-  dressed?: { src: string | null; waiting: boolean };
+  dressed?: { src: string | null; waiting: boolean; under?: string };
   onDone?: () => void;
 };
 
@@ -53,6 +53,22 @@ async function place(ctx: CanvasRenderingContext2D, src: string, a: Anchor, f: F
   ctx.drawImage(img, Math.round(f.x + a.x * f.w + box.x), Math.round(f.y + a.y * f.h + box.y), Math.round(box.w), Math.round(box.h));
 }
 
+// A dressed photo drawn whole, filling the canvas; any gap takes the photo's
+// own background color (its top-left corner) so it blends in.
+async function wholePhoto(src: string, cw: number, ch: number): Promise<HTMLCanvasElement> {
+  const img = await loadImage(src);
+  const c = makeCanvas(cw, ch);
+  const ctx = c.getContext("2d")!;
+  const corner = makeCanvas(1, 1);
+  corner.getContext("2d")!.drawImage(img, 0, 0, 1, 1, 0, 0, 1, 1);
+  const [r, g, b] = corner.getContext("2d")!.getImageData(0, 0, 1, 1).data;
+  ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+  ctx.fillRect(0, 0, cw, ch);
+  const box = containBox(img.width, img.height, cw, ch);
+  ctx.drawImage(img, box.x, box.y, box.w, box.h);
+  return c;
+}
+
 // The full-body screen: the body appears, then the outfit dissolves onto it
 // block by block, like a slow 1995 modem picture.
 export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchors = PLACEHOLDER_ANCHORS, animate, dressed, onDone }: Props) {
@@ -62,6 +78,9 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
   const waited = useRef(false);
   const waiting = !!dressed?.waiting;
   const dressedSrc = dressed?.src ?? null;
+  // the outfit already on screen (e.g. before a hairstyle change): it stays
+  // under the scan bar instead of the bare figure
+  const underSrc = dressed?.under ?? null;
 
   useEffect(() => {
     let cancelled = false;
@@ -75,7 +94,10 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
     const vctx = view.getContext("2d")!;
 
     (async () => {
-      const { canvas: body, frame } = await bodyCanvas(bodySrc, cw, ch, figure);
+      const figureCanvas = await bodyCanvas(bodySrc, cw, ch, figure);
+      const frame = figureCanvas.frame;
+      // what the outfit dissolves onto: the outfit already on, or the figure
+      const body = underSrc ? await wholePhoto(underSrc, cw, ch) : figureCanvas.canvas;
       if (cancelled) return;
       if (waiting) {
         // the bare figure, with a lavender scan bar sweeping up and down
@@ -99,20 +121,17 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
       const octx = outfit.getContext("2d")!;
       if (dressedSrc) {
         // the whole dressed photo replaces the figure, block by block
-        // drawn whole, filling the panel; any gap takes the photo's own
-        // background color (its top-left corner) so it blends in
-        const img = await loadImage(dressedSrc);
-        const corner = makeCanvas(1, 1);
-        corner.getContext("2d")!.drawImage(img, 0, 0, 1, 1, 0, 0, 1, 1);
-        const [r, g, b] = corner.getContext("2d")!.getImageData(0, 0, 1, 1).data;
-        octx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-        octx.fillRect(0, 0, cw, ch);
-        const box = containBox(img.width, img.height, cw, ch);
-        octx.drawImage(img, box.x, box.y, box.w, box.h);
+        octx.drawImage(await wholePhoto(dressedSrc, cw, ch), 0, 0);
       } else for (const layer of LAYERS) {
         if (layer === "outfit") {
-          await place(octx, bottom.image, anchors.bottom, frame);
-          await place(octx, top.image, anchors.top, frame);
+          if (top.id === bottom.id) {
+            // a dress: from the shoulders down past the hips, to the knees
+            const a = anchors.top;
+            await place(octx, top.image, { ...a, h: anchors.bottom.y + anchors.bottom.h * 0.75 - a.y }, frame);
+          } else {
+            await place(octx, bottom.image, anchors.bottom, frame);
+            await place(octx, top.image, anchors.top, frame);
+          }
           continue;
         }
         const g = extras.find((e) => e.category === layer);
@@ -159,7 +178,7 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
       clearTimeout(holdTimer);
     };
     // extrasKey stands in for `extras`, which is a new array every render
-  }, [w, h, top.image, bottom.image, extrasKey, bodySrc, figure, anchors, animate, waiting, dressedSrc, onDone]);
+  }, [w, h, top.image, bottom.image, extrasKey, bodySrc, figure, anchors, animate, waiting, dressedSrc, underSrc, onDone]);
 
   return <canvas ref={ref} style={{ width: w, height: h, imageRendering: "auto", display: "block" }} />;
 }

@@ -8,6 +8,8 @@ export const BUILT_IN: Category[] = [
   { id: "tops", label: "TOPS", slot: "top" },
   { id: "bottoms", label: "BOTTOMS", slot: "bottom" },
   { id: "skirts", label: "SKIRTS", slot: "bottom" },
+  // a dress is a whole outfit: it rides the top carousel and needs no bottom
+  { id: "dresses", label: "DRESSES", slot: "top" },
   { id: "shoes", label: "SHOES", slot: null },
   { id: "jewelry", label: "JEWELRY", slot: null },
   { id: "scarves", label: "SCARVES", slot: null },
@@ -15,6 +17,8 @@ export const BUILT_IN: Category[] = [
   { id: "underwear", label: "UNDERWEAR", slot: null },
   { id: "sweaters", label: "SWEATERS", slot: "top" },
 ];
+
+export const isDress = (g: { category: string } | undefined) => g?.category === "dresses";
 
 export function slotFor(categoryId: string): Slot | null {
   return BUILT_IN.find((c) => c.id === categoryId)?.slot ?? null;

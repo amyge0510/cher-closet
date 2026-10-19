@@ -53,6 +53,12 @@ the computer scene: hangers → browsing → MIS-MATCH! → her reaction), cut f
 4.5s to 18.75s of the source and scaled down to 640px wide. An H.264 MP4
 plays in every modern browser. Without the file, the TV shows static for a few seconds before the whirlpool.
 
+**Dresses.** DRESSES is its own category. A dress rides the top carousel and
+is a whole outfit: the bottom panel steps aside ("A DRESS: NO BOTTOM
+NEEDED"), DRESS ME judges the dress with its accessories, and on the figure
+it hangs from the shoulders to the knees. Auto Dress and the quiz boards
+build two-piece outfits only.
+
 **The closet pop-up.** Click any category on the bottom bar (TOPS, BOTTOMS
 and SKIRTS always come first) to open that part of the closet as a grid of
 inventory slots. Overflow categories, and any category a user makes up, are
@@ -77,8 +83,12 @@ Only styles the closet can really dress are offered: a style needs a top and
 a bottom that are both tagged with it and go together. The ones with the most
 outfits come first, so a closet of jeans and tees leads with EVERYDAY, and a
 closet that can only make two styles shows two boards. Untagged uploads count
-as EVERYDAY pieces. Shoes may repeat across boards, and when no shoes suit a
-style the most neutral pair is used.
+as EVERYDAY pieces. Shoes may repeat across boards.
+
+Boards only use pieces tagged with that style, accessories included: when
+nothing in the closet suits a style, the board goes without it (no party
+heels on an EASY board). When the closet can make fewer than four styles,
+the quiz says to upload more clothes to see more.
 
 OTHER OUTFITS rebuilds the boards from different pieces, without changing
 the choices, and BACK steps out. On the result screen, NEW OUTFIT does the same

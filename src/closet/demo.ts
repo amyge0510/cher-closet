@@ -21,7 +21,7 @@ export type Shape =
   | "scarf" | "tights" | "socks" | "bralette"
   | "shoulderBag" | "tote" | "miniBag"
   | "chore" | "puffer" | "joggers" | "cowboyBoots" | "watch" | "bandana" | "backpack"
-  | "cap" | "beanie" | "cowboyHat" | "bucketHat";
+  | "cap" | "beanie" | "cowboyHat" | "bucketHat" | "dress";
 
 // `audience` says which demo closet a piece is in: womenswear, menswear, or
 // (left out) both.
@@ -112,6 +112,11 @@ export const DEMO_SPECS: DemoSpec[] = [
   item("skirts", "maxi", "Gingham Prairie Skirt", plaid("#f4f0e8", "#8ab0d8", "#8ab0d8", 8), ["blue", "white"], ["cottage"]),
   item("skirts", "mini", "Denim Mini", solid("#7090c0"), ["denim"], ["y2k", "grunge", "street", "everyday"]),
   item("skirts", "midi", "Camel Pleated Midi", stripe("#c8a070", "#b08858", 6, true), ["beige", "brown"], ["oldmoney"]),
+
+  // dresses
+  item("dresses", "dress", "Little Black Dress", solid("#141218"), ["black"], ["minimal", "goth", "oldmoney"]),
+  item("dresses", "dress", "Floral Sundress", dots("#f4ecd8", "#d0607a", 10), ["cream", "pink", "green"], ["cottage"]),
+  item("dresses", "dress", "Pink Slip Dress", solid("#f4bccb"), ["babypink"], ["coquette", "y2k", "ballet"]),
 
   // shoes
   item("shoes", "sneakers", "White Sneakers", solid("#f4f4f4"), ["white"], ["clean", "tennis", "street", "athleisure", "everyday"]),

@@ -83,7 +83,7 @@ describe("quiz", () => {
     const next = accessoriesFor(closet, outfit, style, Object.values(first), 2);
     // a piece only stays when nothing else in the closet still goes with the look
     const changed = ["shoes", "jewelry", "bags"].filter((cat) => next[cat] !== first[cat]);
-    expect(changed.length).toBeGreaterThanOrEqual(2);
+    expect(changed.length).toBeGreaterThanOrEqual(1);
     for (const id of Object.values(next)) expect(fit(closet.find((g) => g.id === id)!, { leaves: ["coquette"], families: ["soft"] })).toBeGreaterThan(0);
   });
 
@@ -134,7 +134,7 @@ describe("quiz on a real, mostly-basic closet", () => {
     expect(fit(shirt, { leaves: ["everyday"], families: ["easy"] })).toBe(3);
   });
 
-  it("every board is a full outfit, re-using the two pairs of shoes", () => {
+  it("every board has a top and a bottom, and only shoes that suit the style", () => {
     let q = startQuiz();
     for (const step of [0, 1]) {
       const boards = boardsFor(realCloset, q);
@@ -143,7 +143,8 @@ describe("quiz on a real, mostly-basic closet", () => {
         const cats = b.items.map((i) => i.garment);
         expect(cats.some((g) => g.slot === "top"), b.option.id).toBe(true);
         expect(cats.some((g) => g.slot === "bottom"), b.option.id).toBe(true);
-        expect(cats.some((g) => g.category === "shoes"), b.option.id).toBe(true);
+        // no forced shoes: any shoes on a board are tagged with one of its styles
+        for (const g of cats.filter((g) => g.category === "shoes")) expect(g.styles.some((st) => b.option.target.leaves.includes(st)), `${b.option.id}: ${g.name}`).toBe(true);
       }
       if (step === 0) q = choose(q, boards[0].option.id);
     }
