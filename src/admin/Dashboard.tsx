@@ -83,6 +83,7 @@ const ACTIONS: Record<string, string> = {
   upload_clothes: "Uploaded clothes",
   upload_me: "Made their model photo",
   switch_source: "Switched closet",
+  strike_a_pose: "Struck a pose",
 };
 function describe(e: EventRow): string {
   const d = e.detail ?? {};

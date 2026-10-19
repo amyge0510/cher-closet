@@ -137,6 +137,9 @@ const DESK_L = {
   // MY PIXEL MODEL (the LOOK button on the dressed screen): over the right
   // leopard, so she stays in view while it changes
   pixelLookBox: { x: 446, y: 36, w: 190, h: 410 },
+  // STRIKE A POSE: the button (top left of the picture) and the board pop-up
+  poseButton: { x: 212, y: 44, w: 132, h: 24 },
+  poseBox: { x: 176, y: 36, w: 288, h: 410 },
 };
 
 type Layout = typeof DESK_L;
@@ -218,6 +221,8 @@ function phoneLayout(W: number): Layout {
     introTitle: { y: 170, sx: 3.4, sy: 4 },
     // over the lower half of the screen, under her face
     pixelLookBox: { x: 8, y: 352, w: W - 16, h: 334 },
+    poseButton: { x: px + 6, y: 94, w: 140, h: 26 },
+    poseBox: { x: Math.round((W - 340) / 2), y: 60, w: 340, h: 560 },
   };
 }
 

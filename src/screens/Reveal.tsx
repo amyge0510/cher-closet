@@ -3,7 +3,7 @@ import { anchorFor, LAYERS, PLACEHOLDER_ANCHORS, placeholderBody, type Anchor, t
 import type { Garment } from "../closet/types";
 import { jewelryKind } from "../closet/categories";
 import { containBox, loadImage, makeCanvas, rng } from "../pixel/raster";
-import { fitFigure, pixelScene, poseAt, poseKey, REST, type PixelLook } from "../closet/pixelModel";
+import { fitFigure, pixelScene, poseAt, poseKey, REST, type PixelLook, type Stance } from "../closet/pixelModel";
 
 type Props = {
   w: number;
@@ -25,6 +25,8 @@ type Props = {
   /** PIXEL closet: the pixel-art figure (her look), each piece drawn to fit
    * it; she blinks, smiles and moves her arms once dressed */
   pixel?: PixelLook | null;
+  /** STRIKE A POSE: the pose she holds (her face still moves) */
+  stance?: Stance | null;
   onDone?: () => void;
 };
 
@@ -73,7 +75,10 @@ async function wholePhoto(src: string, cw: number, ch: number): Promise<HTMLCanv
 
 // The full-body screen: the body appears, then the outfit dissolves onto it
 // block by block, like a slow 1995 modem picture.
-export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchors = PLACEHOLDER_ANCHORS, animate, dressed, pixel = null, onDone }: Props) {
+export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchors = PLACEHOLDER_ANCHORS, animate, dressed, pixel = null, stance = null, onDone }: Props) {
+  // read by the running animation, so a new pose doesn't restart the reveal
+  const stanceRef = useRef(stance);
+  stanceRef.current = stance;
   const pixelKey = pixel ? JSON.stringify(pixel) : "";
   const extrasKey = extras.map((g) => g.image).join("|");
   const ref = useRef<HTMLCanvasElement>(null);
@@ -117,7 +122,9 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
         let arms = { armL: 0, armR: 0 };
         const step = (now: number) => {
           let pose = poseAt((now - t0) / 1000);
-          if (scene.ready(pose)) arms = { armL: pose.armL, armR: pose.armR };
+          const held = stanceRef.current;
+          if (held) pose = { ...pose, stance: held, armL: 0, armR: 0, mouth: 2, brow: 1 };
+          else if (scene.ready(pose)) arms = { armL: pose.armL, armR: pose.armR };
           else pose = { ...pose, ...arms };
           const key = poseKey(pose);
           if (key !== shown) {

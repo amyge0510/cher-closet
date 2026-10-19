@@ -79,7 +79,10 @@ export const validLook = (l: PixelLook | null | undefined): l is PixelLook => !!
 // One moment: each arm's swing (-1 in to 1 out, in halves), the eyes (0 open,
 // 1 half shut, 2 shut), where she looks, her mouth (0 at rest, 1 a small
 // smile, 2 a big one) and raised brows.
-export type Pose = { armL: number; armR: number; blink: 0 | 1 | 2; gaze: -1 | 0 | 1; mouth: 0 | 1 | 2; brow: 0 | 1 };
+// `stance` is a held pose for STRIKE A POSE (the arms stop swaying).
+export type Stance = "idle" | "wave" | "hip" | "peace";
+export const STANCES: Stance[] = ["wave", "hip", "peace"];
+export type Pose = { armL: number; armR: number; blink: 0 | 1 | 2; gaze: -1 | 0 | 1; mouth: 0 | 1 | 2; brow: 0 | 1; stance?: Stance };
 export const REST: Pose = { armL: 0, armR: 0, blink: 0, gaze: 0, mouth: 0, brow: 0 };
 const half = (v: number) => Math.round(v * 2) / 2;
 
@@ -95,7 +98,7 @@ export function poseAt(t: number): Pose {
   const mouth = m > 3 && m < 3.35 ? 1 : m >= 3.35 && m < 5.9 ? 2 : m >= 5.9 && m < 6.4 ? 1 : 0;
   return { armL: half(Math.sin(sway) * 0.9), armR: half(Math.sin(sway + 1.3) * 0.9), blink, gaze, mouth, brow: mouth === 2 ? 1 : 0 };
 }
-export const poseKey = (p: Pose) => `${p.armL},${p.armR},${p.blink},${p.gaze},${p.mouth},${p.brow}`;
+export const poseKey = (p: Pose) => `${p.armL},${p.armR},${p.blink},${p.gaze},${p.mouth},${p.brow},${p.stance ?? "idle"}`;
 
 // ---- masks ----
 
@@ -181,29 +184,65 @@ const straps = (torso: Mask) => and(rows(grow(torso), 30, 34), or(rect(26, 0, 26
 
 type Body = {
   torso: Mask; armL: Mask; armR: Mask; legL: Mask; legR: Mask; neck: Mask; head: Mask; ears: Mask; feet: Mask; hands: Mask;
+  /** the tops of the arms, where a short sleeve ends */
+  shortSleeves: Mask;
   handL: Pt; handR: Pt; earL: Pt; earR: Pt;
+  /** hands raised with the fingers up (a wave, a peace sign) */
+  fingers: { at: Pt; count: number }[];
+  /** the arms cross in front of the body, so they're drawn over the clothes */
+  posed: boolean;
 };
+
+// An arm: shoulder, elbow, wrist, and the middle of the hand.
+type Arm = { s: Pt; e: Pt; w: Pt; h: Pt };
+const lerp = (a: Pt, b: Pt, f: number): Pt => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+const mirrorPt = ([x, y]: Pt): Pt => [64 - x, y];
+const mirrorArm = (a: Arm): Arm => ({ s: mirrorPt(a.s), e: mirrorPt(a.e), w: mirrorPt(a.w), h: mirrorPt(a.h) });
+
+// The left arm (on the viewer's left) in each pose; `sway` is the idle swing.
+function leftArm(stance: Stance, sh: number, sway: number): Arm {
+  const s: Pt = [23.5 - sh, 33];
+  switch (stance) {
+    case "wave":
+      return { s, e: [14.5 - sh, 27], w: [15 - sh, 17.5], h: [15 - sh, 14.5] };
+    case "hip":
+      return { s, e: [14.5 - sh, 44], w: [20.5, 55], h: [22, 56.5] };
+    case "peace":
+      return { s, e: [15.5 - sh, 38], w: [19.5, 26], h: [20.5, 23] };
+    default:
+      return { s, e: [19.6 - sh - sway * 0.8, 49], w: [17 - sh - sway * 1.8, 63], h: [17 - sh - sway * 1.8, 66] };
+  }
+}
 
 const CROTCH = 67;
 
 const bodies = new Map<string, Body>();
-function bodyOf(figure: Figure, armL: number, armR: number): Body {
-  const key = `${figure}${armL},${armR}`;
+function bodyOf(figure: Figure, armL: number, armR: number, stance: Stance = "idle"): Body {
+  const key = `${figure}${armL},${armR},${stance}`;
   const hit = bodies.get(key);
   if (hit) return hit;
   const m = figure === "mens";
   const sh = m ? 1.6 : 0; // broader shoulders
-  const handL: Pt = [17 - sh - armL * 1.8, 66];
-  const handR: Pt = [47 + sh + armR * 1.8, 66];
+  // in a pose: the left arm does it (a wave, a peace sign) while the right
+  // rests on the hip, or both go on the hips
+  const L = leftArm(stance, sh, armL);
+  const R = mirrorArm(stance === "idle" ? leftArm("idle", sh, armR) : leftArm("hip", sh, 0));
+  const w0 = m ? 5.4 : 4.6;
+  const w1 = m ? 3.8 : 3.2;
+  const wm = (w0 + w1) / 2;
+  const arm = (a: Arm) => or(limb([a.s, a.e], w0, wm), limb([a.e, a.w], wm, w1));
+  const handL = L.h;
+  const handR = R.h;
   const legL: Pt[] = m
-    ? [[21.5, 62], [32.6, 62], [32.4, CROTCH], [31.6, 88], [30.6, 115], [25.4, 115], [23.6, 88], [22, 74]]
-    : [[21, 62], [32.6, 62], [32.4, CROTCH], [31.4, 88], [30.4, 115], [25.6, 115], [23.8, 88], [21.4, 74]];
+    ? [[21.5, 62], [32.6, 62], [32.2, CROTCH], [31, 80], [30.8, 88], [30.4, 115], [25.4, 115], [23.6, 88], [22, 74]]
+    : [[21, 62], [32.6, 62], [32.2, CROTCH], [30.8, 80], [30.6, 88], [30.2, 115], [25.6, 115], [23.8, 88], [21.4, 74]];
   const body: Body = {
     torso: m
       ? poly([[20.5, 31], [43.5, 31], [43, 40], [41.6, 50], [41.6, 60], [42.4, 65], [21.6, 65], [22.4, 60], [22.4, 50], [21, 40]])
       : poly([[22.5, 31], [41.5, 31], [41, 38], [39.4, 47], [40.4, 53], [42.8, 59], [43, 65], [21, 65], [21.2, 59], [23.6, 53], [24.6, 47], [23, 38]]),
-    armL: limb([[23.5 - sh, 33], [19.6 - sh - armL * 0.8, 49], handL.map((v, i) => (i ? v - 3 : v)) as Pt], m ? 5.4 : 4.6, m ? 3.8 : 3.2),
-    armR: limb([[40.5 + sh, 33], [44.4 + sh + armR * 0.8, 49], handR.map((v, i) => (i ? v - 3 : v)) as Pt], m ? 5.4 : 4.6, m ? 3.8 : 3.2),
+    armL: arm(L),
+    armR: arm(R),
+    shortSleeves: or(limb([L.s, lerp(L.s, L.e, 0.6)], w0, w0 - 0.2), limb([R.s, lerp(R.s, R.e, 0.6)], w0, w0 - 0.2)),
     legL: poly(legL),
     legR: poly(legL.map(([x, y]) => [64 - x, y] as Pt)),
     neck: m ? rect(28.5, 24, 35.5, 32) : rect(29.5, 24, 34.5, 32),
@@ -215,6 +254,8 @@ function bodyOf(figure: Figure, armL: number, armR: number): Body {
     handR,
     earL: [22.5, 18],
     earR: [41.5, 18],
+    fingers: stance === "wave" ? [{ at: L.h, count: 4 }] : stance === "peace" ? [{ at: L.h, count: 2 }] : [],
+    posed: stance !== "idle",
   };
   bodies.set(key, body);
   return body;
@@ -407,8 +448,8 @@ function bob(): HairLayers {
 function pony(): HairLayers {
   const front = newTones();
   columns(front, 20, [9], [15]);
-  columns(front, 21, crownTops(21, 43), [20, 22, 13, 13, 12, 12, 11, 11, 10, 10, 9, 9, 8, 8, 8, 8, 8, 8, 8, 8, 8, 17, 14]);
-  columns(front, 44, [9], [12]);
+  columns(front, 21, crownTops(21, 43), [20, 22, 13, 13, 12, 12, 12, 11, 11, 11, 10, 10, 10, 10, 10, 10, 11, 11, 12, 13, 14, 16, 15]);
+  columns(front, 44, [9], [13]);
   for (const x of [25, 28, 31]) stroke(front, x, 7, 12, 5);
   stroke(front, 22, 12, 21, 4);
   shine(front, 21, 43);
@@ -438,7 +479,9 @@ function messy(): HairLayers {
 // Short and neat, swept to the side.
 function short(): HairLayers {
   const front = newTones();
-  columns(front, 21, crownTops(21, 43), [15, 14, 9, 9, 9, 10, 10, 10, 10, 9, 9, 9, 9, 9, 10, 10, 11, 11, 12, 12, 11, 13, 15]);
+  columns(front, 20, [10], [14]);
+  columns(front, 21, crownTops(21, 43), [15, 15, 10, 9, 9, 10, 10, 10, 10, 9, 9, 9, 9, 9, 10, 10, 11, 11, 12, 12, 13, 15, 15]);
+  columns(front, 44, [10], [14]);
   for (const x of [27, 31, 35]) stroke(front, x, 6, 10, 4);
   shine(front, 21, 43);
   outline(front);
@@ -446,15 +489,14 @@ function short(): HairLayers {
 }
 
 // The rest are drawn from shapes and painted in curls or fine strands.
-const crown = (ry = 9) => and(ellipse(32, 12, 11.5, ry), rect(0, 0, U_W - 1, 12));
 function shapedHair(style: HairStyle): [Mask | null, Mask] {
   switch (style) {
     case "puff":
-      return [null, or(and(ellipse(32, 12, 10.5, 8.5), rect(0, 0, U_W - 1, 10)), ellipse(32, 0.5, 9, 6.5))];
+      return [null, or(and(ellipse(32, 11.5, 11, 9.5), rect(0, 0, U_W - 1, 11)), rect(21.5, 8, 23, 15), rect(41, 8, 42.5, 15), ellipse(32, 0.5, 9, 6.5))];
     case "curls":
       return [null, or(and(or(ellipse(32, 8, 11.5, 6.5), ellipse(23, 5, 4.5, 4.5), ellipse(29, 2.5, 5, 4), ellipse(36, 2.5, 5, 4), ellipse(41.5, 6, 4.5, 4.5)), rect(0, 0, U_W - 1, 11)), rect(21, 10, 22.5, 17), rect(41.5, 10, 43, 17))];
     default:
-      return [null, or(and(ellipse(32, 13, 10.5, 9.5), rect(0, 0, U_W - 1, 8)), crown(0), rect(21.5, 8, 22.5, 14), rect(41.5, 8, 42.5, 14))];
+      return [null, or(and(ellipse(32, 12.5, 11, 10), rect(0, 0, U_W - 1, 10)), rect(21.5, 8, 23, 15), rect(41, 8, 42.5, 15))];
   }
 }
 
@@ -522,7 +564,7 @@ function drawBody(px: RGBA, look: PixelLook, b: Body) {
   const shade = darker(skin, 0.86);
   const line = darker(skin, 0.64);
   const glow = lighter(skin, 0.22);
-  fillMask(px, or(b.armL, b.armR, b.hands), skin, line);
+  if (!b.posed) drawArms(px, look, b);
   fillMask(px, or(b.legL, b.legR), skin, line);
   fillMask(px, or(b.torso, b.neck), skin, line);
   fillMask(px, b.ears, skin, line, false);
@@ -533,8 +575,6 @@ function drawBody(px: RGBA, look: PixelLook, b: Body) {
   for (let x = 58; x <= 69; x++) dot(px, x, 52, shade);
   for (let x = 59; x <= 68; x++) dot(px, x, 53, shade);
   for (let x = 60; x <= 67; x++) dot(px, x, 54, shade);
-  // fingers
-  for (const [hx, hy] of [b.handL, b.handR]) for (const dx of [-1.4, 0, 1.4]) for (let dy = 0.8; dy <= 2.8; dy += 0.5) dot(px, (hx + 0.5) * K + dx, (hy + dy) * K, line);
   // knees: a kneecap with a light top and a curved line under it
   for (const kx of [27.4, 36.6]) {
     const X = Math.round(kx * K);
@@ -565,6 +605,26 @@ function drawBody(px: RGBA, look: PixelLook, b: Body) {
   else {
     fillMask(px, rows(b.torso, 35, 41), "#1c1622", "#0c0a10");
     fillMask(px, or(rows(b.torso, 59, 65), rows(or(b.legL, b.legR), 62, CROTCH + 1)), "#1c1622", "#0c0a10");
+  }
+}
+
+// Arms and hands. A hand hanging down shows three finger creases; a raised
+// hand shows its fingers up (four for a wave, two for a peace sign).
+function drawArms(px: RGBA, look: PixelLook, b: Body) {
+  const skin = look.skin;
+  const line = darker(skin, 0.64);
+  const raised = b.fingers.map((f) => f.at);
+  const fingers = b.fingers.map(({ at: [hx, hy], count }) =>
+    or(...Array.from({ length: count }, (_, i) => {
+      const off = count === 2 ? (i ? 0.9 : -0.9) : -1.6 + i * 1.07;
+      const tall = count === 2 ? 4.2 : 3.2;
+      return poly([[hx + off - 0.5, hy - 1.5], [hx + off + 0.5, hy - 1.5], [hx + off * 1.35 + 0.5, hy - 1.5 - tall], [hx + off * 1.35 - 0.5, hy - 1.5 - tall]]);
+    })),
+  );
+  fillMask(px, or(b.armL, b.armR, b.hands, ...fingers), skin, line);
+  for (const [hx, hy] of [b.handL, b.handR]) {
+    if (raised.some(([x, y]) => x === hx && y === hy)) continue;
+    for (const dx of [-1.4, 0, 1.4]) for (let dy = 0.8; dy <= 2.8; dy += 0.5) dot(px, (hx + 0.5) * K + dx, (hy + dy) * K, line);
   }
 }
 
@@ -689,13 +749,19 @@ const TOPS: Partial<Record<Shape, { to: number; sleeves: Sleeves; from?: number;
   bralette: { to: 42, sleeves: "none", from: 34 },
 };
 
+// A top's sleeves, cut from the arms themselves so they follow any pose.
+function sleeveMask(b: Body, s: Shape): Mask | null {
+  const t = TOPS[s];
+  if (!t || t.sleeves === "none") return null;
+  const m = t.sleeves === "short" ? grow(b.shortSleeves) : grow(or(b.armL, b.armR));
+  return s === "puffer" ? grow(m) : m;
+}
+
 function topMask(b: Body, s: Shape): Mask | null {
   const t = TOPS[s];
   if (!t) return null;
   const from = t.from ?? 31;
   let m = rows(grow(b.torso), from, t.to);
-  if (t.sleeves === "short") m = or(m, rows(grow(or(b.armL, b.armR)), 30, 42));
-  if (t.sleeves === "long") m = or(m, rows(grow(or(b.armL, b.armR)), 30, 63));
   if (s === "puffer") m = grow(m);
   if (t.neck === "high") m = or(m, grow(rows(b.neck, 27, 32)));
   if (t.neck === "v") m = minus(m, poly([[29, 30], [35, 30], [32, s === "vest" ? 40 : 45]]));
@@ -725,12 +791,19 @@ function bottomMask(b: Body, s: Shape): Mask | null {
 
 const dressMask = (b: Body): Mask => or(rows(grow(b.torso), 34, 58), poly([[23, 50], [41, 50], [47, 88], [17, 88]]), straps(b.torso));
 
+// a gap down the middle, so a pair of shoes (or socks) stays a pair
+function parted(m: Mask): Mask {
+  const out = m.slice();
+  for (let y = 0; y < GRID_H; y++) for (const x of [62, 63, 64, 65]) out[idx(x, y)] = 0;
+  return out;
+}
+
 function shoeMask(b: Body, s: Shape): Mask {
   const legs = or(b.legL, b.legR);
-  if (s === "boots") return or(grow(b.feet), rows(grow(legs), 97, 117));
-  if (s === "cowboyBoots") return or(grow(b.feet), rows(grow(legs), 93, 117));
-  if (s === "sneakers") return grow(rows(b.feet, 114, 120));
-  return or(b.feet, rows(grow(b.feet), 118, 120));
+  if (s === "boots") return parted(or(grow(b.feet), rows(grow(legs), 97, 117)));
+  if (s === "cowboyBoots") return parted(or(grow(b.feet), rows(grow(legs), 93, 117)));
+  if (s === "sneakers") return parted(grow(rows(b.feet, 114, 120)));
+  return parted(or(b.feet, rows(grow(b.feet), 118, 120)));
 }
 
 const isHat = (g: Garment) => g.category === "hats";
@@ -742,11 +815,11 @@ function drawGarment(px: RGBA, b: Body, look: PixelLook, g: Garment, s: DemoSpec
   const legs = or(b.legL, b.legR);
   switch (g.category) {
     case "pantyhose":
-      if (s.shape === "socks") return fill(rows(legs, 99, 116));
+      if (s.shape === "socks") return fill(parted(rows(legs, 99, 116)));
       return fillMask(px, rows(legs, 62, 116), (x, y) => (s.name.includes("Fishnet") ? ((x + y) % 3 ? look.skin : "#1a1420") : patternAt(s.fill, x, y)), outline);
     case "shoes": {
       fill(shoeMask(b, s.shape));
-      if (s.shape === "sneakers") fillMask(px, rows(grow(b.feet), 120, 120), "#f4f4f4", undefined, false);
+      if (s.shape === "sneakers") fillMask(px, parted(rows(grow(b.feet), 120, 120)), "#f4f4f4", undefined, false);
       if (s.shape === "heels") for (const x of [22.5, 41.5]) for (let y = 121; y <= 122; y++) unit(px, x, y, outline);
       return;
     }
@@ -801,6 +874,9 @@ function drawGarment(px: RGBA, b: Body, look: PixelLook, g: Garment, s: DemoSpec
   const top = topMask(b, s.shape);
   if (top) {
     fill(top);
+    // the sleeves go on after (over the clothes, with the arms, in a pose)
+    const sleeves = sleeveMask(b, s.shape);
+    if (sleeves && !b.posed) fill(sleeves);
     if (s.band) fillMask(px, rows(top, (TOPS[s.shape]?.to ?? 60) - 2, TOPS[s.shape]?.to ?? 60), s.band, undefined, false);
     // a blazer or jacket shows a white shirt in its V
     if (TOPS[s.shape]?.neck === "v" && s.shape !== "vest") fillMask(px, and(poly([[30, 31], [34, 31], [32, 42]]), b.torso), "#f4f2f6", undefined, false);
@@ -811,6 +887,13 @@ function drawGarment(px: RGBA, b: Body, look: PixelLook, g: Garment, s: DemoSpec
     fill(bottom);
     if (s.shape === "joggers") fillMask(px, rows(bottom, 110, 112), outline, undefined, false);
   }
+}
+
+// In a pose the arms cross in front of the clothes: they're drawn last,
+// then each top's sleeves over them.
+function drawSleeves(px: RGBA, b: Body, s: DemoSpec) {
+  const sleeves = sleeveMask(b, s.shape);
+  if (sleeves) fillMask(px, sleeves, (x, y) => patternAt(s.fill, x, y), darker(baseOf(s.fill)));
 }
 
 // Layering order, bottom to top.
@@ -857,13 +940,18 @@ export function pixelScene(look: PixelLook, pieces: Garment[]) {
   });
   const bodies = new Map<string, HTMLCanvasElement>();
   const bodyLayer = (pose: Pose, dressed: boolean) => {
-    const key = `${pose.armL},${pose.armR},${dressed}`;
+    const stance = pose.stance ?? "idle";
+    const key = `${pose.armL},${pose.armR},${stance},${dressed}`;
     let c = bodies.get(key);
     if (!c) {
       const px = newBuffer();
-      const b = bodyOf(look.figure, pose.armL, pose.armR);
+      const b = bodyOf(look.figure, pose.armL, pose.armR, stance);
       drawBody(px, look, b);
       if (dressed) for (const g of worn) if (!isHat(g)) drawGarment(px, b, look, g, spec.get(g.id)!);
+      if (b.posed) {
+        drawArms(px, look, b);
+        if (dressed) for (const g of worn) if (g.slot === "top" && !isHat(g)) drawSleeves(px, b, spec.get(g.id)!);
+      }
       c = toCanvas(px);
       bodies.set(key, c);
     }
@@ -900,7 +988,7 @@ export function pixelScene(look: PixelLook, pieces: Garment[]) {
     /** dressed, in a pose */
     dressed: (pose: Pose = REST) => frame(pose, true),
     /** whether this pose can be shown without drawing anything new */
-    ready: (pose: Pose) => bodies.has(`${pose.armL},${pose.armR},true`),
+    ready: (pose: Pose) => bodies.has(`${pose.armL},${pose.armR},${pose.stance ?? "idle"},true`),
     /** draws one more arm position ahead of time; false when all are done */
     warm: () => {
       const next = warmups.shift();

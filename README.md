@@ -65,6 +65,15 @@ leopard. The navy bars and the leopard run on to the edges of any phone
 wider than that shape (`--bleed` in `Stage.tsx`, `wide()` in `Parts.tsx`).
 Turning the phone sideways reloads into the computer layout.
 
+**Strike a pose.** On the dressed screen in PIXEL mode, STRIKE A POSE puts
+the model in a pose (a wave, hands on hips, a peace sign; each press is the
+next one) with a big smile, and makes a keepsake board from it
+(`src/closet/poseBoard.ts`): a pastel background with pixel hearts, a
+polaroid with sparkles, an AS IF! sticker, her name, the date and the
+outfit. SAVE PICTURE opens the share sheet on a phone (Save Image) or
+downloads a PNG on a computer. Arms are built from shoulder, elbow and wrist
+for each pose, and sleeves are cut from the arms, so clothes follow.
+
 **Analytics (owner only).** The app logs what signed-in people do (opening
 the closet, BROWSE, DRESS ME, AUTO DRESS, saved looks, the style quiz,
 uploads, switching between PIXEL and MY CLOTHES), each marked phone or

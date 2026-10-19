@@ -13,7 +13,8 @@ export type EventKind =
   | "style_quiz"
   | "upload_clothes"
   | "upload_me"
-  | "switch_source";
+  | "switch_source"
+  | "strike_a_pose";
 
 let signedIn = false;
 export const setTracking = (on: boolean) => {

@@ -21,7 +21,9 @@ import { SavedLooks } from "./SavedLooks";
 import { StyleQuiz } from "./StyleQuiz";
 import { Bevel, ButtonLabel, CategoryBar, ControlStrip, Header, Leopard, overflowCategories, pos, tabCenter, wide } from "./Parts";
 import { Reveal } from "./Reveal";
-import { canWearPixel, defaultLook, validLook, type PixelLook } from "../closet/pixelModel";
+import { canWearPixel, defaultLook, pixelScene, REST, STANCES, validLook, type PixelLook, type Stance } from "../closet/pixelModel";
+import { poseBoard, saveBoard } from "../closet/poseBoard";
+import { PosePopup } from "./PosePopup";
 import { PixelLookMenu } from "./PixelLookMenu";
 import { track } from "../lib/track";
 
@@ -59,7 +61,7 @@ function ExtraSticker({ garment, index = 0, of = 1, onTakeOff }: { garment: Garm
   );
 }
 
-type Popup = { kind: "closet"; category: string } | { kind: "more" } | { kind: "style" } | { kind: "looks" } | { kind: "upload" } | { kind: "body"; photo?: HTMLCanvasElement } | { kind: "hair" } | { kind: "look" } | null;
+type Popup = { kind: "closet"; category: string } | { kind: "more" } | { kind: "style" } | { kind: "looks" } | { kind: "upload" } | { kind: "body"; photo?: HTMLCanvasElement } | { kind: "hair" } | { kind: "look" } | { kind: "pose" } | null;
 
 // Hairstyles for the dressed-up figure (HAIR, above the head). The id is
 // what Gemini is asked for; "" keeps the user's own hair.
@@ -429,6 +431,24 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   const outfitPieces = useMemo(() => (top && bottom ? (top === bottom ? [top, ...worn] : [top, bottom, ...worn]) : []), [top, bottom, worn]);
   // PIXEL closet: the pixel-art model wears the pixel clothes (no photo, no AI)
   const pixelModel = source === "pixel" && outfitPieces.length > 0 && canWearPixel(outfitPieces);
+  // STRIKE A POSE: she holds a pose (the next of the three each time) while
+  // the board is made from it
+  const [stance, setStance] = useState<Stance | null>(null);
+  const [board, setBoard] = useState<{ canvas: HTMLCanvasElement; url: string } | null>(null);
+  const poses = useRef(0);
+  const strikeAPose = useCallback(() => {
+    const next = STANCES[poses.current++ % STANCES.length];
+    setStance(next);
+    setBoard(null);
+    setPopup({ kind: "pose" });
+    track("strike_a_pose", { pose: next });
+    const name = title.replace(/['’]S WARDROBE$/i, "").trim() || "MY";
+    window.setTimeout(() => {
+      const figure = pixelScene(look, outfitPieces).dressed({ ...REST, stance: next, mouth: 2, brow: 1 });
+      const canvas = poseBoard(figure, outfitPieces, name, poses.current - 1);
+      setBoard({ canvas, url: canvas.toDataURL("image/png") });
+    }, 450);
+  }, [look, outfitPieces, title]);
   const dressKey =
     !pixelModel && body && canRedraw && outfitPieces.length && (screen === "reveal" || screen === "dressed")
       ? [body.src.length, body.src.slice(-48), ...outfitPieces.map((g) => g.id), hair].join("|")
@@ -527,7 +547,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
 
       {fullBody && top && bottom ? (
         <div style={{ ...pos(L.revealPanel), background: C.panel }}>
-          <Reveal w={L.revealPanel.w} h={L.revealPanel.h} top={top} bottom={bottom} extras={worn} figure={wardrobe === "mens" ? "mens" : "womens"} bodySrc={pixelModel ? null : body?.src} anchors={pixelModel ? undefined : body?.anchors} animate={screen === "reveal"} dressed={!pixelModel && dressed && dressed.key === dressKey ? dressed : undefined} pixel={pixelModel ? look : null} onDone={revealDone} />
+          <Reveal w={L.revealPanel.w} h={L.revealPanel.h} top={top} bottom={bottom} extras={worn} figure={wardrobe === "mens" ? "mens" : "womens"} bodySrc={pixelModel ? null : body?.src} anchors={pixelModel ? undefined : body?.anchors} animate={screen === "reveal"} dressed={!pixelModel && dressed && dressed.key === dressKey ? dressed : undefined} pixel={pixelModel ? look : null} stance={pixelModel ? stance : null} onDone={revealDone} />
         </div>
       ) : (
         <>
@@ -554,6 +574,14 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
         </Bevel>
       )}
       {popup?.kind === "look" && <PixelLookMenu look={look} onChange={setLook} onClose={closePopup} />}
+      {fullBody && pixelModel && (
+        <Bevel box={L.poseButton} tone={popup?.kind === "pose" ? "blue" : "gray"} onClick={strikeAPose} label="Strike a pose" style={{ borderWidth: 2, zIndex: 6 }}>
+          <PixelText text="STRIKE A POSE" color={C.ink} sx={1.3} sy={1.7} bold />
+        </Bevel>
+      )}
+      {popup?.kind === "pose" && (
+        <PosePopup image={board?.url ?? null} onSave={() => board && saveBoard(board.canvas)} onAgain={strikeAPose} onClose={() => (setStance(null), closePopup())} />
+      )}
       {fullBody && body && canRedraw && !pixelModel && (
         <Bevel box={HAIR_BUTTON} tone={popup?.kind === "hair" ? "blue" : "gray"} onClick={() => setPopup(popup?.kind === "hair" ? null : { kind: "hair" })} label="Change the hairstyle" style={{ borderWidth: 2, zIndex: 6 }}>
           <PixelText text="HAIR ~" color={C.ink} sx={1.4} sy={1.8} bold />
