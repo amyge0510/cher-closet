@@ -6,6 +6,7 @@ import type { MyStyle, Wardrobe as WardrobeChoice } from "./style/styles";
 import { categoriesFor } from "./closet/categories";
 import { demoCloset } from "./closet/demoArt";
 import { deleteGarment, loadCloset, saveGarment } from "./closet/repo";
+import { loadImage } from "./pixel/raster";
 import { clearBody, loadBody, saveBody, type Body } from "./closet/bodyPhoto";
 import type { BodyAnchors } from "./closet/body";
 import type { Garment } from "./closet/types";
@@ -188,9 +189,15 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
   useEffect(() => {
     if (signedIn)
       loadCloset()
-        .then(setOwn, () => setOwn([]))
+        .then((mine) => {
+          setOwn(mine);
+          // start on the pictures of the last outfit while the hangers swing
+          const last = loadGuest<Look>(`cher-last-outfit-${userId ?? "guest"}`);
+          const ids = new Set(last ? [last.top, last.bottom, ...Object.values(last.extras)] : []);
+          for (const g of mine) if (ids.has(g.id)) loadImage(g.image).catch(() => {});
+        }, () => setOwn([]))
         .finally(() => setClosetReady(true));
-  }, [signedIn]);
+  }, [signedIn, userId]);
   // PIXEL | MY CLOTHES (under the title): the person's own clothes, or the built-in
   // pixel rack. Until someone has uploaded at least one top and one bottom,
   // "my clothes" keeps the pixel rack mixed in so the machine stays usable.
@@ -236,7 +243,11 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
   // MY MODEL PHOTO: the user's own figure for the reveal
   const [body, setBody] = useState<Body | null>(null);
   useEffect(() => {
-    if (signedIn) loadBody().then(setBody, () => setBody(null));
+    if (signedIn)
+      loadBody().then((b) => {
+        setBody(b);
+        if (b) loadImage(b.src).catch(() => {});
+      }, () => setBody(null));
   }, [signedIn]);
   const applyBody = useCallback(
     (canvas: HTMLCanvasElement, anchors: BodyAnchors) => {
