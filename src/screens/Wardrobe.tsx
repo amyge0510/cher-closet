@@ -8,7 +8,7 @@ import { judgeWithAi } from "../upload/tags";
 import { GarmentImage } from "../pixel/GarmentImage";
 import { PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
-import { extraSpot, L, type Box } from "../stage/layout";
+import { extraSpot, L, STAGE_W, type Box } from "../stage/layout";
 import type { Action, State } from "../state/machine";
 import { accessoriesFor, rankPairs, type BoardItem } from "../style/quiz";
 import { WARDROBES, type MyStyle, type Wardrobe as WardrobeChoice } from "../style/styles";
@@ -526,7 +526,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       )}
       {popup?.kind === "hair" && (
         <>
-          <div onClick={closePopup} style={{ position: "absolute", left: 0, top: 0, width: 640, height: 450, zIndex: 20 }} />
+          <div onClick={closePopup} style={{ position: "absolute", left: 0, top: 0, width: STAGE_W, height: L.categoryBar.y, zIndex: 20 }} />
           <div role="menu" style={{ position: "absolute", left: HAIR_BUTTON.x + HAIR_BUTTON.w - 170, top: HAIR_BUTTON.y + HAIR_BUTTON.h + 4, width: 170, boxSizing: "border-box", padding: 3, background: C.invBg, border: `3px solid ${C.invEdge}`, zIndex: 21 }}>
             {HAIRSTYLES.map((h) => (
               <button

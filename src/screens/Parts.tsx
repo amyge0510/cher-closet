@@ -72,7 +72,7 @@ export function Header({ title, season = "FALL FASHIONS", onStyle }: {
       <div style={{ position: "absolute", left: L.title.x, top: L.title.y }}>
         <PixelText text={title} color={C.lavender} sx={L.title.sx} sy={L.title.sy} shadow={C.frameDark} />
       </div>
-      <div
+      {L.showSeason && <div
         style={{
           ...pos(L.season),
           boxSizing: "border-box",
@@ -84,7 +84,7 @@ export function Header({ title, season = "FALL FASHIONS", onStyle }: {
         }}
       >
         <PixelText text={season} color={C.lavender} sx={sx} sy={sy} />
-      </div>
+      </div>}
       {onStyle && (
         <Bevel box={L.styleButton} tone="gray" onClick={onStyle} label="My style" style={{ borderWidth: 2 }}>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>

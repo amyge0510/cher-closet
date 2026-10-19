@@ -18,9 +18,10 @@ const COPY: Record<Step, { title: string; label: string; button: string[] }> = {
   wardrobe: { title: "WHAT DO YOU LIKE TO WEAR?", label: "", button: ["DONE"] },
 };
 
-const WARDROBE_BUTTON = { x: 222, w: 204, h: 32, y: 182, gap: 8 };
-const WARDROBE_HINT_Y = 310;
-const PHONE_ERROR_Y = 360; // below the longer privacy note
+// the three wardrobe choices, centred in the panel where the field goes
+const WARDROBE_BUTTON = { ...L.wardrobeButton, x: L.signPanel.x + (L.signPanel.w - L.wardrobeButton.w) / 2, y: L.signLabel.y - 14 };
+const WARDROBE_HINT_Y = WARDROBE_BUTTON.y + 3 * (WARDROBE_BUTTON.h + WARDROBE_BUTTON.gap) + 8;
+const PHONE_ERROR_Y = L.phoneErrorY; // below the longer privacy note
 
 const CODE_LENGTH = 6;
 
@@ -92,7 +93,7 @@ export function SignIn({ needsName, needsWardrobe = false, sendCode, verifyCode,
     if (step === "code" && code.length === CODE_LENGTH) submit();
   }, [code, step]);
 
-  const panel = L.revealPanel;
+  const panel = L.signPanel;
   const inner = panel.w - 24;
   const copy = COPY[step];
   const hint = step === "wardrobe"
@@ -113,7 +114,7 @@ export function SignIn({ needsName, needsWardrobe = false, sendCode, verifyCode,
       <Header title={step === "name" ? wardrobeTitle(name) : step === "wardrobe" && savedName ? wardrobeTitle(savedName) : "YOUR WARDROBE"} season={preview ? "PREVIEW" : "SIGN IN"} />
       <Leopard box={L.leopardLeft} />
       <Leopard box={L.leopardRight} />
-      <div style={{ ...pos(L.center), background: C.frameDark, borderLeft: `2px solid ${C.frame}`, borderRight: `2px solid ${C.frame}`, boxSizing: "border-box" }} />
+      <div style={{ ...pos(L.signFrame), background: C.frameDark, borderLeft: `2px solid ${C.frame}`, borderRight: `2px solid ${C.frame}`, boxSizing: "border-box" }} />
       <div style={{ ...pos(panel), background: C.panel }} />
 
       <div style={centered(L.signTitle.y)}>

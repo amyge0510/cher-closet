@@ -5,7 +5,7 @@ import { PixelField } from "../pixel/PixelField";
 import { GarmentImage } from "../pixel/GarmentImage";
 import { PixelLines, PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
-import { L } from "../stage/layout";
+import { L, PHONE } from "../stage/layout";
 import { leaf, type Wardrobe } from "../style/styles";
 import { findPieces, finishCutout, forTagging, loadPhoto, pngBlob, type Piece, type Progress } from "../upload/cutout";
 import { Scanner } from "../upload/Scanner";
@@ -265,7 +265,9 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
             e.preventDefault();
             add(imageFiles(e.dataTransfer.files));
           }}
+          onClick={PHONE ? () => input.current?.click() : undefined}
           style={{
+            cursor: PHONE ? "pointer" : undefined,
             position: "absolute",
             left: box.x + pad,
             top: box.y + 46,
@@ -281,8 +283,9 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
           }}
         >
           <PixelText text="^" color={C.btnBlue} sx={7} sy={7} />
-          <PixelText text="DROP PHOTOS HERE" color={C.invText} sx={2.2} sy={2.6} bold />
-          <PixelText text="OR PASTE ONE: CTRL+V OR CMD+V" color={C.invText} sx={1.5} sy={1.9} />
+          {/* phones can't drop or paste: the box opens the camera or photos instead */}
+          <PixelText text={PHONE ? "TAP TO ADD PHOTOS" : "DROP PHOTOS HERE"} color={C.invText} sx={2.2} sy={2.6} bold />
+          <PixelText text={PHONE ? "TAKE ONE OR PICK FROM YOUR PHOTOS" : "OR PASTE ONE: CTRL+V OR CMD+V"} color={C.invText} sx={1.5} sy={1.9} />
         </div>
         <Bevel box={{ x: box.x + pad, y: box.y + 232, w: box.w - pad * 2, h: 38 }} tone="blue" onClick={() => input.current?.click()} label="Upload clothes" style={{ borderWidth: 3 }}>
           <PixelText text="UPLOAD CLOTHES" color={C.white} sx={2} sy={2.4} bold shadow={C.btnBlueDark} />

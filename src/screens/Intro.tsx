@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { PixelText } from "../pixel/PixelText";
 import { rng } from "../pixel/raster";
 import { C } from "../stage/palette";
-import { STAGE_H, STAGE_W } from "../stage/layout";
+import { L, STAGE_H, STAGE_W } from "../stage/layout";
 import { Bevel, Leopard } from "./Parts";
 
 // The welcome intro, played once after someone first signs in:
@@ -21,7 +21,7 @@ const SWIRL_MS = 1600;
 // same colour and fades it away, so the hand-off is seamless
 export const SMOKE = "#ffe1ec";
 
-const TV = { x: 50, y: 98, w: 540, h: 312 }; // a 16:9 screen inside a 10px frame
+const TV = L.introTv; // a 16:9 screen inside a 10px frame
 const SCREEN = { x: TV.x + 10, y: TV.y + 10, w: TV.w - 20, h: TV.h - 20 };
 const RES = 2; // stage pixels per canvas pixel, for the clip and the sparkles
 
@@ -204,8 +204,8 @@ export function Intro({ onDone }: { onDone: () => void }) {
           />
           <video ref={video} src={CLIP_SRC} preload="auto" playsInline onEnded={swirl} onError={noClip} style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
 
-          <div style={{ position: "absolute", left: 0, top: 30, width: STAGE_W, display: "grid", justifyItems: "center" }}>
-            <PixelText text="A REMINDER..." color={C.white} sx={5} sy={5.4} bold outline={C.navy} />
+          <div style={{ position: "absolute", left: 0, top: L.introTitle.y, width: STAGE_W, display: "grid", justifyItems: "center" }}>
+            <PixelText text="A REMINDER..." color={C.white} sx={L.introTitle.sx} sy={L.introTitle.sy} bold outline={C.navy} />
           </div>
         </div>
 
@@ -214,7 +214,7 @@ export function Intro({ onDone }: { onDone: () => void }) {
         <canvas ref={sparkles} width={STAGE_W / RES} height={STAGE_H / RES} style={{ position: "absolute", inset: 0, width: STAGE_W, height: STAGE_H, imageRendering: "pixelated", pointerEvents: "none" }} />
 
         {phase === "brew" && (
-          <Bevel box={{ x: 560, y: 444, w: 70, h: 26 }} tone="gray" onClick={swirl} label="Skip intro" style={{ borderWidth: 2 }}>
+          <Bevel box={L.introSkip} tone="gray" onClick={swirl} label="Skip intro" style={{ borderWidth: 2 }}>
             <PixelText text="SKIP" color={C.ink} sx={1.6} sy={2} bold />
           </Bevel>
         )}

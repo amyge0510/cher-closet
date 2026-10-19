@@ -56,6 +56,14 @@ the computer scene: hangers → browsing → MIS-MATCH! → her reaction), cut f
 4.5s to 18.75s of the source and scaled down to 640px wide. An H.264 MP4
 plays in every modern browser. Without the file, the TV shows static for a few seconds before the whirlpool.
 
+**Phones.** On a phone held upright the screen is 400x780 instead of
+640x480 (`PHONE_L` in `src/stage/layout.ts`): the same leopard, panels and
+buttons, stacked. The two windows run down the middle with narrow leopard
+columns for accessories either side, BROWSE and DRESS ME sit underneath, and
+the bottom bar gets a second row for UPLOAD, LOOKS and MORE. Sign-in, the
+style quiz, saved looks and upload open as pop-ups in the middle of the
+leopard. Turning the phone sideways reloads into the computer layout.
+
 **Pixel or my clothes.** The PIXEL | MY CLOTHES pill under the title switches the rack
 between your own uploaded clothes and the built-in pixel clothes. It starts on
 yours once you've uploaded a top and a bottom, and uploading something always

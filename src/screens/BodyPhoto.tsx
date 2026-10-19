@@ -4,7 +4,7 @@ import type { BodyAnchors } from "../closet/body";
 import { GarmentImage } from "../pixel/GarmentImage";
 import { PixelLines, PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
-import { L } from "../stage/layout";
+import { L, PHONE } from "../stage/layout";
 import { loadPhoto } from "../upload/cutout";
 import { RedrawError } from "../upload/gemini";
 import { Scanner } from "../upload/Scanner";
@@ -118,7 +118,7 @@ export function BodyPhoto({ current, canRedraw, initialPhoto, onUse, onReset, on
             <PixelText text={phase.kind === "error" ? "TRY ANOTHER PHOTO" : "OK, PICK A PHOTO"} color={C.white} sx={2} sy={2.4} bold shadow={C.btnBlueDark} />
           </Bevel>
         )}
-        {!(phase.kind === "error" && phase.limit) && text("OR PASTE ONE: CTRL+V OR CMD+V", box.y + 310)}
+        {!(phase.kind === "error" && phase.limit) && !PHONE && text("OR PASTE ONE: CTRL+V OR CMD+V", box.y + 310)}
         {current && (
           <Bevel box={{ x: box.x + pad, y: footY, w: 200, h: 34 }} tone="gray" onClick={onReset} label="Use the stand-in figure" style={{ borderWidth: 2 }}>
             <PixelText text="USE THE STAND-IN" color={C.ink} sx={1.5} sy={2} bold />
