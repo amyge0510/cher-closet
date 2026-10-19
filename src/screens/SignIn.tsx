@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { cleanName, keepDigits, keepPhoneChars, toE164, wardrobeTitle } from "../auth/names";
 import { friendlyError } from "../auth/useAuth";
-import { BUILT_IN } from "../closet/categories";
 import { WARDROBES, type Wardrobe } from "../style/styles";
 import { PixelField } from "../pixel/PixelField";
 import { PixelLines, PixelText } from "../pixel/PixelText";
@@ -103,7 +102,7 @@ export function SignIn({ needsName, needsWardrobe = false, sendCode, verifyCode,
       ? "PREVIEW ONLY. NOTHING IS SAVED."
       : "PREVIEW ONLY. NO TEXT IS SENT. ANY 6 DIGITS WORK."
     : step === "phone"
-      ? "WE'LL TEXT YOU A CODE. YOUR NUMBER IS ONLY USED TO SIGN YOU IN AND KEEP YOUR CLOSET SAVED. NO ADS, NO SPAM, NEVER SOLD."
+      ? "WE'LL TEXT YOU A CODE. YOUR NUMBER IS ONLY USED TO SIGN YOU IN AND KEEP YOUR CLOSET SAVED."
       : step === "code"
         ? `SENT TO ${e164 ?? phone}. WRONG NUMBER? HIT BACK.`
         : "IT GOES ON YOUR WARDROBE.";
@@ -173,11 +172,16 @@ export function SignIn({ needsName, needsWardrobe = false, sendCode, verifyCode,
           <ButtonLabel lines={["SKIP", "(DEV)"]} />
         </Bevel>
       )}
-      <Bevel box={L.rightButton} tone="blue" onClick={submit} label={copy.button.join(" ")} style={{ opacity: busy ? 0.7 : 1 }}>
-        <ButtonLabel lines={busy ? ["WAIT"] : copy.button} />
-      </Bevel>
+      {/* the code lets you in as soon as all six digits are typed, so that
+          step has no button (WAIT shows while it's checking) */}
+      {(step !== "code" || busy) && (
+        <Bevel box={L.rightButton} tone="blue" onClick={step === "code" ? undefined : submit} label={copy.button.join(" ")} style={{ opacity: busy ? 0.7 : 1 }}>
+          <ButtonLabel lines={busy ? ["WAIT"] : copy.button} />
+        </Bevel>
+      )}
 
-      <CategoryBar categories={BUILT_IN} />
+      {/* nothing to browse yet: the bottom bar stays empty */}
+      <CategoryBar categories={[]} />
     </div>
   );
 }

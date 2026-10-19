@@ -167,27 +167,29 @@ export function CategoryBar({ categories, active, onPick, onMore, onLooks, onUpl
           <PixelText text="LOOKS" color={active === "looks" ? C.navy : C.lavender} sx={sx * 1.2} sy={sy * 1.1} />
         </button>
       )}
+      {/* MORE only where there's something to open (not on sign-in) */}
+      {onMore && (
       <button
-        type="button"
-        aria-label="More categories"
-        className={flash && more.some((c) => c.id === flash) ? "tab-flash" : undefined}
-        disabled={!onMore}
-        onClick={onMore}
-        style={{
-          ...pos(L.more),
-          boxSizing: "border-box",
-          border: 0,
-          borderLeft: `2px solid ${C.lavender}`,
-          borderTop: `2px solid ${C.lavender}`,
-          background: moreActive ? C.lavender : "transparent",
-          display: "grid",
-          placeItems: "center",
-          cursor: onMore ? "pointer" : "default",
-          padding: 0,
-        }}
-      >
-        <PixelText text="MORE" color={moreActive ? C.navy : C.lavender} sx={sx * 1.2} sy={sy * 1.1} />
-      </button>
+          type="button"
+          aria-label="More categories"
+          className={flash && more.some((c) => c.id === flash) ? "tab-flash" : undefined}
+          onClick={onMore}
+          style={{
+            ...pos(L.more),
+            boxSizing: "border-box",
+            border: 0,
+            borderLeft: `2px solid ${C.lavender}`,
+            borderTop: `2px solid ${C.lavender}`,
+            background: moreActive ? C.lavender : "transparent",
+            display: "grid",
+            placeItems: "center",
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          <PixelText text="MORE" color={moreActive ? C.navy : C.lavender} sx={sx * 1.2} sy={sy * 1.1} />
+        </button>
+      )}
     </>
   );
 }

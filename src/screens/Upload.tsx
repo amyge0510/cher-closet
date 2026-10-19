@@ -75,6 +75,8 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
   // the pieces found in the current photo that are still to be filed
   const [pieces, setPieces] = useState<{ photo: HTMLCanvasElement; left: Job[]; total: number; hasPerson: boolean } | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  // UPLOAD A PICTURE OF ME: goes straight to making the model photo
+  const meInput = useRef<HTMLInputElement>(null);
   const box = L.uploadBox;
   const cats = tagCategories(categories);
 
@@ -265,7 +267,7 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
             left: box.x + pad,
             top: box.y + 46,
             width: box.w - pad * 2,
-            height: 214,
+            height: 176,
             boxSizing: "border-box",
             border: `3px dashed ${C.invSlotShadow}`,
             background: C.white,
@@ -279,11 +281,22 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
           <PixelText text="DROP PHOTOS HERE" color={C.invText} sx={2.2} sy={2.6} bold />
           <PixelText text="OR PASTE ONE: CTRL+V OR CMD+V" color={C.invText} sx={1.5} sy={1.9} />
         </div>
-        <Bevel box={{ x: box.x + pad, y: box.y + 274, w: box.w - pad * 2, h: 38 }} tone="blue" onClick={() => input.current?.click()} label="Upload from computer" style={{ borderWidth: 3 }}>
-          <PixelText text="UPLOAD FROM COMPUTER" color={C.white} sx={2} sy={2.4} bold shadow={C.btnBlueDark} />
+        <Bevel box={{ x: box.x + pad, y: box.y + 232, w: box.w - pad * 2, h: 38 }} tone="blue" onClick={() => input.current?.click()} label="Upload clothes" style={{ borderWidth: 3 }}>
+          <PixelText text="UPLOAD CLOTHES" color={C.white} sx={2} sy={2.4} bold shadow={C.btnBlueDark} />
         </Bevel>
-        <div style={{ position: "absolute", left: box.x + pad, top: box.y + 326, width: box.w - pad * 2 }}>
-          <PixelLines text="ONE PIECE PER PHOTO, LAID FLAT OR HUNG ON A PLAIN BACKGROUND, WORKS BEST." maxWidth={box.w - pad * 2} color={C.invText} sx={1.4} sy={1.8} />
+        {canRedraw && (
+          <Bevel box={{ x: box.x + pad, y: box.y + 278, w: box.w - pad * 2, h: 38 }} tone="gray" onClick={() => meInput.current?.click()} label="Upload a picture of me" style={{ borderWidth: 3 }}>
+            <PixelText text="UPLOAD A PICTURE OF ME" color={C.ink} sx={1.8} sy={2.2} bold />
+          </Bevel>
+        )}
+        <div style={{ position: "absolute", left: box.x + pad, top: box.y + (canRedraw ? 326 : 284), width: box.w - pad * 2 }}>
+          <PixelLines
+            text={canRedraw ? "CLOTHES: ANY PHOTO, WORN OR LAID FLAT. ME: BECOMES YOUR MODEL FOR DRESS ME." : "ONE PIECE PER PHOTO, LAID FLAT OR HUNG ON A PLAIN BACKGROUND, WORKS BEST."}
+            maxWidth={box.w - pad * 2}
+            color={C.invText}
+            sx={1.4}
+            sy={1.8}
+          />
         </div>
       </>
     );
@@ -480,6 +493,17 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
         </button>
         {body}
       </div>
+      <input
+        ref={meInput}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (f) loadPhoto(f).then(onWantModel, () => setPhase({ kind: "error", message: "THAT PHOTO WOULDN'T OPEN. TRY A JPEG OR PNG." }));
+        }}
+      />
       <input
         ref={input}
         type="file"

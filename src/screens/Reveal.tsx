@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { LAYERS, PLACEHOLDER_ANCHORS, placeholderBody, type Anchor, type BodyAnchors, type Figure } from "../closet/body";
 import type { Garment } from "../closet/types";
-import { C } from "../stage/palette";
 import { containBox, loadImage, makeCanvas, rng } from "../pixel/raster";
 
 type Props = {
@@ -100,12 +99,16 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
       const octx = outfit.getContext("2d")!;
       if (dressedSrc) {
         // the whole dressed photo replaces the figure, block by block
+        // drawn whole, filling the panel; any gap takes the photo's own
+        // background color (its top-left corner) so it blends in
         const img = await loadImage(dressedSrc);
-        octx.fillStyle = C.panel;
+        const corner = makeCanvas(1, 1);
+        corner.getContext("2d")!.drawImage(img, 0, 0, 1, 1, 0, 0, 1, 1);
+        const [r, g, b] = corner.getContext("2d")!.getImageData(0, 0, 1, 1).data;
+        octx.fillStyle = `rgb(${r}, ${g}, ${b})`;
         octx.fillRect(0, 0, cw, ch);
-        const m = ch * 0.03;
-        const box = containBox(img.width, img.height, cw - m * 2, ch - m * 2);
-        octx.drawImage(img, box.x + m, box.y + m, box.w, box.h);
+        const box = containBox(img.width, img.height, cw, ch);
+        octx.drawImage(img, box.x, box.y, box.w, box.h);
       } else for (const layer of LAYERS) {
         if (layer === "outfit") {
           await place(octx, bottom.image, anchors.bottom, frame);

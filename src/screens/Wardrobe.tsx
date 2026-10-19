@@ -11,7 +11,7 @@ import { C } from "../stage/palette";
 import { extraSpot, L, type Box } from "../stage/layout";
 import type { Action, State } from "../state/machine";
 import { accessoriesFor, rankPairs, type BoardItem } from "../style/quiz";
-import { leaf, WARDROBES, type MyStyle, type Wardrobe as WardrobeChoice } from "../style/styles";
+import { WARDROBES, type MyStyle, type Wardrobe as WardrobeChoice } from "../style/styles";
 import { Inventory, MoreMenu } from "./Inventory";
 import { Upload } from "./Upload";
 import { BodyPhoto } from "./BodyPhoto";
@@ -474,7 +474,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
         </Bevel>
       ) : (
         <Bevel box={L.leftButton} tone="blue" onClick={autoDress} label="Auto dress">
-          <ButtonLabel lines={["AUTO", "DRESS"]} sub={myStyle ? leaf(myStyle.leaf)?.label : undefined} />
+          <ButtonLabel lines={["AUTO", "DRESS"]} />
         </Bevel>
       )}
       <Bevel box={L.rightButton} tone="blue" onClick={dressMe} label="Dress me">

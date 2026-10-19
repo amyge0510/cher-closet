@@ -22,8 +22,9 @@ settles on an outfit; press it again to stop. Once you're dressed, it becomes
 **AUTO DRESS**.
 
 **Sign-in.** People sign in with their phone number. The screen says the
-number is only used to sign in and keep the closet saved: no ads, no spam,
-never sold. A code arrives by text, then they give their first name, and the header becomes "AMY'S WARDROBE".
+number is only used to sign in and keep the closet saved. A code arrives by
+text and lets them in as soon as all six digits are typed (there's no
+button for it), then they give their first name, and the header becomes "AMY'S WARDROBE".
 Sign-ins aren't remembered, so every visit starts on the sign-in screen and
 needs a new code. Returning users skip the name step, since their name is
 kept with the account.
@@ -83,9 +84,8 @@ OTHER OUTFITS rebuilds the boards from different pieces, without changing
 the choices, and BACK steps out. On the result screen, NEW OUTFIT does the same
 for the final board. WEAR IT saves the result with
 the account and swaps the outfit on screen, accessories included, for the
-final board. Auto Dress then prefers outfits that fit the saved style, shows
-that style's name under its label, and changes everything on each press,
-accessories included. The style map lives
+final board. Auto Dress then prefers outfits that fit the saved style and
+changes everything on each press, accessories included. The style map lives
 in `src/style/styles.ts`, and the quiz and board logic in `src/style/quiz.ts`.
 
 **The demo closet.** 139 drawn pieces: a womenswear rack, a menswear rack
@@ -129,7 +129,9 @@ MIS-MATCH! clears itself after three seconds.
 boards. Click one to wear it again, or use its X to delete it. Looks are kept
 with the account.
 
-**UPLOAD.** The UPLOAD button on the bottom bar opens a pop-up. Signed in,
+**UPLOAD.** The UPLOAD button on the bottom bar opens a pop-up with UPLOAD
+CLOTHES and, signed in, UPLOAD A PICTURE OF ME (which makes the model photo
+straight away). Signed in,
 every photo goes to the AI first: Gemini lists every piece in it (tagged,
 with a description of what's visible), then redraws each piece straight-on
 as a product shot from the whole photo, faithful to what it can see and
@@ -261,7 +263,8 @@ Until someone uploads their own clothes, they see the demo closet.
 **DRESS ME with your own figure.** With a model photo and signed in, the
 reveal shows your figure with a scan bar ("DRESSING YOU..."), while Gemini
 dresses it in the outfit's actual pieces, keeping your face, body and pose
-exactly. The dressed photo then dissolves in block by block. Results are
+exactly. The dressed photo (shown whole, on its own lavender background)
+then dissolves in block by block. Results are
 remembered for the visit. **HAIR**, in the top-right corner above the head,
 re-dresses you in another hairstyle (or your own). If the AI can't answer,
 the clothes are placed on the figure instead.
