@@ -4,8 +4,16 @@
 // pieces, stacked to fit.
 
 // Decided once at start-up; turning the phone sideways reloads (main.tsx).
-export const PHONE_QUERY = "(orientation: portrait) and (max-width: 700px)";
-export const PHONE = typeof window !== "undefined" && !!window.matchMedia?.(PHONE_QUERY).matches;
+// It goes by the device's screen, not the window: the on-screen keyboard
+// shrinks the window until it's wider than tall, which isn't a turn.
+export function isPhone(): boolean {
+  if (typeof window === "undefined" || typeof screen === "undefined") return false;
+  const small = Math.min(screen.width, screen.height) <= 700;
+  const type = screen.orientation?.type;
+  const upright = type ? type.startsWith("portrait") : screen.height >= screen.width;
+  return small && upright;
+}
+export const PHONE = isPhone();
 
 export const STAGE_W = PHONE ? 400 : 640;
 export const STAGE_H = PHONE ? 780 : 480;

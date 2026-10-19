@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { STAGE_H, STAGE_W } from "./layout";
+import { PHONE, STAGE_H, STAGE_W } from "./layout";
 
 type ToStage = (clientX: number, clientY: number) => { x: number; y: number };
 const StageContext = createContext<ToStage>((x, y) => ({ x, y }));
@@ -13,8 +13,17 @@ export function Stage({ children }: { children: ReactNode }) {
   const [scale, setScale] = useState(1);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    // on a phone the keyboard shortens the window; the screen keeps its size
+    // (the tallest height seen at this width) instead of shrinking under it
+    let tallest = { w: 0, h: 0 };
     const fit = () => {
-      const s = Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H);
+      const w = window.innerWidth;
+      let h = window.innerHeight;
+      if (PHONE) {
+        tallest = w === tallest.w ? { w, h: Math.max(tallest.h, h) } : { w, h };
+        h = tallest.h;
+      }
+      const s = Math.min(w / STAGE_W, h / STAGE_H);
       // whole-number scales keep every pixel the same size when there is room
       setScale(s >= 2 ? Math.floor(s * 2) / 2 : s);
     };
