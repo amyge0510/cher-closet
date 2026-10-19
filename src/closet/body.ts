@@ -42,8 +42,9 @@ export function anchorFor(a: BodyAnchors, kind: string): Anchor | undefined {
   return undefined;
 }
 
-// Layering order on the body, bottom to top; "outfit" is the top and bottom.
-export const LAYERS = ["pantyhose", "outfit", "shoes", "scarves", "jewelry", "bags", "hats"];
+// Layering order on the body, bottom to top; "outfit" is the top and bottom
+// (a jacket goes over them, in the top's spot).
+export const LAYERS = ["pantyhose", "outfit", "jackets", "shoes", "scarves", "jewelry", "bags", "hats"];
 
 export type Figure = "womens" | "mens";
 

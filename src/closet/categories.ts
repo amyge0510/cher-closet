@@ -10,8 +10,9 @@ export const BUILT_IN: Category[] = [
   { id: "skirts", label: "SKIRTS", slot: "bottom" },
   // a dress is a whole outfit: it rides the top carousel and needs no bottom
   { id: "dresses", label: "DRESSES", slot: "top" },
-  // jackets, blazers and coats: worn as the top, like sweaters
-  { id: "jackets", label: "JACKETS", slot: "top" },
+  // jackets, blazers and coats: worn open over the top (or dress), so they
+  // go on like an accessory instead of riding the top carousel
+  { id: "jackets", label: "JACKETS", slot: null },
   { id: "shoes", label: "SHOES", slot: null },
   { id: "jewelry", label: "JEWELRY", slot: null },
   { id: "scarves", label: "SCARVES", slot: null },
@@ -43,6 +44,7 @@ export function jewelryKind(name: string): JewelryKind {
 export function slotFor(categoryId: string): Slot | null {
   return BUILT_IN.find((c) => c.id === categoryId)?.slot ?? null;
 }
+export const isBuiltIn = (categoryId: string) => BUILT_IN.some((c) => c.id === categoryId);
 
 // Always on the bar, even when empty, so there's somewhere for uploads to go.
 const ALWAYS = new Set(["tops", "bottoms"]);

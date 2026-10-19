@@ -870,6 +870,17 @@ function drawGarment(px: RGBA, b: Body, look: PixelLook, g: Garment, s: DemoSpec
       return fill(or(and(ellipse(32, 8, 11, 8), rect(0, 0, U_W - 1, 9)), rect(21, 8, 43, 10)));
     }
   }
+  if (g.category === "jackets") {
+    // worn open over the top, so the top (or dress) shows down the front
+    const shape = TOPS[s.shape] ? s.shape : "blazer";
+    const to = TOPS[shape]!.to;
+    const coat = minus(topMask(b, shape)!, poly([[29.5, 30], [34.5, 30], [34, to + 1], [30, to + 1]]));
+    fill(coat);
+    const sleeves = sleeveMask(b, shape);
+    if (sleeves && !b.posed) fill(sleeves);
+    if (s.band) fillMask(px, rows(coat, to - 2, to), s.band, undefined, false);
+    return;
+  }
   if (g.category === "dresses" || s.shape === "dress") return fill(dressMask(b));
   const top = topMask(b, s.shape);
   if (top) {
@@ -897,7 +908,7 @@ function drawSleeves(px: RGBA, b: Body, s: DemoSpec) {
 }
 
 // Layering order, bottom to top.
-const ORDER = ["pantyhose", "bottom", "top", "shoes", "scarves", "jewelry", "bags", "hats"];
+const ORDER = ["pantyhose", "bottom", "top", "jackets", "shoes", "scarves", "jewelry", "bags", "hats"];
 const layerOf = (g: Garment) => (g.slot === "top" ? "top" : g.slot === "bottom" ? "bottom" : g.category);
 
 // Whether every piece is one the pixel model knows how to wear.
@@ -950,7 +961,7 @@ export function pixelScene(look: PixelLook, pieces: Garment[]) {
       if (dressed) for (const g of worn) if (!isHat(g)) drawGarment(px, b, look, g, spec.get(g.id)!);
       if (b.posed) {
         drawArms(px, look, b);
-        if (dressed) for (const g of worn) if (g.slot === "top" && !isHat(g)) drawSleeves(px, b, spec.get(g.id)!);
+        if (dressed) for (const g of worn) if ((g.slot === "top" || g.category === "jackets") && !isHat(g)) drawSleeves(px, b, spec.get(g.id)!);
       }
       c = toCanvas(px);
       bodies.set(key, c);

@@ -113,6 +113,7 @@ ${SAME_PERSON}
 - Keep the exact same pose, framing, camera angle, position and size in the frame as the first image, so the two pictures line up.
 - Replace the black tank top and shorts with the outfit. If no shoes are given, they stay barefoot; if no top or bottom is given for a part of the body, keep the plain black tank or shorts there.
 - Each item must look exactly like its picture: the same colors, fabric, sheen, cut, length, fit, straps, closures, hardware, prints and details, worn naturally with real folds and fit on this body. Don't add, remove or redesign anything.
+- A jacket, blazer or coat is worn open over the top (or dress), so the top still shows down the front.
 - Exactly ONE of each item, worn the way people really wear it: one bag (on one shoulder or in one hand), one pair of shoes, one hat, one necklace. Never duplicate an item or show it twice, and don't add items that aren't in the pictures.
 - Hair: ${hair ? `change only the hairstyle to: ${hair}. Keep the same hair color and natural hairline.` : "keep the hair exactly as in the first image."}
 - The whole body from the top of the head to the feet stays in frame.

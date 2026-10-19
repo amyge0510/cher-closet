@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabase";
-import { slotFor } from "./categories";
+import { isBuiltIn, slotFor } from "./categories";
 import type { Garment, Pattern, Slot } from "./types";
 
 type Row = {
@@ -37,7 +37,9 @@ export async function loadCloset(): Promise<Garment[]> {
     .map((r) => ({
       id: r.id,
       category: r.category,
-      slot: r.slot ?? slotFor(r.category),
+      // a built-in category decides the slot (jackets filed as tops before
+      // they went over the top keep working)
+      slot: isBuiltIn(r.category) ? slotFor(r.category) : r.slot,
       name: r.name,
       image: urls.get(r.cutout_path!)!,
       colors: r.colors,

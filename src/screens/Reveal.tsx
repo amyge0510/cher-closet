@@ -57,6 +57,20 @@ async function place(ctx: CanvasRenderingContext2D, src: string, a: Anchor, f: F
   ctx.drawImage(img, Math.round(f.x + a.x * f.w + box.x), Math.round(f.y + a.y * f.h + box.y), Math.round(box.w), Math.round(box.h));
 }
 
+// A jacket over the top: fitted like a top, with its middle left out so it
+// hangs open and the top shows down the front.
+async function placeOpen(ctx: CanvasRenderingContext2D, src: string, a: Anchor, f: Frame) {
+  const img = await loadImage(src);
+  const box = containBox(img.width, img.height, a.w * f.w, a.h * f.h, "top");
+  const x = f.x + a.x * f.w + box.x;
+  const y = Math.round(f.y + a.y * f.h + box.y);
+  const side = 0.4; // each half, as a share of the width
+  const sw = Math.round(img.width * side);
+  const dw = Math.round(box.w * side);
+  ctx.drawImage(img, 0, 0, sw, img.height, Math.round(x), y, dw, Math.round(box.h));
+  ctx.drawImage(img, img.width - sw, 0, sw, img.height, Math.round(x + box.w - dw), y, dw, Math.round(box.h));
+}
+
 // A dressed photo drawn whole, filling the canvas; any gap takes the photo's
 // own background color (its top-left corner) so it blends in.
 async function wholePhoto(src: string, cw: number, ch: number): Promise<HTMLCanvasElement> {
@@ -174,6 +188,10 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
             await place(octx, bottom.image, anchors.bottom, frame);
             await place(octx, top.image, anchors.top, frame);
           }
+          continue;
+        }
+        if (layer === "jackets") {
+          for (const g of extras.filter((e) => e.category === "jackets")) await placeOpen(octx, g.image, anchors.extras.jackets ?? anchors.top, frame);
           continue;
         }
         // every worn piece in this layer (jewelry can be several): jewelry
