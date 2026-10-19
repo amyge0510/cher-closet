@@ -13,23 +13,34 @@ export function Stage({ children }: { children: ReactNode }) {
   const [scale, setScale] = useState(1);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    // on a phone the keyboard shortens the window; the screen keeps its size
-    // (the tallest height seen at this width) instead of shrinking under it
-    let tallest = { w: 0, h: 0 };
+    // on a phone the keyboard shortens the window; while someone is typing
+    // the screen keeps its size instead of shrinking under it. Otherwise it
+    // follows the window, since browser toolbars come and go.
+    let last = { w: 0, h: 0 };
+    const typing = () => {
+      const el = document.activeElement;
+      return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA");
+    };
     const fit = () => {
       const w = window.innerWidth;
-      let h = window.innerHeight;
-      if (PHONE) {
-        tallest = w === tallest.w ? { w, h: Math.max(tallest.h, h) } : { w, h };
-        h = tallest.h;
-      }
+      // the part actually visible, between the browser's own bars
+      let h = Math.min(window.innerHeight, window.visualViewport?.height ?? Infinity);
+      if (PHONE && typing() && w === last.w && h < last.h) h = last.h;
+      last = { w, h };
       const s = Math.min(w / STAGE_W, h / STAGE_H);
       // whole-number scales keep every pixel the same size when there is room
       setScale(s >= 2 ? Math.floor(s * 2) / 2 : s);
     };
     fit();
+    const refit = () => setTimeout(() => ((last = { w: 0, h: 0 }), fit()), 300);
     window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
+    window.visualViewport?.addEventListener("resize", fit);
+    window.addEventListener("focusout", refit);
+    return () => {
+      window.removeEventListener("resize", fit);
+      window.visualViewport?.removeEventListener("resize", fit);
+      window.removeEventListener("focusout", refit);
+    };
   }, []);
   const toStage = useCallback<ToStage>((cx, cy) => {
     const r = ref.current!.getBoundingClientRect();
@@ -37,7 +48,7 @@ export function Stage({ children }: { children: ReactNode }) {
   }, []);
   return (
     <div className="viewport">
-      <div ref={ref} className="stage" style={{ width: STAGE_W, height: STAGE_H, transform: `scale(${scale})` }}>
+      <div ref={ref} className="stage" style={{ position: "absolute", left: "50%", top: "50%", width: STAGE_W, height: STAGE_H, transform: `translate(-50%, -50%) scale(${scale})` }}>
         <StageContext.Provider value={toStage}>{children}</StageContext.Provider>
         <div className="scanlines" aria-hidden />
       </div>

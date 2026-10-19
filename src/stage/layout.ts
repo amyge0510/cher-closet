@@ -151,8 +151,9 @@ const PHONE_L: Layout = {
     { x: 163, y: 5, w: 78, h: 30 },
   ],
 
-  leftButton: { x: 16, y: 618, w: 178, h: 60 },
-  rightButton: { x: 206, y: 618, w: 178, h: 60 },
+  leftButton: { x: 34, y: 620, w: 160, h: 52 },
+  rightButton: { x: 206, y: 620, w: 160, h: 52 },
+  buttonText: { sx: 2.1, sy: 2.3 },
 
   banner: { x: 8, y: 300, w: 384, h: 76 },
   bannerText: { sx: 6.8, sy: 6 },
