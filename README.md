@@ -56,7 +56,7 @@ the computer scene: hangers → browsing → MIS-MATCH! → her reaction), cut f
 4.5s to 18.75s of the source and scaled down to 640px wide. An H.264 MP4
 plays in every modern browser. Without the file, the TV shows static for a few seconds before the whirlpool.
 
-**Play with: mine or pixels.** Under MORE, PLAY WITH switches the rack
+**Pixel or my clothes.** The PIXEL | MY CLOTHES pill under the title switches the rack
 between your own uploaded clothes and the built-in pixel clothes. It starts on
 yours once you've uploaded a top and a bottom, and uploading something always
 switches back to yours. Until then, MINE keeps the pixel clothes mixed in so

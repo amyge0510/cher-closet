@@ -200,7 +200,7 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
         .then(setOwn, () => setOwn([]))
         .finally(() => setClosetReady(true));
   }, [signedIn]);
-  // PLAY WITH (under MORE): the person's own clothes, or the built-in
+  // PIXEL | MY CLOTHES (under the title): the person's own clothes, or the built-in
   // pixel rack. Until someone has uploaded at least one top and one bottom,
   // "my clothes" keeps the pixel rack mixed in so the machine stays usable.
   // Unset, it's their own once they have an outfit's worth.

@@ -493,6 +493,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       />
       <Leopard box={L.leopardLeft} />
       <Leopard box={L.leopardRight} />
+      {onChangeSource && <SourceToggle source={source} onChange={onChangeSource} />}
       <div style={{ ...pos(L.center), background: C.frameDark, borderLeft: `2px solid ${C.frame}`, borderRight: `2px solid ${C.frame}`, boxSizing: "border-box" }} />
 
       {fullBody && top && bottom ? (
@@ -664,14 +665,6 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
           settings={[
             { key: "body", label: "MY MODEL PHOTO", title: "Use a photo of yourself on the dressed-up screen", act: () => setPopup({ kind: "body" }) },
             ...(onRetag ? [{ key: "retag", label: "RE-TAG MY CLOSET", title: "Have the AI read the styles of your uploads again", act: () => (setPopup(null), onRetag()) }] : []),
-            ...(onChangeSource
-              ? [{
-                  key: "source",
-                  label: source === "mine" ? "PLAY WITH: MINE" : "PLAY WITH: PIXELS",
-                  title: "Switch between your own uploaded clothes and the built-in pixel clothes",
-                  act: () => onChangeSource(source === "mine" ? "pixel" : "mine"),
-                }]
-              : []),
             {
               key: "wardrobe",
               label: `CLOTHES: ${WARDROBES.find((w) => w.id === wardrobe)?.label}`,
@@ -682,6 +675,32 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
           onClose={closePopup}
         />
       )}
+    </div>
+  );
+}
+
+// PIXEL | MY CLOTHES, under the title: which clothes are on the rack.
+function SourceToggle({ source, onChange }: { source: "mine" | "pixel"; onChange: (s: "mine" | "pixel") => void }) {
+  const box = L.sourceToggle;
+  const half = (id: "pixel" | "mine", text: string) => {
+    const on = source === id;
+    return (
+      <button
+        type="button"
+        role="radio"
+        aria-checked={on}
+        aria-label={id === "pixel" ? "Play with the pixel clothes" : "Play with my clothes"}
+        onClick={() => onChange(id)}
+        style={{ flex: id === "pixel" ? 4 : 6, height: "100%", padding: 0, border: 0, cursor: "pointer", background: on ? C.btnBlue : "transparent", borderRadius: box.h, display: "grid", placeItems: "center" }}
+      >
+        <PixelText text={text} color={on ? C.white : C.lavender} sx={1.2} sy={1.6} bold={on} />
+      </button>
+    );
+  };
+  return (
+    <div role="radiogroup" aria-label="Clothes on the rack" style={{ ...pos(box), boxSizing: "border-box", display: "flex", padding: 2, gap: 2, background: C.navy, border: `2px solid ${C.lavender}`, borderRadius: box.h, zIndex: 5 }}>
+      {half("pixel", "PIXEL")}
+      {half("mine", "MY CLOTHES")}
     </div>
   );
 }

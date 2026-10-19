@@ -7,7 +7,7 @@ export type Box = { x: number; y: number; w: number; h: number };
 
 // Where worn accessories sit on the leopard sides, next to the top and bottom.
 export const EXTRA_SPOTS: Record<string, Box> = {
-  jewelry: { x: 46, y: 44, w: 112, h: 80 },
+  jewelry: { x: 46, y: 64, w: 112, h: 68 }, // below the PIXEL | MY CLOTHES toggle
   scarves: { x: 40, y: 136, w: 124, h: 108 },
   bags: { x: 36, y: 256, w: 132, h: 122 },
   underwear: { x: 484, y: 44, w: 116, h: 80 },
@@ -22,6 +22,7 @@ export const extraSpot = (category: string): Box => EXTRA_SPOTS[category] ?? EXT
 export const L = {
   header: { x: 0, y: 0, w: 640, h: 32 },
   title: { x: 2, y: 9, sx: 1.6, sy: 2 }, // "CHER'S WARDROBE"
+  sourceToggle: { x: 6, y: 37, w: 156, h: 22 }, // PIXEL | MY CLOTHES, under the title
   season: { x: 264, y: 8, w: 132, h: 21 }, // "FALL FASHIONS" box
   seasonText: { sx: 1.5, sy: 2 },
 
