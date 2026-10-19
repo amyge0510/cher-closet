@@ -1,4 +1,5 @@
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { LoadingRing } from "./LoadingRing";
 import { containBox, loadImage, makeCanvas } from "./raster";
 
 type Props = {
@@ -11,6 +12,8 @@ type Props = {
   /** a soft outline around the garment in this color, as in the film */
   outline?: string;
   style?: CSSProperties;
+  /** a loading ring until the picture is drawn */
+  spinner?: boolean;
 };
 
 // Drawn at this many canvas pixels per stage pixel, so garments stay sharp
@@ -35,8 +38,9 @@ function keep(key: string, art: HTMLCanvasElement) {
 
 // A garment cut-out as it looks on the film's monitor: the real photo, smooth,
 // with a thin soft glow around its edge.
-export function GarmentImage({ src, w, h, fill = 1, outline, style }: Props) {
+export function GarmentImage({ src, w, h, fill = 1, outline, style, spinner = false }: Props) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const [shown, setShown] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,6 +58,7 @@ export function GarmentImage({ src, w, h, fill = 1, outline, style }: Props) {
     const kept = drawn.get(key);
     if (kept) {
       show(kept);
+      setShown(key);
       return;
     }
     loadImage(src)
@@ -86,6 +91,7 @@ export function GarmentImage({ src, w, h, fill = 1, outline, style }: Props) {
         ctx.drawImage(img, x, y, box.w, box.h);
         keep(key, art);
         show(art);
+        setShown(key);
       })
       .catch(() => {});
     return () => {
@@ -93,5 +99,17 @@ export function GarmentImage({ src, w, h, fill = 1, outline, style }: Props) {
     };
   }, [src, w, h, fill, outline]);
 
-  return <canvas ref={ref} style={{ width: w, height: h, imageRendering: "auto", display: "block", ...style }} />;
+  const canvas = <canvas ref={ref} style={{ width: w, height: h, imageRendering: "auto", display: "block", ...style }} />;
+  if (!spinner) return canvas;
+  const ready = shown === `${src}|${Math.round(w * DETAIL)}|${Math.round(h * DETAIL)}|${fill}|${outline ?? ""}`;
+  return (
+    <div style={{ position: "relative", width: w, height: h }}>
+      {canvas}
+      {!ready && (
+        <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
+          <LoadingRing size={Math.min(36, Math.round(Math.min(w, h) * 0.4))} />
+        </div>
+      )}
+    </div>
+  );
 }

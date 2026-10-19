@@ -214,7 +214,7 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
                 touchAction: "none",
               }}
             >
-              {g && <GarmentImage src={g.image} w={S - 6} h={S - 6} fill={0.95} />}
+              {g && <GarmentImage src={g.image} w={S - 6} h={S - 6} fill={0.95} spinner />}
               {g && hover === g && deletable(g) && (
                 <button
                   type="button"
