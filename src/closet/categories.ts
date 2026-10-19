@@ -10,6 +10,8 @@ export const BUILT_IN: Category[] = [
   { id: "skirts", label: "SKIRTS", slot: "bottom" },
   // a dress is a whole outfit: it rides the top carousel and needs no bottom
   { id: "dresses", label: "DRESSES", slot: "top" },
+  // jackets, blazers and coats: worn as the top, like sweaters
+  { id: "jackets", label: "JACKETS", slot: "top" },
   { id: "shoes", label: "SHOES", slot: null },
   { id: "jewelry", label: "JEWELRY", slot: null },
   { id: "scarves", label: "SCARVES", slot: null },

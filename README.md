@@ -120,6 +120,10 @@ yours once you've uploaded a top and a bottom, and uploading something always
 switches back to yours. Until then, MINE keeps the pixel clothes mixed in so
 there's always an outfit to make. The choice is remembered on this browser.
 
+**Jackets.** JACKETS is its own category for jackets, blazers, coats and
+puffers. A jacket is worn as the top (like SWEATERS), and the AI files new
+uploads there. The demo closets' jackets and blazers live there too.
+
 **Dresses.** DRESSES is its own category. A dress rides the top carousel and
 is a whole outfit: the two windows in the middle become one tall window for
 the dress, and its controls (and ← →) flip through dresses only. BROWSE
