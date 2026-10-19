@@ -15,9 +15,12 @@ async function redraw(mode: "tidy" | "pose", image: string, mimeType: string, ex
   if (error) {
     const status = (error as { context?: Response }).context?.status;
     console.error("gemini-image failed:", error);
+    // no answer at all: almost always the function isn't deployed (Supabase's
+    // "not found" reply has no CORS approval, so the browser blocks it)
+    if (status === undefined || status === 404) throw new RedrawError("TIDY UP ISN'T SWITCHED ON YET: DEPLOY THE GEMINI-IMAGE FUNCTION IN SUPABASE.");
     if (status === 429) throw new RedrawError("THAT'S TODAY'S LIMIT FOR REDRAWS. TRY AGAIN TOMORROW.");
     if (status === 401) throw new RedrawError("SIGN IN TO USE THIS.");
-    if (status === 404) throw new RedrawError("REDRAWING ISN'T SET UP YET (DEPLOY GEMINI-IMAGE).");
+    if (status === 500) throw new RedrawError("THE REDRAW SERVICE ISN'T SET UP RIGHT. CHECK THE GEMINI KEY AND THE AI_USAGE TABLE.");
     if (status === 422) throw new RedrawError("GEMINI WOULDN'T REDRAW THAT ONE. TRY ANOTHER PHOTO.");
     throw new RedrawError("THE REDRAW DIDN'T WORK. TRY AGAIN IN A MINUTE.");
   }

@@ -50,8 +50,9 @@ const SINGULAR: Record<string, string> = {
   tops: "Top", bottoms: "Pants", skirts: "Skirt", shoes: "Shoes", jewelry: "Jewelry", scarves: "Scarf",
   pantyhose: "Tights", underwear: "Underwear", sweaters: "Sweater", bags: "Bag", hats: "Hat",
 };
-const defaultName = (colors: string[], category: string) =>
-  `${titleCase(colors[0] === "babypink" ? "pink" : colors[0] ?? "")} ${SINGULAR[category] ?? titleCase(category)}`.trim();
+// `aspect` is height / width of the cut-out: short, wide bottoms are shorts.
+const defaultName = (colors: string[], category: string, aspect = 2) =>
+  `${titleCase(colors[0] === "babypink" ? "pink" : colors[0] ?? "")} ${category === "bottoms" && aspect < 1.2 ? "Shorts" : SINGULAR[category] ?? titleCase(category)}`.trim();
 
 // Asks Claude (via the Edge Function) to tag the cut-out. `jpeg` is base64.
 async function askClaude(jpeg: string, categories: string[], wardrobe: Wardrobe, hint?: string): Promise<Tags | null> {
@@ -81,25 +82,46 @@ export async function tagGarment(cutout: HTMLCanvasElement, jpeg: string, catego
   const ctx = cutout.getContext("2d")!;
   const { data } = ctx.getImageData(0, 0, cutout.width, cutout.height);
   const guess = guessTags(data, cutout.width, cutout.height);
-  if (hint && categories.includes(hint)) Object.assign(guess, { category: hint, name: defaultName(guess.colors, hint) });
+  if (hint && categories.includes(hint)) Object.assign(guess, { category: hint, name: defaultName(guess.colors, hint, cutout.height / cutout.width) });
   return { tags: guess, how: "guess" };
 }
 
 // --- the fallback guess, from the pixels alone ---
 
+// Reference shades for each color name, including dark ones (a dim photo
+// of olive shorts is far darker than "olive" itself). Matched in Lab color
+// space, which judges color differences roughly the way eyes do.
 const NAMED: [string, number, number, number][] = [
-  ["white", 244, 244, 244], ["cream", 238, 228, 204], ["beige", 210, 192, 160], ["black", 26, 26, 30],
-  ["navy", 32, 42, 76], ["brown", 112, 72, 44], ["gray", 150, 150, 156], ["denim", 104, 132, 180],
+  ["white", 244, 244, 244], ["cream", 238, 228, 204], ["beige", 210, 192, 160], ["beige", 180, 160, 125],
+  ["black", 22, 22, 26], ["black", 45, 45, 48],
+  ["navy", 32, 42, 76], ["navy", 22, 28, 52], ["brown", 112, 72, 44], ["brown", 70, 46, 30],
+  ["gray", 150, 150, 156], ["gray", 95, 95, 100], ["denim", 104, 132, 180], ["denim", 60, 80, 120],
   ["gold", 214, 168, 60], ["pink", 238, 136, 180], ["babypink", 244, 202, 212], ["red", 190, 32, 42],
-  ["burgundy", 104, 26, 40], ["yellow", 232, 190, 30], ["orange", 216, 104, 32], ["green", 56, 124, 72],
-  ["olive", 108, 112, 66], ["blue", 64, 108, 204], ["lavender", 196, 176, 238], ["purple", 108, 60, 150],
+  ["burgundy", 104, 26, 40], ["burgundy", 70, 20, 32], ["yellow", 232, 190, 30], ["orange", 216, 104, 32],
+  ["green", 56, 124, 72], ["green", 30, 70, 42], ["olive", 108, 112, 66], ["olive", 70, 72, 46], ["olive", 50, 52, 36],
+  ["blue", 64, 108, 204], ["lavender", 196, 176, 238], ["purple", 108, 60, 150],
 ];
 
+function lab(r: number, g: number, b: number): [number, number, number] {
+  const lin = (c: number) => ((c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const [R, G, B] = [lin(r), lin(g), lin(b)];
+  const f = (t: number) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  const x = f((R * 0.4124 + G * 0.3576 + B * 0.1805) / 0.95047);
+  const y = f(R * 0.2126 + G * 0.7152 + B * 0.0722);
+  const z = f((R * 0.0193 + G * 0.1192 + B * 0.9505) / 1.08883);
+  return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+}
+const NAMED_LAB = NAMED.map(([name, r, g, b]) => [name, ...lab(r, g, b)] as const);
+
+const DARK_SHADES = new Set(["olive", "navy", "brown", "burgundy", "green", "gray", "denim", "purple"]);
+
 export function nearestColor(r: number, g: number, b: number): string {
+  const [L, A, B] = lab(r, g, b);
   let best = NAMED[0][0];
   let bestD = Infinity;
-  for (const [name, nr, ng, nb] of NAMED) {
-    const d = (r - nr) ** 2 * 0.3 + (g - ng) ** 2 * 0.59 + (b - nb) ** 2 * 0.11;
+  // hue counts for more than lightness: a shadowed olive is still olive
+  for (const [name, nl, na, nb] of NAMED_LAB) {
+    const d = ((L - nl) * 0.5) ** 2 + (A - na) ** 2 + (B - nb) ** 2;
     if (d < bestD) [best, bestD] = [name, d];
   }
   return best;
@@ -132,13 +154,15 @@ export function guessTags(d: Uint8ClampedArray, w: number, h: number): Tags {
       }
     }
   const ranked = [...counts].sort((a, b) => b[1] - a[1]);
-  const colors = ranked.filter(([, n], i) => i === 0 || n / Math.max(1, solid) >= 0.18).slice(0, 2).map(([c]) => c);
+  let colors = ranked.filter(([, n], i) => i === 0 || n / Math.max(1, solid) >= 0.18).slice(0, 2).map(([c]) => c);
+  // shadows on a dark garment read as black: don't count them as a color
+  if (colors[1] === "black" && DARK_SHADES.has(colors[0])) colors = colors.slice(0, 1);
   const busy = pairs ? edges / pairs : 0;
   const pattern: Pattern = busy > 0.06 ? "print" : "solid";
   const bw = Math.max(1, x1 - x0 + 1);
   const bh = Math.max(1, y1 - y0 + 1);
   const category = bh / bw > 1.5 ? "bottoms" : bw / bh > 1.6 ? "shoes" : "tops";
-  return { category, name: defaultName(colors, category), colors: colors.length ? colors : ["black"], pattern, styles: [], isClothing: true };
+  return { category, name: defaultName(colors, category, bh / bw), colors: colors.length ? colors : ["black"], pattern, styles: [], isClothing: true };
 }
 
 // A finished garment from a cut-out and its tags.

@@ -249,6 +249,11 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onCl
     body = (
       <>
         <div style={{ position: "absolute", left: imageBox.x, top: imageBox.y, width: SCAN, height: phase.fixing ? 120 : SCAN, background: C.invSlot, display: "grid", placeItems: "center", boxSizing: "border-box", border: `3px solid ${C.invEdge}` }}>
+          {phase.note && !phase.redrawing && (
+            <div role="alert" style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "6px 8px", background: "#a3123a", zIndex: 1 }}>
+              <PixelLines text={phase.note} maxWidth={SCAN - 22} color={C.white} sx={1.3} sy={1.7} />
+            </div>
+          )}
           {phase.redrawing ? (
             <Scanner size={SCAN - 6} photo={phase.canvas} cutout={null} />
           ) : (
@@ -262,8 +267,6 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onCl
             {!tags.isClothing && <PixelLines text="HMM, THAT DOESN'T LOOK LIKE CLOTHES." maxWidth={box.w - pad * 2} color="#a3123a" sx={1.4} sy={1.8} />}
             {phase.redrawing ? (
               <PixelLines text="TIDYING IT UP..." maxWidth={box.w - pad * 2} color={C.invText} sx={1.4} sy={1.8} />
-            ) : phase.note ? (
-              <PixelLines text={phase.note} maxWidth={box.w - pad * 2} color="#a3123a" sx={1.4} sy={1.8} />
             ) : phase.original ? (
               <PixelLines text="REDRAWN BY AI. ORIGINAL SWITCHES BACK." maxWidth={box.w - pad * 2} color={C.invText} sx={1.4} sy={1.8} />
             ) : (

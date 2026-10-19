@@ -88,6 +88,9 @@ describe("tags", () => {
     expect(nearestColor(248, 248, 246)).toBe("white");
     expect(nearestColor(30, 44, 80)).toBe("navy");
     expect(nearestColor(108, 134, 182)).toBe("denim");
+    // dark olive shorts in a dim photo (from a real upload)
+    expect(nearestColor(62, 64, 46)).toBe("olive");
+    expect(nearestColor(48, 50, 38)).toBe("olive");
   });
 
   it("guesses from the pixels when Claude isn't set up", () => {
@@ -95,6 +98,16 @@ describe("tags", () => {
     const d = picture(30, 60, [0, 0, 0], [104, 132, 180], [5, 2, 20, 56]);
     for (let i = 3; i < d.length; i += 4) if (d[i - 3] === 0) d[i] = 0;
     expect(guessTags(d, 30, 60)).toMatchObject({ category: "bottoms", colors: ["denim"], pattern: "solid", name: "Denim Pants" });
+  });
+});
+
+describe("dark garments", () => {
+  it("names shadowed olive as olive, not black", () => {
+    // olive shorts with a shadowed lower half, colors from a real photo
+    const d = picture(60, 40, [0, 0, 0], [39, 38, 29], [2, 2, 56, 36]);
+    for (let y = 24; y < 38; y++) for (let x = 2; x < 58; x++) d.set([28, 27, 21, 255], (y * 60 + x) * 4);
+    for (let i = 3; i < d.length; i += 4) if (d[i - 3] === 0) d[i] = 0;
+    expect(guessTags(d, 60, 40).colors).toEqual(["olive"]);
   });
 });
 
