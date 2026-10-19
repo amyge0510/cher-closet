@@ -72,4 +72,17 @@ describe("reducer", () => {
     const s = reducer({ ...browse, screen: "dressed", extras: { bags: "tote" } }, { type: "SET_OUTFIT", top: 4, bottom: 2, extras: { shoes: "boots" } });
     expect(s).toMatchObject({ screen: "browse", top: 4, bottom: 2, extras: { shoes: "boots" } });
   });
+
+  it("layers jewelry (up to four pieces) but keeps one of everything else", () => {
+    const browse = { ...initialState, screen: "browse" as const };
+    let s = reducer(browse, { type: "WEAR", category: "jewelry", id: "pearls" });
+    s = reducer(s, { type: "WEAR", category: "jewelry", id: "bangle" });
+    s = reducer(s, { type: "WEAR", category: "jewelry", id: "chain" });
+    expect(Object.values(s.extras).sort()).toEqual(["bangle", "chain", "pearls"]);
+    s = reducer(s, { type: "WEAR", category: "jewelry", id: "bangle" }); // again: takes it off
+    expect(Object.values(s.extras).sort()).toEqual(["chain", "pearls"]);
+    s = reducer(s, { type: "WEAR", category: "shoes", id: "boots" });
+    s = reducer(s, { type: "WEAR", category: "shoes", id: "flats" });
+    expect(Object.values(s.extras).filter((id) => id === "boots" || id === "flats")).toEqual(["flats"]);
+  });
 });

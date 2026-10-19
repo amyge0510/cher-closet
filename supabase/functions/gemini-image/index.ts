@@ -66,18 +66,22 @@ function productRules(background: string) {
 }
 
 // tidy: the app's own cut-out of one piece, redrawn
-function tidyPrompt(name: string, background: string) {
+function tidyPrompt(name: string, background: string, note: string) {
   return `This picture shows one piece of clothing, "${name}", cut out of a photo, maybe while someone was wearing it, so it may be creased, turned or partly hidden.
-${productRules(background)}`;
+${productRules(background)}${correction(note)}`;
 }
+
+// REDRAW with a note: what the owner says was wrong last time.
+const correction = (note: string) =>
+  note ? `\nIMPORTANT, from the owner, who knows this item: the last drawing was wrong. "${note}". Fix exactly that, and keep everything else faithful to the photo.` : "";
 
 // extract: one item picked out of the user's original photo, which may show
 // a whole outfit on a person. `description` comes from the tagger's look at
 // the same photo.
-function extractPrompt(name: string, description: string, background: string) {
+function extractPrompt(name: string, description: string, background: string, note: string) {
   return `This photo may show a whole outfit, maybe on a person. Find only this one item in it: "${name}"${description ? ` (${description})` : ""}. Ignore everything else in the photo.
 Redraw only that item, exactly as it looks in the photo.
-${productRules(background)}`;
+${productRules(background)}${correction(note)}`;
 }
 
 // Said in every prompt with a person in it. The face is the whole point:
@@ -147,6 +151,7 @@ Deno.serve(async (req) => {
   const clean = (v: unknown, max: number) => String(v ?? "").replace(/[^\w ,.'&()/-]/g, "").slice(0, max);
   const name = clean(body.name, 40) || "garment";
   const description = clean(body.description, 240);
+  const note = clean(body.note, 160);
   const background = body.background === "magenta" ? "pure magenta (#FF00FF)" : "pure chroma-key green (#00FF00)";
   // dress: the outfit's pieces, each a labelled JPEG
   const pieces = (Array.isArray(body.pieces) ? body.pieces : [])
@@ -156,8 +161,8 @@ Deno.serve(async (req) => {
   if (mode === "dress" && !pieces.length) return json({ error: "send the outfit's pieces" }, 400);
   const hair = clean(body.hair, 60);
   const prompt =
-    mode === "tidy" ? tidyPrompt(name, background)
-    : mode === "extract" ? extractPrompt(name, description, background)
+    mode === "tidy" ? tidyPrompt(name, background, note)
+    : mode === "extract" ? extractPrompt(name, description, background, note)
     : mode === "dress" ? dressPrompt(pieces.map((p) => p.label), hair)
     : POSE_PROMPT;
   const inputs = [{ inlineData: { mimeType, data: image } }, ...pieces.map((p) => ({ inlineData: { mimeType: "image/jpeg", data: p.image } }))];

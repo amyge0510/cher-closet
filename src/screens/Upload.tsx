@@ -40,6 +40,9 @@ type Phase =
       source?: { photo: HTMLCanvasElement; item: Found };
       /** TIDY UP / REDRAW: the version before the redraw, to switch back to */
       original?: { image: string; png: Blob; canvas: HTMLCanvasElement };
+      /** REDRAW asks what's wrong first; `ask` is what's been typed */
+      asking?: boolean;
+      ask?: string;
       redrawing?: boolean;
       note?: string;
     }
@@ -218,19 +221,26 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
   // TIDY UP (a browser cut-out) or REDRAW (an AI item): Gemini draws the
   // piece again as a straight-on product shot; the button then switches
   // back to the version before
-  const tidy = useCallback(async () => {
+  const tidy = useCallback(() => {
     if (phase.kind !== "show" || phase.redrawing) return;
     if (phase.original) {
       const { original, ...rest } = phase;
       return setPhase({ ...rest, ...original, original: undefined, note: undefined });
     }
-    // the FIX IT buttons make way for the redraw
-    setPhase({ ...phase, redrawing: true, fixing: false, note: undefined });
+    // first: what's wrong with it? (the FIX IT buttons make way)
+    setPhase({ ...phase, asking: !phase.asking, fixing: false, note: undefined });
+  }, [phase]);
+
+  // the redraw itself, with the owner's note on what was wrong
+  const redrawWith = useCallback(async () => {
+    if (phase.kind !== "show" || phase.redrawing) return;
+    const fix = (phase.ask ?? "").trim();
+    setPhase({ ...phase, redrawing: true, asking: false, fixing: false, note: undefined });
     try {
       const { source } = phase;
       const drawn = source
-        ? await extractItem(source.photo, phase.tags.name, source.item.description, phase.tags.colors)
-        : await tidyGarment(phase.canvas, phase.tags.name, phase.tags.colors);
+        ? await extractItem(source.photo, phase.tags.name, source.item.description, phase.tags.colors, fix)
+        : await tidyGarment(phase.canvas, phase.tags.name, phase.tags.colors, fix);
       const final = finishCutout(drawn);
       const png = await pngBlob(final);
       setPhase((p) => (p.kind === "show" ? { ...p, image: final.toDataURL("image/png"), png, canvas: final, redrawing: false, original: { image: p.image, png: p.png, canvas: p.canvas } } : p));
@@ -359,7 +369,28 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
             <GarmentImage key={phase.image} src={phase.image} w={phase.fixing ? 100 : SCAN - 24} h={phase.fixing ? 100 : SCAN - 24} fill={0.95} outline={C.white} />
           )}
         </div>
-        {!phase.fixing ? (
+        {phase.asking ? (
+          <>
+            <div style={{ position: "absolute", left: box.x + pad, top: imageBox.y + SCAN + 8, width: box.w - pad * 2 }}>
+              <PixelLines text="WHAT'S WRONG WITH IT? E.G. IT'S A LONG DRESS" maxWidth={box.w - pad * 2} color={C.invText} sx={1.3} sy={1.7} />
+            </div>
+            <PixelField
+              box={{ x: box.x + pad, y: imageBox.y + SCAN + 26, w: box.w - pad * 2 - 70, h: 28 }}
+              label="What's wrong with it"
+              value={phase.ask ?? ""}
+              onChange={(v) => setPhase((p) => (p.kind === "show" ? { ...p, ask: v.slice(0, 120) } : p))}
+              placeholder="OPTIONAL"
+              maxLength={120}
+              autoFocus
+              onEnter={redrawWith}
+              sx={1.4}
+              sy={1.8}
+            />
+            <Bevel box={{ x: box.x + box.w - pad - 62, y: imageBox.y + SCAN + 26, w: 62, h: 28 }} tone="blue" onClick={redrawWith} label="Redraw with this note" style={{ borderWidth: 2 }}>
+              <PixelText text="GO" color={C.white} sx={1.8} sy={2} bold shadow={C.btnBlueDark} />
+            </Bevel>
+          </>
+        ) : !phase.fixing ? (
           <div style={{ position: "absolute", left: box.x + pad, top: imageBox.y + SCAN + 10, width: box.w - pad * 2, display: "grid", gap: 6, justifyItems: "center" }}>
             <PixelLines text={tags.name.toUpperCase()} maxWidth={box.w - pad * 2} color={C.invEdge} sx={2.2} sy={2.6} bold />
             <PixelLines text={`GOES IN ${catLabel(tags.category)}. ${tags.colors.join(", ").toUpperCase()}. ${styles}.`} maxWidth={box.w - pad * 2} color={C.invText} sx={1.4} sy={1.8} />
@@ -409,12 +440,12 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
               <Bevel box={{ x: xs[0], y, w: widths[0], h: 34 }} tone="gray" onClick={advance} label="Skip this piece" title="Don't file this one" style={{ borderWidth: 2 }}>
                 <PixelText text="SKIP" color={C.ink} sx={sx} sy={2} bold />
               </Bevel>
-              <Bevel box={{ x: xs[1], y, w: widths[1], h: 34 }} tone="gray" onClick={() => setPhase({ ...phase, fixing: !phase.fixing })} label="Fix the tags" style={{ borderWidth: 2 }}>
+              <Bevel box={{ x: xs[1], y, w: widths[1], h: 34 }} tone="gray" onClick={() => setPhase({ ...phase, fixing: !phase.fixing, asking: false })} label="Fix the tags" style={{ borderWidth: 2 }}>
                 <PixelText text={phase.fixing ? "DONE" : "FIX IT"} color={C.ink} sx={sx} sy={2} bold />
               </Bevel>
               {canRedraw && (
-                <Bevel box={{ x: xs[2], y, w: widths[2], h: 34 }} tone="gray" onClick={tidy} label={phase.original ? "Switch back" : phase.source ? "Redraw it" : "Tidy up with AI"} title="Gemini draws it again as a straight-on product shot (a few cents)" style={{ borderWidth: 2, opacity: phase.redrawing ? 0.6 : 1 }}>
-                  <PixelText text={phase.original ? (phase.source ? "UNDO" : "ORIGINAL") : phase.source ? "REDRAW" : "TIDY UP"} color={C.ink} sx={sx} sy={2} bold />
+                <Bevel box={{ x: xs[2], y, w: widths[2], h: 34 }} tone="gray" onClick={tidy} label={phase.original ? "Switch back" : phase.asking ? "Cancel the redraw" : phase.source ? "Redraw it" : "Tidy up with AI"} title="Gemini draws it again as a straight-on product shot (a few cents)" style={{ borderWidth: 2, opacity: phase.redrawing ? 0.6 : 1 }}>
+                  <PixelText text={phase.original ? (phase.source ? "UNDO" : "ORIGINAL") : phase.asking ? "CANCEL" : phase.source ? "REDRAW" : "TIDY UP"} color={C.ink} sx={sx} sy={2} bold />
                 </Bevel>
               )}
               <Bevel box={{ x: xs[3], y, w: widths[3], h: 34 }} tone="blue" onClick={phase.redrawing ? undefined : file} label="File it" style={{ borderWidth: 2 }}>

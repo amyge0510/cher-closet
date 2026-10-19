@@ -20,6 +20,24 @@ export const BUILT_IN: Category[] = [
 
 export const isDress = (g: { category: string } | undefined) => g?.category === "dresses";
 
+// Jewelry layers: up to this many pieces at once (necklaces and bracelets
+// together). Every other accessory is one at a time. Worn pieces are kept by
+// slot key: "jewelry", then "jewelry:2", "jewelry:3"...
+export const MULTI_WEAR: Record<string, number> = { jewelry: 4 };
+export const categoryOfSlot = (key: string) => key.split(":")[0];
+export const slotKeys = (category: string) =>
+  Array.from({ length: MULTI_WEAR[category] ?? 1 }, (_, i) => (i ? `${category}:${i + 1}` : category));
+
+// Where a piece of jewelry is worn, from its name.
+export type JewelryKind = "neck" | "wrist" | "ears" | "hand";
+export function jewelryKind(name: string): JewelryKind {
+  const n = name.toLowerCase();
+  if (/bracelet|bangle|cuff|watch|anklet|charm/.test(n)) return "wrist";
+  if (/earring|hoop|stud|huggie|drop/.test(n)) return "ears";
+  if (/\bring\b|rings\b|signet/.test(n)) return "hand";
+  return "neck";
+}
+
 export function slotFor(categoryId: string): Slot | null {
   return BUILT_IN.find((c) => c.id === categoryId)?.slot ?? null;
 }

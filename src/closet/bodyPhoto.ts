@@ -50,7 +50,13 @@ export function anchorsFromParts(parts: Segment[], w: number, h: number, frame: 
     a.extras.pantyhose = rel({ x: legs.x, y: (hips ? hips.y + hips.h * 0.5 : legs.y), w: legs.w, h: bottomOfFrame - (hips ? hips.y + hips.h * 0.5 : legs.y) });
     a.extras.shoes = rel({ x: legs.x - legs.w * 0.05, y: bottomOfFrame - frame.h * 0.075, w: legs.w * 1.1, h: frame.h * 0.075 });
   }
+  const arm = find("Right-arm") ?? find("Left-arm");
+  if (arm) {
+    a.extras["jewelry-wrist"] = rel({ x: arm.x, y: arm.y + arm.h * 0.85, w: arm.w, h: arm.h * 0.12 });
+    a.extras["jewelry-hand"] = rel({ x: arm.x, y: arm.y + arm.h * 0.95, w: arm.w * 0.8, h: arm.h * 0.08 });
+  }
   if (head) {
+    a.extras["jewelry-ears"] = rel({ x: head.x - head.w * 0.05, y: head.y + head.h * 0.45, w: head.w * 1.1, h: head.h * 0.2 });
     a.extras.hats = rel({ x: head.x - head.w * 0.1, y: head.y - head.h * 0.2, w: head.w * 1.2, h: head.h * 0.55 });
     const neckY = head.y + head.h;
     a.extras.jewelry = rel({ x: head.x + head.w * 0.2, y: neckY - head.h * 0.05, w: head.w * 0.6, h: head.h * 0.35 });

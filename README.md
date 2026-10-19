@@ -62,6 +62,16 @@ Picking a top or bottom brings the two windows back. DRESS ME judges the dress w
 it hangs from the shoulders to the knees. Auto Dress and the quiz boards
 build two-piece outfits only.
 
+**The last outfit.** Whatever's on (top, bottom, accessories) is remembered
+in the browser for each account and put back on the next visit, after the
+hangers.
+
+**Jewelry layers.** Jewelry is the one category you can wear several of:
+up to four pieces at once, like layered necklaces and stacked bracelets.
+Clicking a worn piece takes it off. On the figure, necklaces sit at the
+neck, bracelets and watches at the wrist, earrings at the ears and rings on
+the hand (worked out from the name). Everything else is one at a time.
+
 **The closet pop-up.** Click any category on the bottom bar (TOPS, BOTTOMS
 and SKIRTS always come first) to open that part of the closet as a grid of
 inventory slots. Overflow categories, and any category a user makes up, are
@@ -173,7 +183,8 @@ Each photo goes through:
    them.
 3. **A quick look.** Nothing is filed until you say so: every piece waits
    on FILE IT. SKIP drops it (a bad redraw, or something you don't want),
-   REDRAW or TIDY UP asks Gemini to draw it again, and FIX IT lets you
+   REDRAW or TIDY UP asks Gemini to draw it again (first asking what was wrong,
+e.g. "it's a long dress", which goes into the redraw), and FIX IT lets you
    rename it or move it to another category.
    Edges are cleaned up automatically: bits of background stuck to the edge
    (in colors the garment doesn't have) are trimmed, jagged steps are

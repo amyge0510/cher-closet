@@ -20,8 +20,27 @@ export const PLACEHOLDER_ANCHORS: BodyAnchors = {
     jewelry: { x: 0.43, y: 0.15, w: 0.14, h: 0.07 },
     bags: { x: 0.64, y: 0.37, w: 0.22, h: 0.15 },
     hats: { x: 0.4, y: 0.025, w: 0.2, h: 0.075 },
+    // jewelry by where it's worn (necklaces use "jewelry")
+    "jewelry-neck": { x: 0.43, y: 0.15, w: 0.14, h: 0.07 },
+    "jewelry-wrist": { x: 0.69, y: 0.44, w: 0.08, h: 0.05 },
+    "jewelry-ears": { x: 0.42, y: 0.09, w: 0.16, h: 0.04 },
+    "jewelry-hand": { x: 0.7, y: 0.47, w: 0.05, h: 0.03 },
   },
 };
+
+// The spot for a kind of jewelry on a figure. Figures saved before jewelry
+// had its own spots work it out from the neck spot and the top's width.
+export function anchorFor(a: BodyAnchors, kind: string): Anchor | undefined {
+  const own = a.extras[`jewelry-${kind}`];
+  if (own) return own;
+  const neck = a.extras.jewelry ?? PLACEHOLDER_ANCHORS.extras.jewelry;
+  if (kind === "neck") return neck;
+  const t = a.top;
+  if (kind === "wrist") return { x: t.x + t.w * 0.86, y: a.bottom.y + 0.02, w: t.w * 0.16, h: 0.05 };
+  if (kind === "hand") return { x: t.x + t.w * 0.9, y: a.bottom.y + 0.05, w: t.w * 0.1, h: 0.03 };
+  if (kind === "ears") return { x: neck.x - neck.w * 0.1, y: neck.y - 0.06, w: neck.w * 1.2, h: 0.04 };
+  return undefined;
+}
 
 // Layering order on the body, bottom to top; "outfit" is the top and bottom.
 export const LAYERS = ["pantyhose", "outfit", "shoes", "scarves", "jewelry", "bags", "hats"];

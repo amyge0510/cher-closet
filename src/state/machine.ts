@@ -1,3 +1,4 @@
+import { slotKeys } from "../closet/categories";
 import type { Slot, Verdict } from "../closet/types";
 
 //  splash ─▶ browse ─[dress me]─▶ mismatch ─[browse]─▶ browse
@@ -24,7 +25,7 @@ export type Action =
   | { type: "PICK"; slot: Slot; index: number }
   | { type: "SHOW_RACK" }
   | { type: "WEAR"; category: string; id: string } // an accessory; wearing it again takes it off
-  | { type: "TAKE_OFF"; category: string }
+  | { type: "TAKE_OFF"; category: string } // a slot key: "shoes", "jewelry:2"...
   | { type: "SET_OUTFIT"; top: number; bottom: number; extras: Record<string, string> }
   | { type: "MATCH_SHOWN" }
   | { type: "REVEAL_DONE" }
@@ -57,9 +58,17 @@ export function reducer(s: State, a: Action): State {
       return { ...s, screen: "browse", verdict: null, [a.slot]: a.index };
     case "WEAR": {
       if (s.screen === "splash") return s;
-      const { [a.category]: current, ...rest } = s.extras;
-      const extras = current === a.id ? rest : { ...rest, [a.category]: a.id };
-      return { ...s, screen: "browse", verdict: null, extras };
+      // wearing a worn piece again takes it off
+      const wornAt = Object.keys(s.extras).find((k) => s.extras[k] === a.id);
+      if (wornAt) {
+        const { [wornAt]: _, ...rest } = s.extras;
+        return { ...s, screen: "browse", verdict: null, extras: rest };
+      }
+      // jewelry layers into the first free slot (or replaces the last one);
+      // anything else replaces what's worn in its category
+      const keys = slotKeys(a.category);
+      const key = keys.find((k) => !(k in s.extras)) ?? keys[keys.length - 1];
+      return { ...s, screen: "browse", verdict: null, extras: { ...s.extras, [key]: a.id } };
     }
     case "TAKE_OFF": {
       if (s.screen === "splash" || !(a.category in s.extras)) return s;

@@ -36,9 +36,13 @@ function GarmentPanel({ box, garment, matched }: { box: Box; garment?: Garment; 
   );
 }
 
-// A worn accessory, standing on the leopard beside the outfit. Click to take it off.
-function ExtraSticker({ garment, onTakeOff }: { garment: Garment; onTakeOff: () => void }) {
-  const b = extraSpot(garment.category);
+// A worn accessory, standing on the leopard beside the outfit. Click to take
+// it off. Layered jewelry shares its spot: `of` pieces in a small grid.
+function ExtraSticker({ garment, index = 0, of = 1, onTakeOff }: { garment: Garment; index?: number; of?: number; onTakeOff: () => void }) {
+  const spot = extraSpot(garment.category);
+  const cols = of > 1 ? 2 : 1;
+  const rows = Math.ceil(of / cols);
+  const b = { x: spot.x + (index % cols) * (spot.w / cols), y: spot.y + Math.floor(index / cols) * (spot.h / rows), w: spot.w / cols, h: spot.h / rows };
   return (
     <button
       type="button"
@@ -99,7 +103,7 @@ function FlyingItem({ garment, from, to, onLanded }: { garment: Garment; from: {
 const MAX_LOOKS = 48;
 const SAVED_FLASH_MS = 1500;
 
-export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut, myStyle, onSaveStyle, looks, onSaveLooks, wardrobe, onChangeWardrobe, onUploaded, onDeleteGarment, onRetag, notice, body, canRedraw, onBody, onResetBody }: {
+export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut, myStyle, onSaveStyle, looks, onSaveLooks, wardrobe, onChangeWardrobe, onUploaded, onDeleteGarment, onRetag, notice, body, canRedraw, onBody, onResetBody, closetReady = true, outfitKey }: {
   state: State;
   dispatch: Dispatch<Action>;
   closet: Garment[];
@@ -127,6 +131,10 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   canRedraw: boolean;
   onBody: (canvas: HTMLCanvasElement, anchors: BodyAnchors) => void;
   onResetBody: () => void;
+  /** the user's own clothes have loaded, so the last outfit can be put back */
+  closetReady?: boolean;
+  /** where the last outfit is remembered (one per account, in this browser) */
+  outfitKey?: string;
 }) {
   const { screen } = state;
   const tops = useMemo(() => closet.filter((g) => g.slot === "top"), [closet]);
@@ -141,10 +149,47 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
     },
     [dispatch, tops, bottoms],
   );
-  const worn = useMemo(
-    () => Object.values(state.extras).map((id) => closet.find((g) => g.id === id)).filter((g): g is Garment => !!g),
+  // worn accessories, with the slot each is in ("jewelry:2" for layers)
+  const wornSlots = useMemo(
+    () => Object.entries(state.extras).flatMap(([key, id]) => {
+      const g = closet.find((x) => x.id === id);
+      return g ? [{ key, garment: g }] : [];
+    }),
     [state.extras, closet],
   );
+  const worn = useMemo(() => wornSlots.map((w) => w.garment), [wornSlots]);
+  // The last outfit: put back on when the closet opens, and remembered
+  // whenever it changes (only once it's been put back, so the opening rack
+  // doesn't overwrite it).
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current || !closetReady || !outfitKey) return;
+    restored.current = true;
+    try {
+      const last = JSON.parse(localStorage.getItem(outfitKey) ?? "null") as Look | null;
+      if (!last) return;
+      const t = tops.findIndex((g) => g.id === last.top);
+      const b = last.bottom === last.top ? 0 : bottoms.findIndex((g) => g.id === last.bottom);
+      if (t < 0 || b < 0) return;
+      const ids = new Set(closet.map((g) => g.id));
+      const extras = Object.fromEntries(Object.entries(last.extras).filter(([, id]) => ids.has(id)));
+      dispatch({ type: "SET_OUTFIT", top: t, bottom: b, extras });
+    } catch {
+      /* nothing remembered */
+    }
+  }, [closetReady, outfitKey, tops, bottoms, closet, dispatch]);
+  const topId = tops[state.top % Math.max(1, tops.length)]?.id;
+  const bottomId = bottoms[state.bottom % Math.max(1, bottoms.length)]?.id;
+  useEffect(() => {
+    if (!restored.current || !outfitKey || !topId || !bottomId) return;
+    try {
+      const look: Look = { id: "last", top: topId, bottom: isDress(tops.find((g) => g.id === topId)) ? topId : bottomId, extras: state.extras };
+      localStorage.setItem(outfitKey, JSON.stringify(look));
+    } catch {
+      /* storage unavailable */
+    }
+  }, [outfitKey, topId, bottomId, state.extras, tops]);
+
   // MY STYLE: put the chosen style's board on, top to toe
   const wearBoard = useCallback(
     (items: BoardItem[]) => {
@@ -497,7 +542,11 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
         </Bevel>
       )}
 
-      {!fullBody && worn.map((g) => <ExtraSticker key={g.category} garment={g} onTakeOff={() => dispatch({ type: "TAKE_OFF", category: g.category })} />)}
+      {!fullBody &&
+        wornSlots.map(({ key, garment }) => {
+          const same = wornSlots.filter((w) => w.garment.category === garment.category);
+          return <ExtraSticker key={key} garment={garment} index={same.findIndex((w) => w.key === key)} of={same.length} onTakeOff={() => dispatch({ type: "TAKE_OFF", category: key })} />;
+        })}
 
       {screen === "mismatch" && (
         <Bevel box={L.banner} tone="banner" style={{ borderWidth: 4, zIndex: 5 }}>
@@ -564,7 +613,8 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
 
       {popup?.kind === "closet" && (
         <Inventory category={popup.category} categories={categories} closet={closet} onClose={closePopup} onWear={wear} onDragStart={showRack} onDelete={(g) => {
-          if (state.extras[g.category] === g.id) dispatch({ type: "TAKE_OFF", category: g.category });
+          const wornAt = Object.keys(state.extras).find((k) => state.extras[k] === g.id);
+          if (wornAt) dispatch({ type: "TAKE_OFF", category: wornAt });
           onDeleteGarment(g);
         }} />
       )}

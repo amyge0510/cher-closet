@@ -78,9 +78,10 @@ export function jpegOf(c: HTMLCanvasElement, max = 1024): string {
 // One item picked out of the user's whole photo (e.g. the shorts in an
 // outfit picture) and redrawn as a straight-on product shot. `description`
 // is what the tagger saw, so the redraw stays faithful.
-export async function extractItem(photo: HTMLCanvasElement, name: string, description: string, colors: string[]): Promise<HTMLCanvasElement> {
+// `note` is what the owner said was wrong with the last try (REDRAW).
+export async function extractItem(photo: HTMLCanvasElement, name: string, description: string, colors: string[], note = ""): Promise<HTMLCanvasElement> {
   const key = keyFor(colors);
-  const once = async () => keyedOut(await redraw("extract", jpegOf(photo), "image/jpeg", { name, description, background: key }));
+  const once = async () => keyedOut(await redraw("extract", jpegOf(photo), "image/jpeg", { name, description, background: key, note }));
   // a redraw that came out broken (tiny, or full of holes, like jeans with
   // whole legs missing) is quietly drawn again once, and the better kept
   const first = await once();
@@ -120,9 +121,9 @@ export function coverage(d: Uint8ClampedArray, w: number, h: number): number {
 }
 
 // A cut-out garment redrawn as a straight-on product shot (TIDY UP).
-export async function tidyGarment(cutout: HTMLCanvasElement, name: string, colors: string[]): Promise<HTMLCanvasElement> {
+export async function tidyGarment(cutout: HTMLCanvasElement, name: string, colors: string[], note = ""): Promise<HTMLCanvasElement> {
   const key = keyFor(colors);
-  return keyedOut(await redraw("tidy", jpegOf(cutout, 768), "image/jpeg", { name, background: key }));
+  return keyedOut(await redraw("tidy", jpegOf(cutout, 768), "image/jpeg", { name, background: key, note }));
 }
 
 // The user, redrawn standing in a model stance in a black tank and shorts.

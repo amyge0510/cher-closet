@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
-import { LAYERS, PLACEHOLDER_ANCHORS, placeholderBody, type Anchor, type BodyAnchors, type Figure } from "../closet/body";
+import { anchorFor, LAYERS, PLACEHOLDER_ANCHORS, placeholderBody, type Anchor, type BodyAnchors, type Figure } from "../closet/body";
 import type { Garment } from "../closet/types";
+import { jewelryKind } from "../closet/categories";
 import { containBox, loadImage, makeCanvas, rng } from "../pixel/raster";
 
 type Props = {
@@ -131,9 +132,18 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
           }
           continue;
         }
-        const g = extras.find((e) => e.category === layer);
-        const a = anchors.extras[layer];
-        if (g && a) await place(octx, g.image, a, frame);
+        // every worn piece in this layer (jewelry can be several): jewelry
+        // goes to the neck, wrist, ears or hand by what it is; pieces sharing
+        // a spot shift a little so a stack of bracelets shows as a stack
+        const pieces = extras.filter((e) => e.category === layer);
+        const seen: Record<string, number> = {};
+        for (const g of pieces) {
+          const kind = layer === "jewelry" ? jewelryKind(g.name) : "";
+          const a = kind ? anchorFor(anchors, kind) : anchors.extras[layer];
+          if (!a) continue;
+          const n = (seen[kind] = (seen[kind] ?? -1) + 1);
+          await place(octx, g.image, { ...a, x: a.x + n * a.w * 0.15, y: a.y + n * a.h * (kind === "neck" ? 0.35 : 0.2) }, frame);
+        }
       }
       if (cancelled) return;
 

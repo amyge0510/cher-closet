@@ -191,8 +191,13 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
     [persistStyle],
   );
   const [own, setOwn] = useState<Garment[]>([]);
+  // the user's own clothes have arrived (or there are none to wait for)
+  const [closetReady, setClosetReady] = useState(!signedIn);
   useEffect(() => {
-    if (signedIn) loadCloset().then(setOwn, () => setOwn([]));
+    if (signedIn)
+      loadCloset()
+        .then(setOwn, () => setOwn([]))
+        .finally(() => setClosetReady(true));
   }, [signedIn]);
   // Until someone has uploaded at least one top and one bottom of their own,
   // the demo rack (for their wardrobe choice) keeps the machine usable, with
@@ -281,7 +286,7 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
       {state.screen === "splash" ? (
         <Splash onDone={splashDone} smokeIn={afterIntro} />
       ) : (
-        <Wardrobe state={state} dispatch={dispatch} closet={closet} categories={categories} title={title} onSignOut={onSignOut} myStyle={myStyle} onSaveStyle={saveMyStyle} looks={looks} onSaveLooks={saveMyLooks} wardrobe={wardrobe} onChangeWardrobe={changeWardrobe} onUploaded={uploaded} onDeleteGarment={removeGarment} onRetag={signedIn ? retagCloset : undefined} notice={notice} body={body} canRedraw={signedIn} onBody={applyBody} onResetBody={resetBody} />
+        <Wardrobe state={state} dispatch={dispatch} closet={closet} categories={categories} title={title} onSignOut={onSignOut} myStyle={myStyle} onSaveStyle={saveMyStyle} looks={looks} onSaveLooks={saveMyLooks} wardrobe={wardrobe} onChangeWardrobe={changeWardrobe} onUploaded={uploaded} onDeleteGarment={removeGarment} onRetag={signedIn ? retagCloset : undefined} notice={notice} body={body} canRedraw={signedIn} onBody={applyBody} onResetBody={resetBody} closetReady={closetReady} outfitKey={`cher-last-outfit-${userId ?? "guest"}`} />
       )}
       {DevOverlay && (
         <Suspense fallback={null}>

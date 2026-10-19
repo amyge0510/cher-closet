@@ -358,6 +358,7 @@ export function MoreMenu({ categories, onPick, onSignOut, settings = [], onClose
             key={r.key}
             type="button"
             role="menuitem"
+            aria-label={r.label}
             title={r.title}
             onClick={r.act}
             className="menu-row"
