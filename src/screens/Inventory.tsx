@@ -37,6 +37,10 @@ type Press = { g: Garment; x0: number; y0: number; dragging: boolean };
 // The closet pop-up: every garment in a category as a grid of inventory slots.
 // Click a piece to wear it, or drag it out: tops and bottoms onto their panel,
 // accessories anywhere on the screen.
+// the blown-up piece shown while the mouse is over a slot
+const PREVIEW = 156;
+const canHover = typeof window !== "undefined" && !!window.matchMedia?.("(hover: hover) and (pointer: fine)").matches;
+
 export function Inventory({ category, categories, closet, onClose, onWear, onDragStart, onDelete }: {
   category: string;
   categories: Category[];
@@ -123,6 +127,21 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
 
   const gridX = box.x + pad;
   const gridY = box.y + pad + invHeader + 6;
+  // the piece under the mouse, blown up just above its slot (below it if
+  // there's no room); gone the moment the mouse moves off. Only where there's
+  // a mouse: on a touch screen there's no hovering
+  const at = hover && canHover && !drag && !confirming ? visible.indexOf(hover) : -1;
+  const preview =
+    at < 0
+      ? null
+      : (() => {
+          const P = PREVIEW;
+          const sx = gridX + (at % cols) * S;
+          const sy = gridY + Math.floor(at / cols) * S;
+          const x = Math.round(Math.min(STAGE_W - P - 4, Math.max(4, sx + S / 2 - P / 2)));
+          const above = sy - P - 26 - 6;
+          return { x, y: above >= 4 ? above : sy + S + 6 };
+        })();
   const footerY = gridY + rows * S + 8;
   const title = cat?.label ?? category.toUpperCase();
   const status = hover
@@ -233,6 +252,33 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
             </div>
           ))}
         </div>
+
+        {preview && hover && (
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: preview.x,
+              top: preview.y,
+              width: PREVIEW,
+              boxSizing: "border-box",
+              padding: 6,
+              background: C.invBg,
+              border: `3px solid ${C.invEdge}`,
+              boxShadow: `inset 3px 3px 0 ${C.white}, inset -3px -3px 0 ${C.invSlotShadow}, 4px 4px 0 rgba(10,8,30,0.35)`,
+              pointerEvents: "none",
+              zIndex: 5,
+              display: "grid",
+              justifyItems: "center",
+              gap: 6,
+            }}
+          >
+            <div style={{ background: C.invSlot, display: "grid", placeItems: "center", width: PREVIEW - 18, height: PREVIEW - 18 }}>
+              <GarmentImage key={hover.id} src={hover.image} w={PREVIEW - 26} h={PREVIEW - 26} fill={0.95} spinner />
+            </div>
+            <PixelLines text={hover.name.toUpperCase()} maxWidth={PREVIEW - 18} color={C.invText} sx={1.2} sy={1.5} />
+          </div>
+        )}
 
         {/* scrollbar: click above or below the thumb to page */}
         <div
