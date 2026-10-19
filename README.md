@@ -65,6 +65,14 @@ leopard. The navy bars and the leopard run on to the edges of any phone
 wider than that shape (`--bleed` in `Stage.tsx`, `wide()` in `Parts.tsx`).
 Turning the phone sideways reloads into the computer layout.
 
+**The pixel model.** With the closet on PIXEL, DRESS ME shows a pixel-art
+figure instead of a photo: a honey-blonde girl with space buns, or a guy with
+a curly top for menswear (`src/closet/pixelModel.ts`). Each pixel garment is
+cut from the figure's own torso, arms and legs on a 64x128 grid (a tee is the
+torso and the tops of the arms, jeans are the legs, a skirt flares from the
+hips), filled with the garment's pattern and outlined, so it fits the body
+instead of being laid on top. No photo, Gemini or HAIR in this mode.
+
 **Pixel or my clothes.** The PIXEL | MY CLOTHES pill under the title switches the rack
 between your own uploaded clothes and the built-in pixel clothes. It starts on
 yours once you've uploaded a top and a bottom, and uploading something always

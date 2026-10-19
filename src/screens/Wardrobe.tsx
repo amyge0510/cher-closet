@@ -21,6 +21,7 @@ import { SavedLooks } from "./SavedLooks";
 import { StyleQuiz } from "./StyleQuiz";
 import { Bevel, ButtonLabel, CategoryBar, ControlStrip, Header, Leopard, overflowCategories, pos, tabCenter, wide } from "./Parts";
 import { Reveal } from "./Reveal";
+import { canWearPixel } from "../closet/pixelModel";
 
 const MATCH_HOLD_MS = 1400; // black panels stay up this long before the reveal
 const MISMATCH_MS = 3000; // MIS-MATCH! clears itself after this long
@@ -397,8 +398,10 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   // while a new hairstyle is drawn, so the outfit never disappears
   const lastDressed = useRef<{ outfit: string; src: string } | null>(null);
   const outfitPieces = useMemo(() => (top && bottom ? (top === bottom ? [top, ...worn] : [top, bottom, ...worn]) : []), [top, bottom, worn]);
+  // PIXEL closet: the pixel-art model wears the pixel clothes (no photo, no AI)
+  const pixelModel = source === "pixel" && outfitPieces.length > 0 && canWearPixel(outfitPieces);
   const dressKey =
-    body && canRedraw && outfitPieces.length && (screen === "reveal" || screen === "dressed")
+    !pixelModel && body && canRedraw && outfitPieces.length && (screen === "reveal" || screen === "dressed")
       ? [body.src.length, body.src.slice(-48), ...outfitPieces.map((g) => g.id), hair].join("|")
       : null;
   useEffect(() => {
@@ -495,7 +498,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
 
       {fullBody && top && bottom ? (
         <div style={{ ...pos(L.revealPanel), background: C.panel }}>
-          <Reveal w={L.revealPanel.w} h={L.revealPanel.h} top={top} bottom={bottom} extras={worn} figure={wardrobe === "mens" ? "mens" : "womens"} bodySrc={body?.src} anchors={body?.anchors} animate={screen === "reveal"} dressed={dressed && dressed.key === dressKey ? dressed : undefined} onDone={revealDone} />
+          <Reveal w={L.revealPanel.w} h={L.revealPanel.h} top={top} bottom={bottom} extras={worn} figure={wardrobe === "mens" ? "mens" : "womens"} bodySrc={pixelModel ? null : body?.src} anchors={pixelModel ? undefined : body?.anchors} animate={screen === "reveal"} dressed={!pixelModel && dressed && dressed.key === dressKey ? dressed : undefined} pixel={pixelModel} onDone={revealDone} />
         </div>
       ) : (
         <>
@@ -516,7 +519,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
         </>
       )}
 
-      {fullBody && body && canRedraw && (
+      {fullBody && body && canRedraw && !pixelModel && (
         <Bevel box={HAIR_BUTTON} tone={popup?.kind === "hair" ? "blue" : "gray"} onClick={() => setPopup(popup?.kind === "hair" ? null : { kind: "hair" })} label="Change the hairstyle" style={{ borderWidth: 2, zIndex: 6 }}>
           <PixelText text="HAIR ~" color={C.ink} sx={1.4} sy={1.8} bold />
         </Bevel>
