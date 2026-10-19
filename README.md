@@ -141,7 +141,7 @@ Each photo goes through:
    styles, all from the app's own lists, so MIS-MATCH! and the quiz can use
    them.
 3. **A quick look.** FIX IT lets you rename it or move it to another
-   category. Claude's tags file themselves after about three seconds, while
+   category. The AI's tags file themselves after about three seconds, while
    a guess waits for FILE IT.
    Edges are cleaned up automatically: bits of background stuck to the edge
    (in colors the garment doesn't have) are trimmed, jagged steps are
@@ -179,9 +179,9 @@ and photos never leave the computer. The models download the first time
    used when what's left is one clean piece; otherwise the pop-up says the
    background remover couldn't load, instead of filing junk.
 
-Tagging uses Claude, through the Supabase Edge Function in
+Tagging uses Gemini, through the Supabase Edge Function in
 `supabase/functions/tag-garment`, which keeps the API key on the server (see
-"Claude tagging" below). Until that's set up, or for anyone not signed in,
+"Tagging" below). Until that's set up, or for anyone not signed in,
 the app guesses the colors and category from the pixels.
 
 ## Matching the film: the ghost overlay
@@ -208,8 +208,8 @@ production build.
 | `src/state/machine.ts` | splash → browse → mismatch / match → reveal → dressed |
 | `src/closet/` | Garment types, match rules, a procedurally drawn demo closet, and the placeholder body with its garment anchors |
 | `src/screens/` | Splash (swinging hangers), Wardrobe (browse/mismatch/match), Reveal (body + block dissolve), Upload |
-| `src/upload/` | Background removal, the pixel scanner animation, and tagging (Claude or the pixel guess) |
-| `supabase/functions/` | The tag-garment Edge Function (Claude) |
+| `src/upload/` | Background removal, the pixel scanner animation, and tagging (Gemini or the pixel guess) |
+| `supabase/functions/` | The tag-garment and gemini-image Edge Functions (Gemini) |
 | `src/dev/` | The ghost overlay (dev only) |
 | `supabase/migrations/` | Database schema for per-user closets |
 
@@ -277,26 +277,19 @@ To switch it on:
 3. Deploy the function: **Edge Functions → Deploy a new function → Via
    Editor**, name it `gemini-image`, paste in the file, and deploy.
 
-## Claude tagging (the tag-garment Edge Function)
+## Tagging (the tag-garment Edge Function)
 
-`supabase/functions/tag-garment/index.ts` sends each cut-out to Claude
-(`claude-opus-5-5`). It uses structured output, so the answer always uses
-the app's category, color, pattern and style lists. Refusal fallbacks are
-switched on (`fallbacks: "default"`): if the model declines a photo,
-Anthropic retries it on its recommended fallback model instead of failing.
-Only signed-in users can call the function. Each tag costs a cent or two.
+`supabase/functions/tag-garment/index.ts` sends each cut-out to Google's
+Gemini, using the same `GEMINI_API_KEY` secret as the redraws. It asks Google
+which models the key can use and takes the newest Flash model; to pin one,
+add a `GEMINI_TEXT_MODEL` secret. The answer is forced into a JSON schema, so
+it always uses the app's category, color, pattern and style lists, and the
+app checks every value again before filing. Only signed-in users can call
+the function. Each tag costs a fraction of a cent.
 
-To switch it on:
-
-1. Make an API key at [console.anthropic.com](https://console.anthropic.com)
-   (Settings → API Keys) and add a little credit under Billing.
-2. In Supabase, go to **Edge Functions → Secrets**. Add one named
-   `ANTHROPIC_API_KEY` with the key as its value. Never put this key in
-   `.env` or anywhere in the app.
-3. Deploy the function, either way:
-   - **Dashboard:** Edge Functions → Deploy a new function → Via Editor.
-     Name it `tag-garment`, paste in the file, and deploy.
-   - **CLI:** `supabase functions deploy tag-garment`.
+To switch it on, deploy the function: **Edge Functions → Deploy a new
+function → Via Editor**, name it `tag-garment`, paste in the file, and deploy
+(or run `supabase functions deploy tag-garment` with the CLI).
 
 ## Next
 

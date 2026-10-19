@@ -1,18 +1,17 @@
 // Supabase Edge Function: looks at a photo of one piece of clothing and tags
-// it for the closet (category, name, colors, pattern, styles), using Claude.
+// it for the closet (category, name, colors, pattern, styles), using Google's
+// Gemini.
 //
 // The app sends the picture plus the lists it understands; the answer is
-// forced into exactly that shape (structured output), so it can be filed
-// without guesswork. The Anthropic API key lives here as a secret and never
-// reaches the browser. Only signed-in users can call this (Supabase checks
-// their sign-in token before the function runs).
+// forced into exactly that shape (a JSON schema), so it can be filed without
+// guesswork. The Gemini key lives here as a secret (GEMINI_API_KEY, the same
+// one the gemini-image function uses) and never reaches the browser. Only
+// signed-in users can call this (Supabase checks their sign-in token before
+// the function runs).
 //
-// Setup: Dashboard → Edge Functions → Secrets → ANTHROPIC_API_KEY, then
-// deploy this folder as "tag-garment" (see the README).
+// Setup: deploy this file as "tag-garment" (see the README).
 
-import Anthropic from "npm:@anthropic-ai/sdk@0.135.0";
-
-const MODEL = "claude-opus-5-5";
+const API = "https://generativelanguage.googleapis.com/v1beta";
 const MAX_IMAGE_CHARS = 2_000_000; // base64 JPEG; the app sends ~512px, far smaller
 
 const cors = {
@@ -23,6 +22,30 @@ const cors = {
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
+
+const geminiKey = () => Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("gemini_api_key");
+
+// Google renames its models often, so ask which ones this key can use and
+// take the newest Flash model (fast and cheap, and plenty for naming
+// clothes), unless one is pinned with the GEMINI_TEXT_MODEL secret.
+let chosenModel: string | null = null;
+async function textModel(key: string): Promise<string> {
+  const pinned = Deno.env.get("GEMINI_TEXT_MODEL");
+  if (pinned) return pinned;
+  if (chosenModel) return chosenModel;
+  const res = await fetch(`${API}/models?pageSize=1000`, { headers: { "x-goog-api-key": key } });
+  if (!res.ok) throw new Error(`listing models failed (${res.status})`);
+  const { models = [] } = (await res.json()) as { models?: { name: string; supportedGenerationMethods?: string[] }[] };
+  const version = (n: string) => Number(n.match(/gemini-(\d+(?:\.\d+)?)/)?.[1] ?? 0);
+  const candidates = models
+    .map((m) => ({ id: m.name.replace(/^models\//, ""), methods: m.supportedGenerationMethods ?? [] }))
+    // plain Flash models only: not the image, audio, live or "lite" variants
+    .filter((m) => /^gemini-\d+(\.\d+)?-flash(-preview[\w-]*|-\d+)?$/.test(m.id) && m.methods.includes("generateContent"))
+    .sort((a, b) => version(b.id) - version(a.id) || Number(a.id.includes("preview")) - Number(b.id.includes("preview")));
+  chosenModel = candidates[0]?.id ?? "gemini-flash-latest";
+  console.log("using", chosenModel);
+  return chosenModel;
+}
 
 // Lists from the app are only ever short lowercase ids.
 const ids = (v: unknown, max = 40): string[] =>
@@ -38,8 +61,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) return json({ error: "ANTHROPIC_API_KEY is not set" }, 500);
+  const key = geminiKey();
+  if (!key) return json({ error: "GEMINI_API_KEY is not set" }, 500);
 
   let body: Record<string, unknown>;
   try {
@@ -61,58 +84,60 @@ Deno.serve(async (req) => {
   // the category the app's clothes model saw, if any (e.g. "skirts")
   const hint = categories.includes(String(body.hint)) ? String(body.hint) : null;
 
+  // Gemini's schema format: upper-case types, enums for every list
+  const choice = (values: string[]) => ({ type: "STRING", format: "enum", enum: values });
   const schema = {
-    type: "object",
+    type: "OBJECT",
     properties: {
-      is_clothing: { type: "boolean", description: "false if the photo isn't a piece of clothing, shoes or an accessory" },
-      category: { type: "string", enum: categories },
-      name: { type: "string", description: "2 to 4 words, like 'Black Leather Jacket' or 'Light Wash Jeans'" },
-      colors: { type: "array", items: { type: "string", enum: colors }, description: "1 to 3, main color first" },
-      pattern: { type: "string", enum: patterns },
-      styles: { type: "array", items: { type: "string", enum: styles.map((s) => s.id) }, description: "1 to 4 styles it fits" },
+      is_clothing: { type: "BOOLEAN", description: "false if the photo isn't a piece of clothing, shoes or an accessory" },
+      category: choice(categories),
+      name: { type: "STRING", description: "2 to 4 words, like 'Black Leather Jacket', 'Light Wash Jeans' or 'Olive Bike Shorts'" },
+      colors: { type: "ARRAY", items: choice(colors), description: "1 to 3, main color first" },
+      pattern: choice(patterns),
+      styles: { type: "ARRAY", items: choice(styles.map((s) => s.id)), description: "1 to 4 styles it fits" },
     },
     required: ["is_clothing", "category", "name", "colors", "pattern", "styles"],
-    additionalProperties: false,
+    propertyOrdering: ["is_clothing", "category", "name", "colors", "pattern", "styles"],
   };
 
-  const prompt = `This is a photo of one item from someone's closet, with the background removed. It may have been cut out of a photo of someone wearing it, so its edges can be rough. Tag it so the app can file it.
+  const prompt = `This is a photo of one item from someone's closet, with the background removed. It may have been cut out of a photo of someone wearing it, so its edges can be rough and parts may be hidden. Tag it so the app can file it.
 ${wardrobe}${hint ? `\nThe app's clothes detector thinks it belongs in "${hint}"; go with that unless it's clearly wrong.` : ""}
 
-- category: where it goes. Sweaters, cardigans and knit vests are "sweaters" if that's listed; shirts, tees, jackets and coats are "tops"; pants, jeans and shorts are "bottoms"; socks and tights are "pantyhose".
-- name: short and plain, the way you'd label it on a shelf.
-- colors: the closest names from the list. "denim" is for blue jeans-colored fabric; "babypink" is pale pink. Metals (gold, silver) only for hardware or jewelry.
-- pattern: "solid" unless there's a clear print, plaid, stripe or chunky knit texture.
-- styles: which of these styles it would be worn in (every item should get at least "everyday" if it's a basic):
+- category: where it goes. Sweaters, cardigans and knit vests are "sweaters" if that's listed; shirts, tees, tanks, jackets and coats are "tops"; pants, jeans and shorts are "bottoms"; socks and tights are "pantyhose".
+- name: short and plain, the way you'd label it on a shelf. Say exactly what it is: shorts are shorts, not pants; a tank is a tank, not a shirt.
+- colors: the closest names from the list. Photos are often dim, so judge the fabric's real color, not its shadows (dark olive is "olive", not "black" or "navy"). "denim" is for blue jeans-colored fabric; "babypink" is pale pink. Metals (gold, silver) only for hardware or jewelry.
+- pattern: "solid" unless there's a clear print, plaid, stripe or chunky knit texture. Embroidery or a small motif on a plain piece is "print".
+- styles: which of these styles it would be worn in (every basic should get at least "everyday"):
 ${styles.map((s) => `  ${s.id} = ${s.label}`).join("\n")}`;
 
-  const client = new Anthropic({ apiKey });
   try {
-    const res = await client.beta.messages.create({
-      model: MODEL,
-      max_tokens: 2000,
-      // if the model declines, Anthropic re-runs the request on its
-      // recommended fallback model instead of returning a refusal
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      output_config: { effort: "low", format: { type: "json_schema", schema } },
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "image", source: { type: "base64", media_type: "image/jpeg", data: image } },
-            { type: "text", text: prompt },
-          ],
-        },
-      ],
+    const model = await textModel(key);
+    const res = await fetch(`${API}/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "x-goog-api-key": key, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ inlineData: { mimeType: "image/jpeg", data: image } }, { text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0.2 },
+      }),
     });
-    if (res.stop_reason === "refusal") return json({ error: "declined" }, 422);
-    if (res.stop_reason === "max_tokens") return json({ error: "answer cut off" }, 502);
-    const text = res.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
+    if (res.status === 429) return json({ error: "Gemini is busy, try again" }, 429);
+    if (res.status === 400 || res.status === 403) {
+      const detail = await res.text();
+      console.error(detail);
+      if (/API key/i.test(detail)) return json({ error: "GEMINI_API_KEY is wrong" }, 500);
+      return json({ error: `Gemini error ${res.status}` }, 502);
+    }
+    if (!res.ok) {
+      console.error(await res.text());
+      return json({ error: `Gemini error ${res.status}` }, 502);
+    }
+    const out = await res.json();
+    const candidate = out.candidates?.[0];
+    const text = (candidate?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? "").join("");
+    if (!text) return json({ error: "declined", reason: candidate?.finishReason ?? out.promptFeedback?.blockReason ?? null }, 422);
+    if (candidate?.finishReason === "MAX_TOKENS") return json({ error: "answer cut off" }, 502);
     return json(JSON.parse(text));
   } catch (e) {
-    if (e instanceof Anthropic.RateLimitError) return json({ error: "busy, try again" }, 429);
-    if (e instanceof Anthropic.AuthenticationError) return json({ error: "ANTHROPIC_API_KEY is wrong" }, 500);
-    if (e instanceof Anthropic.APIError) return json({ error: `Claude API error ${e.status}` }, 502);
     console.error(e);
     return json({ error: "tagging failed" }, 500);
   }

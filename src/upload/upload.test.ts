@@ -93,7 +93,7 @@ describe("tags", () => {
     expect(nearestColor(48, 50, 38)).toBe("olive");
   });
 
-  it("guesses from the pixels when Claude isn't set up", () => {
+  it("guesses from the pixels when tagging isn't set up", () => {
     // tall and blue on a clear background: jeans
     const d = picture(30, 60, [0, 0, 0], [104, 132, 180], [5, 2, 20, 56]);
     for (let i = 3; i < d.length; i += 4) if (d[i - 3] === 0) d[i] = 0;

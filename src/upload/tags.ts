@@ -7,7 +7,7 @@ import { forWardrobe, LEAVES, type Wardrobe } from "../style/styles";
 // pattern and styles. These drive the closet tabs, MIS-MATCH! and the quiz,
 // so every value has to come from the lists below.
 //
-// Tagging is done by Claude, through a Supabase Edge Function
+// Tagging is done by Gemini, through a Supabase Edge Function
 // (supabase/functions/tag-garment) that keeps the API key on the server. If
 // the function isn't set up, or someone isn't signed in, a rough guess from
 // the pixels stands in and the upload screen invites a check.
@@ -54,8 +54,8 @@ const SINGULAR: Record<string, string> = {
 const defaultName = (colors: string[], category: string, aspect = 2) =>
   `${titleCase(colors[0] === "babypink" ? "pink" : colors[0] ?? "")} ${category === "bottoms" && aspect < 1.2 ? "Shorts" : SINGULAR[category] ?? titleCase(category)}`.trim();
 
-// Asks Claude (via the Edge Function) to tag the cut-out. `jpeg` is base64.
-async function askClaude(jpeg: string, categories: string[], wardrobe: Wardrobe, hint?: string): Promise<Tags | null> {
+// Asks Gemini (via the Edge Function) to tag the cut-out. `jpeg` is base64.
+async function askAi(jpeg: string, categories: string[], wardrobe: Wardrobe, hint?: string): Promise<Tags | null> {
   if (!supabase) return null;
   const { data: session } = await supabase.auth.getSession();
   if (!session.session) return null; // the function only answers signed-in users
@@ -70,12 +70,12 @@ async function askClaude(jpeg: string, categories: string[], wardrobe: Wardrobe,
   return normalizeTags(data, categories);
 }
 
-// The tags for a cut-out, and whether they're Claude's or a guess. `hint` is
+// The tags for a cut-out, and whether they're the AI's or a guess. `hint` is
 // the category the clothes model saw (e.g. "skirts"), when it found one.
-export async function tagGarment(cutout: HTMLCanvasElement, jpeg: string, categories: string[], wardrobe: Wardrobe, hint?: string): Promise<{ tags: Tags; how: "claude" | "guess" }> {
+export async function tagGarment(cutout: HTMLCanvasElement, jpeg: string, categories: string[], wardrobe: Wardrobe, hint?: string): Promise<{ tags: Tags; how: "ai" | "guess" }> {
   try {
-    const tags = await askClaude(jpeg, categories, wardrobe, hint);
-    if (tags) return { tags, how: "claude" };
+    const tags = await askAi(jpeg, categories, wardrobe, hint);
+    if (tags) return { tags, how: "ai" };
   } catch (e) {
     console.warn("tagging failed, guessing instead:", e);
   }

@@ -23,7 +23,7 @@ type Phase =
   | { kind: "popping"; photo: HTMLCanvasElement; cut: HTMLCanvasElement; hint?: string }
   | { kind: "tagging"; photo: HTMLCanvasElement; cut: HTMLCanvasElement }
   | {
-      kind: "show"; image: string; png: Blob; canvas: HTMLCanvasElement; tags: Tags; how: "claude" | "guess"; fixing: boolean;
+      kind: "show"; image: string; png: Blob; canvas: HTMLCanvasElement; tags: Tags; how: "ai" | "guess"; fixing: boolean;
       /** TIDY UP: the cut-out before the redraw, to switch back to */
       original?: { image: string; png: Blob; canvas: HTMLCanvasElement };
       redrawing?: boolean;
@@ -31,7 +31,7 @@ type Phase =
     }
   | { kind: "error"; message: string };
 
-const AUTO_FILE_MS = 3200; // Claude's tags file themselves after this long
+const AUTO_FILE_MS = 3200; // The AI's tags file themselves after this long
 const CUT_PHRASES = ["SNIPPING...", "FINDING THE CLOTHES...", "LOSING THE BACKGROUND...", "AS IF!", "ALMOST..."];
 const TAG_PHRASES = ["READING THE TAG...", "NAMING IT...", "PICKING ITS STYLE..."];
 
@@ -154,9 +154,9 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onCl
     advance();
   }, [phase, onFile, advance]);
 
-  // Claude's tags file themselves after a moment, unless you hit FIX IT
+  // The AI's tags file themselves after a moment, unless you hit FIX IT
   useEffect(() => {
-    if (phase.kind !== "show" || phase.fixing || phase.redrawing || phase.original || phase.how !== "claude" || !phase.tags.isClothing) return;
+    if (phase.kind !== "show" || phase.fixing || phase.redrawing || phase.original || phase.how !== "ai" || !phase.tags.isClothing) return;
     const t = window.setTimeout(file, AUTO_FILE_MS);
     return () => clearTimeout(t);
   }, [phase, file]);
