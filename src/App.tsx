@@ -195,6 +195,10 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
           const last = loadGuest<Look>(`cher-last-outfit-${userId ?? "guest"}`);
           const ids = new Set(last ? [last.top, last.bottom, ...Object.values(last.extras)] : []);
           for (const g of mine) if (ids.has(g.id)) loadImage(g.image).catch(() => {});
+          // then everything else, so each category opens with its pictures there
+          window.setTimeout(() => {
+            for (const g of mine) loadImage(g.image).catch(() => {});
+          }, 1500);
         }, () => setOwn([]))
         .finally(() => setClosetReady(true));
   }, [signedIn, userId]);

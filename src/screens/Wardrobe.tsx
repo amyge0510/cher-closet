@@ -30,6 +30,9 @@ import { track } from "../lib/track";
 // what each piece is, for the AI (a jacket says it goes over the top)
 const pieceLabel = (g: Garment) => (g.category === "jackets" ? `jacket, worn open over the top: ${g.name}` : `${g.slot ?? g.category}: ${g.name}`);
 
+// BROWSE and AUTO DRESS put together at least this many pieces (top and
+// bottom included), when the closet has them
+const OUTFIT_PIECES = 5;
 const MATCH_HOLD_MS = 1400; // black panels stay up this long before the reveal
 const MISMATCH_MS = 3000; // MIS-MATCH! clears itself after this long
 const SCAN_STEP_MS = 110;
@@ -334,7 +337,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       const t = tops[topIndex.current % Math.max(1, tops.length)];
       const b = isDress(t) ? t : bottoms[bottomIndex.current % Math.max(1, bottoms.length)];
       if (!t || !b) return;
-      const extras = accessoriesFor(closet, [t, b], myStyle, Object.values(extrasNow.current), Math.floor(Math.random() * 1e9));
+      const extras = accessoriesFor(closet, [t, b], myStyle, Object.values(extrasNow.current), Math.floor(Math.random() * 1e9), OUTFIT_PIECES);
       dispatch({ type: "SET_OUTFIT", top: topIndex.current, bottom: bottomIndex.current, extras });
     };
     scan("top", () => (isDress(tops[topIndex.current % Math.max(1, tops.length)]) ? settle() : scan("bottom", settle)));
@@ -385,7 +388,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
     const others = pairs.filter(([t, b]) => t !== state.top || b !== state.bottom);
     const [t, b] = (others.length ? others : pairs)[Math.floor(Math.random() * (others.length || pairs.length))];
     // everything changes, accessories included
-    const extras = accessoriesFor(closet, [tops[t], bottoms[b]], myStyle, Object.values(state.extras), Math.floor(Math.random() * 1e9));
+    const extras = accessoriesFor(closet, [tops[t], bottoms[b]], myStyle, Object.values(state.extras), Math.floor(Math.random() * 1e9), OUTFIT_PIECES);
     dispatch({ type: "AUTO_DRESS", top: t, bottom: b, extras });
   }, [dispatch, closet, tops, bottoms, state.top, state.bottom, state.extras, myStyle, source]);
 

@@ -74,7 +74,8 @@ export function judgeOutfit(top: Garment, bottom: Garment, extras: Garment[] = [
     return { match: false, reason: "BLACK TIGHTS DON'T GO WITH THIS OUTFIT", strikes: 0 };
   const sameSet = !!top.set && top.set === bottom.set;
   const outfitAccents = new Set([...accents(top), ...accents(bottom)]);
-  const lightOutfit = [top, bottom].every((g) => onlyIn(g, LIGHT) || [...accents(g)].every((h) => h === "pink"));
+  // light colors, or pink with light: not black (which has no accent hue)
+  const lightOutfit = [top, bottom].every((g) => onlyIn(g, LIGHT) || (accents(g).size > 0 && [...accents(g)].every((h) => h === "pink") && !g.colors.some((c) => DARK.has(c))));
   const strikes: string[] = [];
 
   for (const e of extras) {

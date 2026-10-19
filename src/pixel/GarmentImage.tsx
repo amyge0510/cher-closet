@@ -21,7 +21,17 @@ const OUTLINE = 2; // outline thickness, stage pixels
 // Garments already drawn at a size, so flipping through the closet or coming
 // back to a screen shows them at once instead of drawing them again.
 const drawn = new Map<string, HTMLCanvasElement>();
-const KEEP = 30; // each is a few MB of memory
+const KEEP_PIXELS = 12_000_000; // about 48 MB; the oldest go first
+let keptPixels = 0;
+function keep(key: string, art: HTMLCanvasElement) {
+  drawn.set(key, art);
+  keptPixels += art.width * art.height;
+  for (const [k, c] of drawn) {
+    if (keptPixels <= KEEP_PIXELS || k === key) break;
+    drawn.delete(k);
+    keptPixels -= c.width * c.height;
+  }
+}
 
 // A garment cut-out as it looks on the film's monitor: the real photo, smooth,
 // with a thin soft glow around its edge.
@@ -74,8 +84,7 @@ export function GarmentImage({ src, w, h, fill = 1, outline, style }: Props) {
           ctx.restore();
         }
         ctx.drawImage(img, x, y, box.w, box.h);
-        drawn.set(key, art);
-        if (drawn.size > KEEP) drawn.delete(drawn.keys().next().value!);
+        keep(key, art);
         show(art);
       })
       .catch(() => {});
