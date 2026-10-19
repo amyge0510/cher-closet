@@ -28,7 +28,7 @@ button for it), then they give their first name, and the header becomes "AMY'S W
 The browser is remembered, so coming back skips the code, but only while it's
 in use: after a week without a visit, the next visit asks for a new code
 (`REMEMBER_DAYS` in `src/lib/supabase.ts`). SIGN OUT forgets the browser
-straight away.
+straight away. Returning users skip the name step, since their name is
 kept with the account.
 
 Right after the name, first sign-in only, it asks **"What do you like to
