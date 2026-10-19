@@ -1,7 +1,5 @@
 import { supabase } from "../lib/supabase";
-import { makeCanvas } from "../pixel/raster";
 import { clearEdgeBackground, keepMainBlobs, pngBlob, segmentPhoto, type Segment } from "../upload/cutout";
-import { smoothEdges } from "../upload/smooth";
 import { modelPose } from "../upload/gemini";
 import { PLACEHOLDER_ANCHORS, type Anchor, type BodyAnchors } from "./body";
 
@@ -64,35 +62,59 @@ export function anchorsFromParts(parts: Segment[], w: number, h: number, frame: 
 // Turns any photo of the user into their figure: redrawn by Gemini, cut
 // out, trimmed to the person, with garment spots.
 export async function makeBody(photo: HTMLCanvasElement): Promise<{ canvas: HTMLCanvasElement; anchors: BodyAnchors }> {
-  const model = await modelPose(photo);
+  // The redraw is kept whole, on its own lavender background: cutting the
+  // person out once left only a head. If it isn't head-to-toe, it's asked
+  // for again (once) before anyone sees it.
+  let model = await modelPose(photo);
+  let parts = await labelled(model);
+  if (!isFullBody(model, parts)) {
+    console.warn("the model photo wasn't head-to-toe; asking again");
+    const again = await modelPose(photo);
+    const againParts = await labelled(again);
+    if (isFullBody(again, againParts) || !isFullBody(model, parts)) [model, parts] = [again, againParts];
+  }
   const { width: w, height: h } = model;
-  const ctx = model.getContext("2d")!;
-  const img = ctx.getImageData(0, 0, w, h);
-  let parts: Segment[] = [];
+  const anchors = anchorsFromParts(parts, w, h, personBox(model, parts) ?? { x: 0, y: 0, w, h });
+  return { canvas: model, anchors: toWhole(anchors, personBox(model, parts) ?? { x: 0, y: 0, w, h }, w, h) };
+}
+
+// The clothes model's labels for the picture (none if it can't load).
+async function labelled(c: HTMLCanvasElement): Promise<Segment[]> {
   try {
-    parts = await segmentPhoto(model);
+    return await segmentPhoto(c);
   } catch (e) {
     console.warn("couldn't label the model photo, using stand-in proportions:", e);
+    return [];
   }
-  // the person: everything the clothes model didn't call background, or,
-  // without it, everything that isn't the flat studio backdrop
-  const person = new Uint8Array(w * h);
-  if (parts.length) {
-    for (const p of parts) if (p.label && p.label !== "Background") for (let i = 0; i < w * h; i++) if (p.mask.data[i]) person[i] = 1;
-  } else {
-    clearEdgeBackground(img.data, w, h);
-    for (let i = 0; i < w * h; i++) person[i] = img.data[i * 4 + 3] ? 1 : 0;
-  }
-  keepMainBlobs(person, w, h);
-  for (let i = 0; i < w * h; i++) img.data[i * 4 + 3] = person[i] ? 255 : 0;
-  smoothEdges(img.data, w, h);
-  ctx.putImageData(img, 0, 0);
+}
 
-  const frame = bboxOf([{ data: person }], w, h) ?? { x: 0, y: 0, w, h };
-  const anchors = anchorsFromParts(parts, w, h, frame);
-  const out = makeCanvas(frame.w, frame.h);
-  out.getContext("2d")!.drawImage(model, frame.x, frame.y, frame.w, frame.h, 0, 0, frame.w, frame.h);
-  return { canvas: out, anchors };
+// Where the person is in the picture: from the labels, or else from what
+// isn't the flat background.
+function personBox(c: HTMLCanvasElement, parts: Segment[]): Box | null {
+  const { width: w, height: h } = c;
+  if (parts.length) return bboxOf(parts.filter((p) => p.label && p.label !== "Background").map((p) => p.mask), w, h);
+  const d = c.getContext("2d")!.getImageData(0, 0, w, h).data.slice();
+  clearEdgeBackground(d, w, h, 12);
+  const mask = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) mask[i] = d[i * 4 + 3] ? 1 : 0;
+  keepMainBlobs(mask, w, h);
+  return bboxOf([{ data: mask }], w, h);
+}
+
+// Head-to-toe: legs (or the person) reach most of the way down the picture.
+function isFullBody(c: HTMLCanvasElement, parts: Segment[]): boolean {
+  const { width: w, height: h } = c;
+  const legs = parts.length ? bboxOf(parts.filter((p) => p.label === "Left-leg" || p.label === "Right-leg").map((p) => p.mask), w, h) : null;
+  if (parts.length) return !!legs && legs.y + legs.h > h * 0.8;
+  const box = personBox(c, parts);
+  return !!box && box.h > h * 0.75;
+}
+
+// Anchors measured on the person's box, turned into fractions of the whole
+// picture (which is what the reveal draws).
+function toWhole(a: BodyAnchors, frame: Box, w: number, h: number): BodyAnchors {
+  const conv = (x: Anchor): Anchor => ({ x: (frame.x + x.x * frame.w) / w, y: (frame.y + x.y * frame.h) / h, w: (x.w * frame.w) / w, h: (x.h * frame.h) / h });
+  return { top: conv(a.top), bottom: conv(a.bottom), extras: Object.fromEntries(Object.entries(a.extras).map(([k, v]) => [k, conv(v)])) };
 }
 
 const SIGNED_URL_SECONDS = 60 * 60 * 12;

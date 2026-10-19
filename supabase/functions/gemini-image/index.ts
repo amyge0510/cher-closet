@@ -90,13 +90,14 @@ const SAME_PERSON = `IDENTITY IS THE MOST IMPORTANT RULE. This must be unmistaka
 
 const POSE_PROMPT = `Redraw this photo as a full-body fashion model photo of the same person.
 ${SAME_PERSON}
+The picture MUST show the whole body, from the top of the head down to and including both feet, even if the photo only shows part of them (then continue the body naturally). Never a headshot, portrait or half-body crop.
 Only the pose, clothes, lighting and background change:
 - The camera is straight in front of them at chest height, level, with no tilt, no angle and no wide-angle distortion.
 - They face the camera squarely (shoulders and hips square to the camera, not turned), standing straight and symmetrical: feet slightly apart, weight even, arms hanging relaxed a little away from the body so they don't cover the torso or hips, head straight, neutral relaxed expression.
 - Hair: the same hair as in the photo (color, length, texture, parting), neatly falling behind or beside the shoulders so it doesn't cover the torso.
 - They wear a plain fitted black tank top and plain black bike shorts that end mid-thigh, and are barefoot. No jewelry, no bag, no hat, no other clothes.
-- Show the whole body from the top of the head to the feet, centered, with a little space above and below.
-- Plain flat light gray studio background, soft even lighting, no shadows on the floor.`;
+- The body is centered and fills most of the picture's height, with a little space above the head and below the feet.
+- Background: one flat solid pale lavender (#C3CBF3), soft even lighting, no floor line, no shadows.`;
 
 // dress: the user's model photo, dressed in the chosen pieces (one picture
 // per piece, labelled), for the DRESS ME reveal.
@@ -107,6 +108,7 @@ ${SAME_PERSON}
 - Keep the exact same pose, framing, camera angle, position and size in the frame as the first image, so the two pictures line up.
 - Replace the black tank top and shorts with the outfit. If no shoes are given, they stay barefoot; if no top or bottom is given for a part of the body, keep the plain black tank or shorts there.
 - Each item must look exactly like its picture: the same colors, fabric, sheen, cut, length, fit, straps, closures, hardware, prints and details, worn naturally with real folds and fit on this body. Don't add, remove or redesign anything.
+- Exactly ONE of each item, worn the way people really wear it: one bag (on one shoulder or in one hand), one pair of shoes, one hat, one necklace. Never duplicate an item or show it twice, and don't add items that aren't in the pictures.
 - Hair: ${hair ? `change only the hairstyle to: ${hair}. Keep the same hair color and natural hairline.` : "keep the hair exactly as in the first image."}
 - The whole body from the top of the head to the feet stays in frame.
 - Background: one flat solid pale lavender (#C3CBF3), no floor line, no shadows, nothing else.`;

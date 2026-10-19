@@ -146,7 +146,9 @@ straight away). Signed in,
 every photo goes to the AI first: Gemini lists every piece in it (tagged,
 with a description of what's visible), then redraws each piece straight-on
 as a product shot from the whole photo, faithful to what it can see and
-never adding details. A piece that was mostly hidden says so. If there's a person in the photo, it then offers to make them the
+never adding details. A redraw that comes out broken (tiny, or with big
+chunks missing) is quietly drawn again once, and the better one shown. A
+piece that was mostly hidden says so. If there's a person in the photo, it then offers to make them the
 model (MY MODEL PHOTO). Without the AI, the in-browser steps below take over. Photos can
 be added in three ways:
 
@@ -274,7 +276,8 @@ Until someone uploads their own clothes, they see the demo closet.
 **DRESS ME with your own figure.** With a model photo and signed in, the
 reveal shows your figure with a scan bar ("DRESSING YOU..."), while Gemini
 dresses it in the outfit's actual pieces, keeping your face, body and pose
-exactly. The dressed photo (shown whole, on its own lavender background)
+exactly, with exactly one of each item (one bag, one pair of shoes). The
+dressed photo (shown whole, on its own lavender background)
 then dissolves in block by block. Results are
 remembered for the visit. **HAIR**, in the top-right corner above the head,
 re-dresses you in another hairstyle (or your own). If the AI can't answer,
@@ -285,8 +288,10 @@ X appears. It asks to confirm, with a red DELETE button, and removes the
 piece and its picture from your account. The demo rack can't be deleted.
 
 **MY MODEL PHOTO** (under MORE, signed in only). Pick or paste any photo of
-yourself. Gemini redraws you standing straight, facing forward, in a plain
-black tank and shorts, on a plain background. The clothes model then finds
+yourself. Gemini redraws you head-to-toe, standing straight, facing forward,
+in a plain black tank and shorts, on the panel's lavender. The picture is
+kept whole (no cutting out), and if it isn't head-to-toe it's asked for
+again once before you see it. The clothes model then finds
 the tank, shorts, legs and head on that picture. That gives the exact spots
 where tops, bottoms, tights, shoes, hats, scarves, jewelry and bags go on your
 own figure (`src/closet/bodyPhoto.ts`). The figure is cut out and replaces

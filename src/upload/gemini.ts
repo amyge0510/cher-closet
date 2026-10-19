@@ -55,7 +55,7 @@ function keyedOut(out: HTMLCanvasElement): HTMLCanvasElement {
   for (let y = 0; y < h; y += 4) sample(0, y), sample(w - 1, y);
   if (green > n * 0.6) keyOut(d, w, h, "green");
   else if (magenta > n * 0.6) keyOut(d, w, h, "magenta");
-  else clearEdgeBackground(d, w, h);
+  else clearEdgeBackground(d, w, h, 12); // gently: light clothes on white mustn't wash out
   const mask = new Uint8Array(w * h);
   for (let p = 0; p < mask.length; p++) mask[p] = d[p * 4 + 3] ? 1 : 0;
   keepMainBlobs(mask, w, h);
@@ -80,7 +80,43 @@ export function jpegOf(c: HTMLCanvasElement, max = 1024): string {
 // is what the tagger saw, so the redraw stays faithful.
 export async function extractItem(photo: HTMLCanvasElement, name: string, description: string, colors: string[]): Promise<HTMLCanvasElement> {
   const key = keyFor(colors);
-  return keyedOut(await redraw("extract", jpegOf(photo), "image/jpeg", { name, description, background: key }));
+  const once = async () => keyedOut(await redraw("extract", jpegOf(photo), "image/jpeg", { name, description, background: key }));
+  // a redraw that came out broken (tiny, or full of holes, like jeans with
+  // whole legs missing) is quietly drawn again once, and the better kept
+  const first = await once();
+  if (quality(first) >= GOOD_ENOUGH) return first;
+  try {
+    const second = await once();
+    return quality(second) > quality(first) ? second : first;
+  } catch {
+    return first;
+  }
+}
+
+const GOOD_ENOUGH = 0.03;
+
+// How whole a cut-out looks: how much of the picture it covers times how
+// solidly it fills its own outline box (holes and missing chunks score low).
+export function quality(c: HTMLCanvasElement): number {
+  const { width: w, height: h } = c;
+  const d = c.getContext("2d")!.getImageData(0, 0, w, h).data;
+  return coverage(d, w, h);
+}
+
+export function coverage(d: Uint8ClampedArray, w: number, h: number): number {
+  let n = 0, x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      if (d[(y * w + x) * 4 + 3] < 128) continue;
+      n++;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+  if (!n) return 0;
+  const box = (x1 - x0 + 1) * (y1 - y0 + 1);
+  return (n / (w * h)) * (n / box);
 }
 
 // A cut-out garment redrawn as a straight-on product shot (TIDY UP).

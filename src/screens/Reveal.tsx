@@ -36,13 +36,10 @@ type Frame = { x: number; y: number; w: number; h: number };
 // fractions of that box). A user's own figure keeps a little space around it.
 async function bodyCanvas(src: string | null | undefined, cw: number, ch: number, figure?: Figure): Promise<{ canvas: HTMLCanvasElement; frame: Frame }> {
   if (!src) return { canvas: placeholderBody(cw, ch, figure), frame: { x: 0, y: 0, w: cw, h: ch } };
+  // drawn whole, like the dressed photos, so the two line up exactly
   const img = await loadImage(src);
-  const c = makeCanvas(cw, ch);
-  const m = ch * 0.03;
-  const box = containBox(img.width, img.height, cw - m * 2, ch - m * 2);
-  const frame = { x: box.x + m, y: box.y + m, w: box.w, h: box.h };
-  c.getContext("2d")!.drawImage(img, frame.x, frame.y, frame.w, frame.h);
-  return { canvas: c, frame };
+  const box = containBox(img.width, img.height, cw, ch);
+  return { canvas: await wholePhoto(src, cw, ch), frame: { x: box.x, y: box.y, w: box.w, h: box.h } };
 }
 
 // A garment fitted into its anchor: as wide as the anchor, centered, hanging
