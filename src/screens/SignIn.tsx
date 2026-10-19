@@ -97,7 +97,7 @@ export function SignIn({ needsName, needsWardrobe = false, sendCode, verifyCode,
   const inner = panel.w - 24;
   const copy = COPY[step];
   const hint = step === "wardrobe"
-    ? "THIS ONLY PICKS WHICH CLOTHES AND STYLES WE SUGGEST. CHANGE IT ANYTIME UNDER MORE."
+    ? "THIS ONLY PICKS WHICH CLOTHES AND STYLES WE SUGGEST."
     : preview
     ? step === "name"
       ? "PREVIEW ONLY. NOTHING IS SAVED."

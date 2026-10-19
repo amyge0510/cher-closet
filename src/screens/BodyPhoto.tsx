@@ -8,7 +8,7 @@ import { L, PHONE } from "../stage/layout";
 import { loadPhoto } from "../upload/cutout";
 import { RedrawError } from "../upload/gemini";
 import { Scanner } from "../upload/Scanner";
-import { Bevel } from "./Parts";
+import { Bevel, DIM } from "./Parts";
 
 // MY MODEL PHOTO (under MORE): the user picks or pastes a photo of
 // themselves, Gemini redraws them standing straight in a plain tank and
@@ -155,7 +155,7 @@ export function BodyPhoto({ current, canRedraw, initialPhoto, onUse, onReset, on
 
   return (
     <>
-      <div onClick={phase.kind === "working" ? undefined : onClose} style={{ position: "absolute", inset: 0, zIndex: 30, background: "rgba(10,8,30,0.35)" }} />
+      <div onClick={phase.kind === "working" ? undefined : onClose} style={{ ...DIM, zIndex: 30 }} />
       <div
         role="dialog"
         aria-label="My model photo"

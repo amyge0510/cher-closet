@@ -111,13 +111,6 @@ export async function judgeWithAi(pieces: { label: string; image: string }[], wa
   return { match: data.match, reason: reason || (data.match ? "THE WHOLE LOOK GOES" : "THESE DON'T GO TOGETHER") };
 }
 
-// Fresh style tags for a piece already in the closet (RE-TAG MY CLOSET):
-// the AI's tags, or null if it isn't available.
-export async function retagStyles(jpeg: string, category: string, categories: string[], wardrobe: Wardrobe): Promise<string[] | null> {
-  const tags = await askAi(jpeg, categories, wardrobe, category);
-  return tags ? tags.styles : null;
-}
-
 // The tags for a cut-out, and whether they're the AI's or a guess. `hint` is
 // the category the clothes model saw (e.g. "skirts"), when it found one.
 export async function tagGarment(cutout: HTMLCanvasElement, jpeg: string, categories: string[], wardrobe: Wardrobe, hint?: string): Promise<{ tags: Tags; how: "ai" | "guess" }> {

@@ -11,7 +11,7 @@ import { findPieces, finishCutout, forTagging, loadPhoto, pngBlob, type Piece, t
 import { Scanner } from "../upload/Scanner";
 import { garmentFrom, listItems, tagCategories, tagGarment, type Found, type Tags } from "../upload/tags";
 import { extractItem, jpegOf, RedrawError, tidyGarment } from "../upload/gemini";
-import { Bevel } from "./Parts";
+import { Bevel, DIM } from "./Parts";
 
 // The UPLOAD pop-up: pick photos, drop them, or paste one.
 //
@@ -475,7 +475,7 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
   const busy = phase.kind === "cutting" || phase.kind === "popping" || phase.kind === "tagging" || phase.kind === "drawing";
   return (
     <>
-      <div onClick={busy ? undefined : onClose} style={{ position: "absolute", inset: 0, zIndex: 30, background: "rgba(10,8,30,0.35)" }} />
+      <div onClick={busy ? undefined : onClose} style={{ ...DIM, zIndex: 30 }} />
       <div
         role="dialog"
         aria-label="Upload clothes"

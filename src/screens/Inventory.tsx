@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { DIM, wide } from "./Parts";
 import type { Category } from "../closet/categories";
 import type { Garment, Slot } from "../closet/types";
 import { PixelField } from "../pixel/PixelField";
@@ -135,7 +136,7 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
   return (
     <>
       {/* click outside to close; the category bar stays usable as tabs */}
-      <div onClick={onClose} style={{ position: "absolute", left: 0, top: 0, width: STAGE_W, height: L.categoryBar.y, zIndex: 20, display: drag ? "none" : "block" }} />
+      <div onClick={onClose} style={{ ...wide({ x: 0, y: 0, w: STAGE_W, h: L.categoryBar.y }), zIndex: 20, display: drag ? "none" : "block" }} />
 
       <div
         role="dialog"
@@ -264,7 +265,7 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
 
       {confirming && (
         <>
-          <div onClick={() => setConfirming(null)} style={{ position: "absolute", inset: 0, zIndex: 25, background: "rgba(10,8,30,0.35)" }} />
+          <div onClick={() => setConfirming(null)} style={{ ...DIM, zIndex: 25 }} />
           <div role="alertdialog" aria-label="Delete this piece?" style={{ position: "absolute", left: (STAGE_W - 240) / 2, top: L.categoryBar.y / 2 - 75, width: 240, height: 150, boxSizing: "border-box", padding: 12, background: C.invBg, border: `3px solid ${C.invEdge}`, zIndex: 26, display: "grid", gridTemplateRows: "1fr auto", gap: 10 }}>
             <div style={{ display: "grid", gap: 8, alignContent: "start" }}>
               <PixelLines text={`DELETE THE ${confirming.name.toUpperCase()}?`} maxWidth={210} color={C.invEdge} sx={1.6} sy={2} bold />
@@ -336,7 +337,7 @@ export function MoreMenu({ categories, onPick, onSignOut, settings = [], onClose
   const h = rows.length * rowH + 10;
   return (
     <>
-      <div onClick={onClose} style={{ position: "absolute", left: 0, top: 0, width: STAGE_W, height: L.categoryBar.y, zIndex: 20 }} />
+      <div onClick={onClose} style={{ ...wide({ x: 0, y: 0, w: STAGE_W, h: L.categoryBar.y }), zIndex: 20 }} />
       <div
         role="menu"
         style={{

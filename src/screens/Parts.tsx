@@ -4,9 +4,20 @@ import { splitForBar, type Category } from "../closet/categories";
 import { layoutText } from "../pixel/font";
 import { PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
-import { L, type Box } from "../stage/layout";
+import { L, STAGE_W, type Box } from "../stage/layout";
 
 const pos = (b: Box): CSSProperties => ({ position: "absolute", left: b.x, top: b.y, width: b.w, height: b.h });
+
+// Like pos, but a box that touches a side of the screen runs on past it to
+// the window's edge (phones wider than the screen's shape; see Stage).
+const BLEED = "var(--bleed, 0px)";
+export function wide(b: Box): CSSProperties {
+  const left = b.x <= 0, right = b.x + b.w >= STAGE_W;
+  const grow = left && right ? `2 * ${BLEED}` : left || right ? BLEED : "0px";
+  return { position: "absolute", top: b.y, height: b.h, left: left ? `calc(${b.x}px - ${BLEED})` : b.x, width: `calc(${b.w}px + ${grow})` };
+}
+// a dimming layer over the whole window, behind a pop-up
+export const DIM: CSSProperties = { position: "absolute", top: 0, bottom: 0, left: `calc(-1 * ${BLEED})`, right: `calc(-1 * ${BLEED})`, background: "rgba(10,8,30,0.35)" };
 
 const BEVELS = {
   gray: { bg: C.btnGray, light: C.btnGrayLight, dark: C.btnGrayDark },
@@ -51,8 +62,10 @@ export function Leopard({ box }: { box: Box }) {
   return (
     <div
       style={{
-        ...pos(box),
+        ...wide(box),
         backgroundImage: `url(${leopardTile()})`,
+        // the pattern stays where it was, however far the box runs on
+        backgroundPosition: box.x <= 0 ? `${BLEED} 0` : undefined,
         backgroundSize: "192px 192px",
         imageRendering: "pixelated",
       }}
@@ -68,7 +81,7 @@ export function Header({ title, season = "FALL FASHIONS", onStyle }: {
   const { sx, sy } = L.seasonText;
   return (
     <>
-      <div style={{ ...pos(L.header), background: C.navy }} />
+      <div style={{ ...wide(L.header), background: C.navy }} />
       <div style={{ position: "absolute", left: L.title.x, top: L.title.y }}>
         <PixelText text={title} color={C.lavender} sx={L.title.sx} sy={L.title.sy} shadow={C.frameDark} />
       </div>
@@ -130,7 +143,7 @@ export function CategoryBar({ categories, active, onPick, onMore, onLooks, onUpl
   });
   return (
     <>
-      <div style={{ ...pos(L.categoryBar), background: C.navy, borderTop: `2px solid ${C.frame}`, boxSizing: "border-box" }} />
+      <div style={{ ...wide(L.categoryBar), background: C.navy, borderTop: `2px solid ${C.frame}`, boxSizing: "border-box" }} />
       {shown.map(({ cat, x }) => (
         <button key={cat.id} type="button" aria-label={cat.label} disabled={!onPick} onClick={() => onPick?.(cat.id)}
           className={flash === cat.id ? "tab-flash" : undefined}

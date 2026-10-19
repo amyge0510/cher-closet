@@ -11,7 +11,7 @@ import { C } from "../stage/palette";
 import { extraSpot, L, STAGE_W, type Box } from "../stage/layout";
 import type { Action, State } from "../state/machine";
 import { accessoriesFor, rankPairs, type BoardItem } from "../style/quiz";
-import { WARDROBES, type MyStyle, type Wardrobe as WardrobeChoice } from "../style/styles";
+import { type MyStyle, type Wardrobe as WardrobeChoice } from "../style/styles";
 import { Inventory, MoreMenu } from "./Inventory";
 import { Upload } from "./Upload";
 import { BodyPhoto } from "./BodyPhoto";
@@ -19,7 +19,7 @@ import type { Body } from "../closet/bodyPhoto";
 import type { BodyAnchors } from "../closet/body";
 import { SavedLooks } from "./SavedLooks";
 import { StyleQuiz } from "./StyleQuiz";
-import { Bevel, ButtonLabel, CategoryBar, ControlStrip, Header, Leopard, overflowCategories, pos, tabCenter } from "./Parts";
+import { Bevel, ButtonLabel, CategoryBar, ControlStrip, Header, Leopard, overflowCategories, pos, tabCenter, wide } from "./Parts";
 import { Reveal } from "./Reveal";
 
 const MATCH_HOLD_MS = 1400; // black panels stay up this long before the reveal
@@ -103,7 +103,7 @@ function FlyingItem({ garment, from, to, onLanded }: { garment: Garment; from: {
 const MAX_LOOKS = 48;
 const SAVED_FLASH_MS = 1500;
 
-export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut, myStyle, onSaveStyle, looks, onSaveLooks, wardrobe, onChangeWardrobe, source = "pixel", onChangeSource, onUploaded, onDeleteGarment, onRetag, notice, body, canRedraw, onBody, onResetBody, closetReady = true, outfitKey }: {
+export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut, myStyle, onSaveStyle, looks, onSaveLooks, wardrobe, source = "pixel", onChangeSource, onUploaded, onDeleteGarment, notice, body, canRedraw, onBody, onResetBody, closetReady = true, outfitKey }: {
   state: State;
   dispatch: Dispatch<Action>;
   closet: Garment[];
@@ -116,7 +116,6 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   onSaveLooks: (l: Look[]) => void;
   /** womenswear / menswear / both: which styles and demo clothes to show */
   wardrobe: WardrobeChoice;
-  onChangeWardrobe: (w: WardrobeChoice) => void;
   /** whose clothes are on the rack: the person's own uploads, or the built-in pixel ones */
   source?: "mine" | "pixel";
   onChangeSource?: (s: "mine" | "pixel") => void;
@@ -124,8 +123,6 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   onUploaded: (g: Garment, png: Blob) => void;
   /** one of the user's own pieces, deleted from the closet pop-up */
   onDeleteGarment: (g: Garment) => void;
-  /** RE-TAG MY CLOSET (signed in only) */
-  onRetag?: () => void;
   /** a short message to show for a moment, e.g. a failed save */
   notice?: string | null;
   /** the user's own figure for the reveal (MY MODEL PHOTO), if any */
@@ -526,7 +523,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       )}
       {popup?.kind === "hair" && (
         <>
-          <div onClick={closePopup} style={{ position: "absolute", left: 0, top: 0, width: STAGE_W, height: L.categoryBar.y, zIndex: 20 }} />
+          <div onClick={closePopup} style={{ ...wide({ x: 0, y: 0, w: STAGE_W, h: L.categoryBar.y }), zIndex: 20 }} />
           <div role="menu" style={{ position: "absolute", left: HAIR_BUTTON.x + HAIR_BUTTON.w - 170, top: HAIR_BUTTON.y + HAIR_BUTTON.h + 4, width: 170, boxSizing: "border-box", padding: 3, background: C.invBg, border: `3px solid ${C.invEdge}`, zIndex: 21 }}>
             {HAIRSTYLES.map((h) => (
               <button
@@ -664,13 +661,6 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
           onSignOut={onSignOut}
           settings={[
             { key: "body", label: "MY MODEL PHOTO", title: "Use a photo of yourself on the dressed-up screen", act: () => setPopup({ kind: "body" }) },
-            ...(onRetag ? [{ key: "retag", label: "RE-TAG MY CLOSET", title: "Have the AI read the styles of your uploads again", act: () => (setPopup(null), onRetag()) }] : []),
-            {
-              key: "wardrobe",
-              label: `CLOTHES: ${WARDROBES.find((w) => w.id === wardrobe)?.label}`,
-              title: "Switch between womenswear, menswear and a mix of both",
-              act: () => onChangeWardrobe(WARDROBES[(WARDROBES.findIndex((w) => w.id === wardrobe) + 1) % WARDROBES.length].id),
-            },
           ]}
           onClose={closePopup}
         />

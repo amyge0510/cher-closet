@@ -6,7 +6,7 @@ import { back, boardsFor, choose, newOutfits, QUESTIONS, result, resultBoard, st
 import { family, leaf, type MyStyle, type Wardrobe } from "../style/styles";
 import { C } from "../stage/palette";
 import { L, PHONE } from "../stage/layout";
-import { Bevel } from "./Parts";
+import { Bevel, DIM } from "./Parts";
 
 const pad = 10;
 
@@ -81,7 +81,7 @@ export function StyleQuiz({ closet, wardrobe, saved, onSave, onClose }: {
 
   return (
     <>
-      <div onClick={onClose} style={{ position: "absolute", inset: 0, zIndex: 30, background: "rgba(10,8,30,0.35)" }} />
+      <div onClick={onClose} style={{ ...DIM, zIndex: 30 }} />
       <div
         role="dialog"
         aria-label="My style"

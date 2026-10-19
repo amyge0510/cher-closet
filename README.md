@@ -36,8 +36,7 @@ Right after the name, first sign-in only, it asks **"What do you like to
 wear?"**: WOMENSWEAR, MENSWEAR or A MIX OF BOTH. It asks about the clothes,
 not the person's gender, so anyone can pick any answer and nobody has to
 label themselves. The answer picks which demo clothes and quiz styles they
-see, and the stand-in figure on the reveal. It's kept with the account and
-can be switched any time under MORE (CLOTHES: ...). When running locally, a SKIP (DEV) button bypasses sign-in.
+see, and the stand-in figure on the reveal. It's kept with the account. When running locally, a SKIP (DEV) button bypasses sign-in.
 To look at the sign-in screens while signed in, add `?preview=signin` to the
 address: every step works without sending a text or saving anything, and
 the welcome intro plays at the end, as it does for a new user.
@@ -62,7 +61,9 @@ buttons, stacked. The two windows run down the middle with narrow leopard
 columns for accessories either side, BROWSE and DRESS ME sit underneath, and
 the bottom bar gets a second row for UPLOAD, LOOKS and MORE. Sign-in, the
 style quiz, saved looks and upload open as pop-ups in the middle of the
-leopard. Turning the phone sideways reloads into the computer layout.
+leopard. The navy bars and the leopard run on to the edges of any phone
+wider than that shape (`--bleed` in `Stage.tsx`, `wide()` in `Parts.tsx`).
+Turning the phone sideways reloads into the computer layout.
 
 **Pixel or my clothes.** The PIXEL | MY CLOTHES pill under the title switches the rack
 between your own uploaded clothes and the built-in pixel clothes. It starts on
@@ -320,10 +321,6 @@ then dissolves in block by block. Results are
 remembered for the visit. **HAIR**, in the top-right corner above the head,
 re-dresses you in another hairstyle (or your own). If the AI can't answer,
 the clothes are placed on the figure instead.
-
-**RE-TAG MY CLOSET** (under MORE, signed in) has the AI read the styles of
-everything you've uploaded again, with the current rules (names and
-categories stay as they are).
 
 **Deleting.** Hover over one of your own pieces in the closet pop-up and an
 X appears. It asks to confirm, with a red DELETE button, and removes the

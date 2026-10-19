@@ -4,7 +4,7 @@ import { PixelLines, PixelText } from "../pixel/PixelText";
 import { boardFromOutfit } from "../style/quiz";
 import { C } from "../stage/palette";
 import { L, PHONE } from "../stage/layout";
-import { Bevel } from "./Parts";
+import { Bevel, DIM } from "./Parts";
 import { Board } from "./StyleQuiz";
 
 const pad = 10;
@@ -35,7 +35,7 @@ export function SavedLooks({ looks, closet, onWear, onDelete, onClose }: {
 
   return (
     <>
-      <div onClick={onClose} style={{ position: "absolute", inset: 0, zIndex: 30, background: "rgba(10,8,30,0.35)" }} />
+      <div onClick={onClose} style={{ ...DIM, zIndex: 30 }} />
       <div
         role="dialog"
         aria-label="Saved looks"
