@@ -102,7 +102,7 @@ export function SignIn({ needsName, needsWardrobe = false, sendCode, verifyCode,
       ? "PREVIEW ONLY. NOTHING IS SAVED."
       : "PREVIEW ONLY. NO TEXT IS SENT. ANY 6 DIGITS WORK."
     : step === "phone"
-      ? "WE'LL TEXT YOU A CODE. YOUR NUMBER IS ONLY USED TO SIGN YOU IN AND KEEP YOUR CLOSET SAVED."
+      ? "WE'LL TEXT YOU A CODE.\n\nYOUR NUMBER IS ONLY USED TO SIGN YOU IN AND KEEP YOUR CLOSET SAVED."
       : step === "code"
         ? `SENT TO ${e164 ?? phone}. WRONG NUMBER? HIT BACK.`
         : "IT GOES ON YOUR WARDROBE.";
@@ -154,7 +154,12 @@ export function SignIn({ needsName, needsWardrobe = false, sendCode, verifyCode,
         ))}
 
       <div style={centered(step === "wardrobe" ? WARDROBE_HINT_Y : L.signHint.y)}>
-        <PixelLines text={hint} maxWidth={inner} color={C.frame} sx={L.signHint.sx} sy={L.signHint.sy} />
+        {/* a blank line in the hint starts a new paragraph, with space between */}
+        <div style={{ display: "grid", gap: 20 }}>
+          {hint.split("\n\n").map((para) => (
+            <PixelLines key={para} text={para} maxWidth={inner} color={C.frame} sx={L.signHint.sx} sy={L.signHint.sy} />
+          ))}
+        </div>
       </div>
       {error && (
         <div role="alert" style={centered(step === "wardrobe" ? WARDROBE_HINT_Y + 50 : step === "phone" ? PHONE_ERROR_Y : L.signError.y)}>
