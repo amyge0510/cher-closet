@@ -5,7 +5,11 @@ import type { Look } from "./closet/types";
 import type { MyStyle, Wardrobe as WardrobeChoice } from "./style/styles";
 import { categoriesFor } from "./closet/categories";
 import { demoCloset } from "./closet/demoArt";
-import { deleteGarment, loadCloset, saveGarment } from "./closet/repo";
+import { deleteGarment, loadCloset, saveGarment, saveStyles } from "./closet/repo";
+import { categoriesFor as categoriesOf } from "./closet/categories";
+import { loadImage, makeCanvas } from "./pixel/raster";
+import { jpegOf } from "./upload/gemini";
+import { retagStyles, tagCategories } from "./upload/tags";
 import { clearBody, loadBody, saveBody, type Body } from "./closet/bodyPhoto";
 import type { BodyAnchors } from "./closet/body";
 import type { Garment } from "./closet/types";
@@ -198,6 +202,30 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
     return complete ? own : [...demoCloset(wardrobe), ...own];
   }, [own, wardrobe]);
   const [notice, setNotice] = useState<string | null>(null);
+  // RE-TAG MY CLOSET: the AI reads the styles of every uploaded piece again
+  // (names and categories stay as they are)
+  const retagCloset = useCallback(async () => {
+    const mine = own;
+    if (!mine.length) return setNotice("NOTHING UPLOADED YET TO RE-TAG.");
+    setNotice(`RE-TAGGING ${mine.length} ${mine.length === 1 ? "PIECE" : "PIECES"}...`);
+    const cats = tagCategories(categoriesOf(mine));
+    let done = 0;
+    for (const g of mine) {
+      try {
+        const img = await loadImage(g.image);
+        const c = makeCanvas(img.width, img.height);
+        c.getContext("2d")!.drawImage(img, 0, 0);
+        const styles = await retagStyles(jpegOf(c, 512), g.category, cats, wardrobe);
+        if (!styles) continue;
+        setOwn((o) => o.map((x) => (x.id === g.id ? { ...x, styles } : x)));
+        await saveStyles(g.id, styles);
+        done++;
+      } catch (e) {
+        console.warn("couldn't re-tag", g.name, e);
+      }
+    }
+    setNotice(done ? `RE-TAGGED ${done} ${done === 1 ? "PIECE" : "PIECES"}. TRY MY STYLE AGAIN.` : "COULDN'T RE-TAG. SIGN IN AND TRY AGAIN.");
+  }, [own, wardrobe]);
   const removeGarment = useCallback(
     (g: Garment) => {
       setOwn((o) => o.filter((x) => x.id !== g.id));
@@ -253,7 +281,7 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
       {state.screen === "splash" ? (
         <Splash onDone={splashDone} smokeIn={afterIntro} />
       ) : (
-        <Wardrobe state={state} dispatch={dispatch} closet={closet} categories={categories} title={title} onSignOut={onSignOut} myStyle={myStyle} onSaveStyle={saveMyStyle} looks={looks} onSaveLooks={saveMyLooks} wardrobe={wardrobe} onChangeWardrobe={changeWardrobe} onUploaded={uploaded} onDeleteGarment={removeGarment} notice={notice} body={body} canRedraw={signedIn} onBody={applyBody} onResetBody={resetBody} />
+        <Wardrobe state={state} dispatch={dispatch} closet={closet} categories={categories} title={title} onSignOut={onSignOut} myStyle={myStyle} onSaveStyle={saveMyStyle} looks={looks} onSaveLooks={saveMyLooks} wardrobe={wardrobe} onChangeWardrobe={changeWardrobe} onUploaded={uploaded} onDeleteGarment={removeGarment} onRetag={signedIn ? retagCloset : undefined} notice={notice} body={body} canRedraw={signedIn} onBody={applyBody} onResetBody={resetBody} />
       )}
       {DevOverlay && (
         <Suspense fallback={null}>

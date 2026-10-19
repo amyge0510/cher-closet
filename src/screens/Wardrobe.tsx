@@ -99,7 +99,7 @@ function FlyingItem({ garment, from, to, onLanded }: { garment: Garment; from: {
 const MAX_LOOKS = 48;
 const SAVED_FLASH_MS = 1500;
 
-export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut, myStyle, onSaveStyle, looks, onSaveLooks, wardrobe, onChangeWardrobe, onUploaded, onDeleteGarment, notice, body, canRedraw, onBody, onResetBody }: {
+export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut, myStyle, onSaveStyle, looks, onSaveLooks, wardrobe, onChangeWardrobe, onUploaded, onDeleteGarment, onRetag, notice, body, canRedraw, onBody, onResetBody }: {
   state: State;
   dispatch: Dispatch<Action>;
   closet: Garment[];
@@ -117,6 +117,8 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   onUploaded: (g: Garment, png: Blob) => void;
   /** one of the user's own pieces, deleted from the closet pop-up */
   onDeleteGarment: (g: Garment) => void;
+  /** RE-TAG MY CLOSET (signed in only) */
+  onRetag?: () => void;
   /** a short message to show for a moment, e.g. a failed save */
   notice?: string | null;
   /** the user's own figure for the reveal (MY MODEL PHOTO), if any */
@@ -595,6 +597,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
           onSignOut={onSignOut}
           settings={[
             { key: "body", label: "MY MODEL PHOTO", title: "Use a photo of yourself on the dressed-up screen", act: () => setPopup({ kind: "body" }) },
+            ...(onRetag ? [{ key: "retag", label: "RE-TAG MY CLOSET", title: "Have the AI read the styles of your uploads again", act: () => (setPopup(null), onRetag()) }] : []),
             {
               key: "wardrobe",
               label: `CLOTHES: ${WARDROBES.find((w) => w.id === wardrobe)?.label}`,

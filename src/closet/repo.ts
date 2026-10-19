@@ -75,3 +75,10 @@ export async function deleteGarment(owner: string, id: string): Promise<void> {
   if (error) throw error;
   await supabase.storage.from("closet").remove([`${owner}/garments/${id}.png`]);
 }
+
+// Saves new style tags for an uploaded garment.
+export async function saveStyles(id: string, styles: string[]): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("garments").update({ styles }).eq("id", id);
+  if (error) throw error;
+}

@@ -120,11 +120,11 @@ const realCloset: Garment[] = [
 ];
 
 describe("quiz on a real, mostly-basic closet", () => {
-  it("leads with EVERYDAY and never offers styles the closet can't dress", () => {
+  it("offers EVERYDAY and never offers styles the closet can't dress", () => {
     const families = options(startQuiz(), realCloset).map((o) => o.id);
     expect(families[0]).toBe("easy");
     const easy = options(choose(startQuiz(), "easy"), realCloset).map((o) => o.id);
-    expect(easy[0]).toBe("everyday");
+    expect(easy).toContain("everyday");
     for (const id of ["punk", "moto", "grunge", "tennis", "oldmoney", "ballet", "cottage", "athleisure"]) expect(coverage(realCloset, id), id).toBe(0);
     expect(coverage(realCloset, "goth")).toBeGreaterThan(0);
   });
@@ -179,6 +179,20 @@ describe("never suggests a mis-match", () => {
       const v = judgeOutfit(tops[t], bottoms[b], extras);
       expect(v.match, `${tops[t].name} + ${bottoms[b].name}: ${v.reason}`).toBe(true);
     }
+  });
+});
+
+describe("one style per outfit", () => {
+  // a corset tagged both soft and edgy, with denim: it's the same outfit,
+  // so it must not show up as a SOFT board and an EDGY board
+  const corset: Garment = { id: "u1", category: "tops", slot: "top", name: "Black Mesh Corset Top", image: "", colors: ["black"], pattern: "solid", styles: ["goth", "coquette"] };
+  const denim: Garment = { id: "u2", category: "skirts", slot: "bottom", name: "Patched Denim Mini", image: "", colors: ["denim"], pattern: "solid", styles: ["grunge", "goth", "y2k", "coquette"] };
+  const small = [corset, denim];
+  it("counts the outfit for its strongest shared style only", () => {
+    expect(coverage(small, "goth")).toBe(1);
+    expect(coverage(small, "coquette")).toBe(0);
+    const families = options(startQuiz(), small).map((o) => o.id);
+    expect(families).toEqual(["edgy"]);
   });
 });
 

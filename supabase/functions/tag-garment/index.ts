@@ -134,14 +134,14 @@ The reason is shown on screen in capitals, so keep it short and say what's wrong
       name: { type: "STRING", description: "2 to 4 words, like 'Black Leather Jacket', 'Light Wash Jeans' or 'Olive Bike Shorts'" },
       colors: { type: "ARRAY", items: choice(colors), description: "1 to 3, main color first" },
       pattern: choice(patterns),
-      styles: { type: "ARRAY", items: choice(styles.map((s) => s.id)), description: "1 to 4 styles it fits" },
+      styles: { type: "ARRAY", items: choice(styles.map((s) => s.id)), description: "1 to 3 styles it clearly fits, best first" },
     };
     const itemOrder = ["category", "name", "colors", "pattern", "styles"];
     const rules = `- category: where it goes. Sweaters, cardigans and knit vests are "sweaters" if that's listed; shirts, tees, tanks, jackets and coats are "tops"; pants, jeans and shorts are "bottoms"; dresses, gowns and jumpsuits are "dresses"; socks and tights are "pantyhose".
 - name: short and plain, the way you'd label it on a shelf. Say exactly what it is: shorts are shorts, not pants; a tank is a tank, not a shirt.
 - colors: the closest names from the list. Photos are often dim, so judge the fabric's real color, not its shadows (dark olive is "olive", not "black" or "navy"). "denim" is for blue jeans-colored fabric; "babypink" is pale pink. Metals (gold, silver) only for hardware or jewelry.
 - pattern: "solid" unless there's a clear print, plaid, stripe or chunky knit texture. Embroidery or a small motif on a plain piece is "print".
-- styles: which of these styles it would be worn in (every basic should get at least "everyday"):
+- styles: the 1 to 3 styles it clearly belongs to, BEST FIRST (the order matters: the first is the one it says most). Don't stretch a piece across opposite looks: dark, sheer, mesh, leather, studded, ripped or lace-up pieces are edgy (goth, punk, grunge, moto), not soft; the soft styles (coquette, ballet, cottage) are for light, pretty, delicate pieces. Plain basics (tees, tanks, jeans, plain shorts, sneakers) get "everyday", and "everyday" goes last unless it's a plain basic. Pick from:
 ${styles.map((s) => `  ${s.id} = ${s.label}`).join("\n")}`;
 
     if (task === "list") {

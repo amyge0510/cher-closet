@@ -86,6 +86,11 @@ outfits come first, so a closet of jeans and tees leads with EVERYDAY, and a
 closet that can only make two styles shows two boards. Untagged uploads count
 as EVERYDAY pieces. Shoes may repeat across boards.
 
+Each outfit (a top and a bottom that go together) belongs to one style
+only: of the styles both pieces are tagged with, the one they claim most
+strongly (tags are listed best first). So a black mesh corset tagged both
+goth and coquette can't make the same outfit a SOFT board and an EDGY one.
+EVERYDAY is the exception: any outfit both tagged everyday counts for it.
 Boards only use pieces tagged with that style, accessories included: when
 nothing in the closet suits a style, the board goes without it (no party
 heels on an EASY board). When the closet can make fewer than four styles,
@@ -282,6 +287,10 @@ then dissolves in block by block. Results are
 remembered for the visit. **HAIR**, in the top-right corner above the head,
 re-dresses you in another hairstyle (or your own). If the AI can't answer,
 the clothes are placed on the figure instead.
+
+**RE-TAG MY CLOSET** (under MORE, signed in) has the AI read the styles of
+everything you've uploaded again, with the current rules (names and
+categories stay as they are).
 
 **Deleting.** Hover over one of your own pieces in the closet pop-up and an
 X appears. It asks to confirm, with a red DELETE button, and removes the

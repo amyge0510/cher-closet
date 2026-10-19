@@ -32,17 +32,49 @@ export function targetFor(s: MyStyle): Target {
 
 const MAX_OPTIONS = 4;
 
-// How many outfits the closet can make in a style: matching top + bottom
-// pairs where both pieces are tagged with exactly that style. (Counting
-// looser fits made one white tee look like a whole tennis wardrobe.)
+// How strongly a piece claims a style: tags are listed best first, so the
+// first counts most.
+const claim = (g: Garment, leafId: string) => {
+  const i = stylesOf(g).indexOf(leafId);
+  return i < 0 ? 0 : 4 - Math.min(i, 3);
+};
+
+// The one style an outfit belongs to: of the styles both pieces are tagged
+// with, the one they claim most strongly together. Each outfit counts for
+// one style only, so a black mesh corset tagged both coquette and goth
+// doesn't turn the same outfit into a SOFT board and an EDGY one.
+export function outfitStyle(top: Garment, bottom: Garment): string | null {
+  let best: string | null = null;
+  let score = 0;
+  for (const l of stylesOf(top)) {
+    const b = claim(bottom, l);
+    if (!b || !leafOf(l)) continue;
+    const s = claim(top, l) + b;
+    if (s > score) [best, score] = [l, s];
+  }
+  return best;
+}
+
+// Every outfit (a top and a bottom that go together) that belongs to one of
+// these styles.
+function outfitsIn(closet: Garment[], leaves: string[]): [Garment, Garment][] {
+  const tops = closet.filter((g) => g.slot === "top" && g.category !== "dresses");
+  const bottoms = closet.filter((g) => g.slot === "bottom");
+  const out: [Garment, Garment][] = [];
+  for (const top of tops)
+    for (const bottom of bottoms) {
+      const style = outfitStyle(top, bottom);
+      // EVERYDAY is the catch-all: any outfit both tagged everyday counts for it too
+      const everyday = leaves.includes(EVERYDAY) && claim(top, EVERYDAY) > 0 && claim(bottom, EVERYDAY) > 0;
+      if (((style && leaves.includes(style)) || everyday) && judge(top, bottom).match) out.push([top, bottom]);
+    }
+  return out;
+}
+
+// How many outfits the closet can make in a style.
 export function coverage(closet: Garment[], leafId: string): number {
   if (!leafOf(leafId)) return 0;
-  const exact = (g: Garment) => stylesOf(g).includes(leafId);
-  const tops = closet.filter((g) => g.slot === "top" && g.category !== "dresses" && exact(g));
-  const bottoms = closet.filter((g) => g.slot === "bottom" && exact(g));
-  let n = 0;
-  for (const top of tops) for (const bottom of bottoms) if (judge(top, bottom).match) n++;
-  return n;
+  return outfitsIn(closet, [leafId]).length;
 }
 
 // The choices for a step: only what this closet can dress, best-stocked first.
@@ -204,8 +236,17 @@ function accessories(closet: Garment[], top: Garment | undefined, bottom: Garmen
 // on the other boards of the same step, so the four boards look different.
 export function buildBoard(closet: Garment[], t: Target, seed: number, avoid = new Set<string>()): BoardItem[] {
   const best = picker(t, seed, avoid, 2.5);
-  const top = best(closet.filter((g) => g.slot === "top" && g.category !== "dresses"));
-  const bottom = best(closet.filter((g) => g.slot === "bottom"), (g) => (top && judge(top, g).match ? 3 : 0));
+  // an outfit that really belongs to the style, preferring pieces the other
+  // boards haven't used (and never the exact same outfit if there's another)
+  const rand = rng(seed);
+  let top: Garment | undefined;
+  let bottom: Garment | undefined;
+  let topScore = -Infinity;
+  for (const [tp, bt] of outfitsIn(closet, t.leaves)) {
+    const used = Number(avoid.has(tp.id)) + Number(avoid.has(bt.id));
+    const score = rand() * 1.5 - used * 2.5 - (used === 2 ? 10 : 0);
+    if (score > topScore) [top, bottom, topScore] = [tp, bt, score];
+  }
   const picks: (readonly [keyof typeof SPOTS, Garment | undefined])[] = [
     ["top", top],
     ["bottom", bottom],
