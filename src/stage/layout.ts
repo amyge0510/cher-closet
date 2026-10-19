@@ -33,6 +33,8 @@ const DESK_SPOTS: Record<string, Box> = {
   scarves: { x: 40, y: 136, w: 124, h: 108 },
   bags: { x: 36, y: 256, w: 132, h: 122 },
   underwear: { x: 484, y: 44, w: 116, h: 80 },
+  // a jacket shares the underwear spot (hardly anyone wears both on show)
+  jackets: { x: 484, y: 44, w: 116, h: 80 },
   pantyhose: { x: 492, y: 132, w: 100, h: 118 },
   shoes: { x: 470, y: 262, w: 144, h: 112 },
   // hats share the tights spot (menswear has no tights)
@@ -48,6 +50,7 @@ function phoneSpots(W: number): Record<string, Box> {
     scarves: left(176, 120),
     bags: left(308, 120),
     underwear: right(84, 80),
+    jackets: right(84, 80),
     pantyhose: right(176, 120),
     shoes: right(308, 120),
     hats: right(176, 120),

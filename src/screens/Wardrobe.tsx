@@ -27,6 +27,9 @@ import { PosePopup } from "./PosePopup";
 import { PixelLookMenu } from "./PixelLookMenu";
 import { track } from "../lib/track";
 
+// what each piece is, for the AI (a jacket says it goes over the top)
+const pieceLabel = (g: Garment) => (g.category === "jackets" ? `jacket, worn open over the top: ${g.name}` : `${g.slot ?? g.category}: ${g.name}`);
+
 const MATCH_HOLD_MS = 1400; // black panels stay up this long before the reveal
 const MISMATCH_MS = 3000; // MIS-MATCH! clears itself after this long
 const SCAN_STEP_MS = 110;
@@ -361,7 +364,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
             const img = await loadImage(g.image);
             const c = makeCanvas(img.width, img.height);
             c.getContext("2d")!.drawImage(img, 0, 0);
-            return { label: `${g.slot ?? g.category}: ${g.name}`, image: jpegOf(c, 384) };
+            return { label: pieceLabel(g), image: jpegOf(c, 384) };
           }),
         );
         const ai = await judgeWithAi(images, wardrobe);
@@ -465,7 +468,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
     if (cached) return done(cached);
     let cancelled = false;
     setDressed({ key: dressKey, src: null, waiting: true, under });
-    dressUp(body.src, outfitPieces.map((g) => ({ label: `${g.slot ?? g.category}: ${g.name}`, image: g.image })), hair)
+    dressUp(body.src, outfitPieces.map((g) => ({ label: pieceLabel(g), image: g.image })), hair)
       .then((src) => {
         dressedPhotos.current.set(dressKey, src);
         if (!cancelled) done(src);
