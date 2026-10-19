@@ -68,6 +68,8 @@ const HAIRSTYLES = [
   { id: "soft curtain bangs with the rest down", label: "CURTAIN BANGS" },
 ];
 const HAIR_KEY = "cher-hair";
+// a dress fills the whole middle: from the top window down to the bottom one
+const DRESS_PANEL = { x: L.topPanel.x, y: L.topPanel.y, w: L.topPanel.w, h: L.bottomPanel.y + L.bottomPanel.h - L.topPanel.y };
 const HAIR_BUTTON = { x: L.revealPanel.x + L.revealPanel.w - 74, y: L.revealPanel.y + 6, w: 68, h: 22 };
 
 const FLY_MS = 1000;
@@ -199,13 +201,30 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   // fast-forward: flick through one row and land somewhere random; `then`
   // runs once it settles. The row's ▶▶ button lights up while it flicks.
   const [scanning, setScanning] = useState<Slot | null>(null);
+  // the next or previous dress (dresses sit in the top carousel among tops)
+  const topIndex = useRef(state.top);
+  topIndex.current = state.top;
+  const stepDress = useCallback(
+    (delta: number) => {
+      const dresses = tops.flatMap((g, i) => (isDress(g) ? [i] : []));
+      if (!dresses.length) return;
+      const at = dresses.indexOf(topIndex.current % Math.max(1, tops.length));
+      const next = dresses[(((at < 0 ? 0 : at) + delta) % dresses.length + dresses.length) % dresses.length];
+      topIndex.current = next;
+      dispatch({ type: "PICK", slot: "top", index: next });
+    },
+    [tops, dispatch],
+  );
+
+  // `by` replaces the usual one-step (dresses flick through dresses only)
   const scan = useCallback(
-    (slot: Slot, then?: () => void) => {
+    (slot: Slot, then?: () => void, by?: () => void) => {
       clearInterval(scanTimer.current);
       setScanning(slot);
       let left = 6 + Math.floor(Math.random() * 8);
       scanTimer.current = window.setInterval(() => {
-        step(slot, 1);
+        if (by) by();
+        else step(slot, 1);
         if (--left > 0) return;
         clearInterval(scanTimer.current);
         setScanning(null);
@@ -224,8 +243,9 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   const browse = useCallback(() => {
     if (scanning) return stopScan();
     dispatch({ type: "BROWSE" });
-    scan("top", () => scan("bottom"));
-  }, [scanning, stopScan, dispatch, scan]);
+    if (wearingDress) scan("top", undefined, () => stepDress(1));
+    else scan("top", () => scan("bottom"));
+  }, [scanning, stopScan, dispatch, scan, wearingDress, stepDress]);
   useEffect(() => () => clearInterval(scanTimer.current), []);
 
   // DRESS ME. The demo rack is judged by the rules in match.ts, instantly.
@@ -390,14 +410,14 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       if (popup || e.target instanceof HTMLInputElement || e.target instanceof HTMLButtonElement) return;
       if (e.key === "Enter") dressMe();
       else if (e.key === "Escape") dispatch({ type: "BROWSE" });
-      else if (e.key === "ArrowLeft") step("top", -1);
-      else if (e.key === "ArrowRight") step("top", 1);
-      else if (e.key === "ArrowUp") step("bottom", -1);
-      else if (e.key === "ArrowDown") step("bottom", 1);
+      else if (e.key === "ArrowLeft") wearingDress ? stepDress(-1) : step("top", -1);
+      else if (e.key === "ArrowRight") wearingDress ? stepDress(1) : step("top", 1);
+      else if (e.key === "ArrowUp" && !wearingDress) step("bottom", -1);
+      else if (e.key === "ArrowDown" && !wearingDress) step("bottom", 1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [dressMe, step, dispatch, popup]);
+  }, [dressMe, step, stepDress, wearingDress, dispatch, popup]);
 
   const matched = screen === "match";
   const fullBody = screen === "reveal" || screen === "dressed";
@@ -418,16 +438,20 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
         </div>
       ) : (
         <>
-          <GarmentPanel box={L.topPanel} garment={top} matched={matched} />
-          <ControlStrip box={L.topControls} onPrev={() => step("top", -1)} onNext={() => step("top", 1)} onScan={() => scan("top")} lit={scanning === "top" ? 2 : undefined} disabled={matched} />
           {wearingDress ? (
-            <div style={{ ...pos(L.bottomPanel), background: matched ? C.panelMatch : C.panel, display: "grid", placeItems: "center", opacity: 0.85 }}>
-              <PixelText text="A DRESS: NO BOTTOM NEEDED" color={matched ? C.lavender : C.frame} sx={1.4} sy={1.8} />
-            </div>
+            <>
+              {/* a dress: one tall window, and the controls flip through dresses */}
+              <GarmentPanel box={DRESS_PANEL} garment={top} matched={matched} />
+              <ControlStrip box={L.bottomControls} onPrev={() => stepDress(-1)} onNext={() => stepDress(1)} onScan={() => scan("top", undefined, () => stepDress(1))} lit={scanning === "top" ? 2 : undefined} disabled={matched} />
+            </>
           ) : (
-            <GarmentPanel box={L.bottomPanel} garment={shownBottom} matched={matched} />
+            <>
+              <GarmentPanel box={L.topPanel} garment={top} matched={matched} />
+              <ControlStrip box={L.topControls} onPrev={() => step("top", -1)} onNext={() => step("top", 1)} onScan={() => scan("top")} lit={scanning === "top" ? 2 : undefined} disabled={matched} />
+              <GarmentPanel box={L.bottomPanel} garment={shownBottom} matched={matched} />
+              <ControlStrip box={L.bottomControls} onPrev={() => step("bottom", -1)} onNext={() => step("bottom", 1)} onScan={() => scan("bottom")} lit={scanning === "bottom" ? 2 : undefined} disabled={matched} />
+            </>
           )}
-          <ControlStrip box={L.bottomControls} onPrev={() => step("bottom", -1)} onNext={() => step("bottom", 1)} onScan={() => scan("bottom")} lit={scanning === "bottom" ? 2 : undefined} disabled={matched || wearingDress} />
         </>
       )}
 

@@ -54,8 +54,9 @@ the computer scene: hangers → browsing → MIS-MATCH! → her reaction), cut f
 plays in every modern browser. Without the file, the TV shows static for a few seconds before the whirlpool.
 
 **Dresses.** DRESSES is its own category. A dress rides the top carousel and
-is a whole outfit: the bottom panel steps aside ("A DRESS: NO BOTTOM
-NEEDED"), DRESS ME judges the dress with its accessories, and on the figure
+is a whole outfit: the two windows in the middle become one tall window for
+the dress, and its controls (and BROWSE, and ← →) flip through dresses only.
+Picking a top or bottom brings the two windows back. DRESS ME judges the dress with its accessories, and on the figure
 it hangs from the shoulders to the knees. Auto Dress and the quiz boards
 build two-piece outfits only.
 
