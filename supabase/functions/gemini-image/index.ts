@@ -1,8 +1,9 @@
 // Supabase Edge Function: redraws pictures with Google's Gemini image model.
 //
-//   mode "tidy": a garment cut out of a photo (often worn, creased, half
-//     hidden) is redrawn as a straight-on product shot of the same piece, on
-//     a flat chroma-key background the app then removes.
+//   mode "extract": one named item is picked out of the user's original
+//     photo (often a whole outfit, worn) and redrawn as a straight-on product
+//     shot, on a flat chroma-key background the app then removes.
+//   mode "tidy": the same, from the app's own cut-out of one piece.
 //   mode "pose": a photo of the user is redrawn as the same person standing
 //     in a "model stance", in a plain black tank and shorts, so the closet
 //     can dress them.
@@ -13,7 +14,8 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 
-const LIMITS = { tidy: 25, pose: 5 } as const; // per person per day
+// per person per day; "tidy" counts every garment redraw (tidy and extract)
+const LIMITS = { tidy: 40, pose: 5 } as const;
 const MAX_IMAGE_CHARS = 6_000_000;
 const API = "https://generativelanguage.googleapis.com/v1beta";
 
@@ -49,18 +51,38 @@ async function imageModel(key: string): Promise<string> {
   return chosenModel;
 }
 
+// Shared rules for every garment redraw. Faithfulness comes first: a
+// product shot that invents straps, rings or legs is worse than none.
+function productRules(background: string) {
+  return `Draw it as a clean e-commerce product photo:
+- Seen straight from the front, upright and level, perfectly symmetrical, with no perspective, tilt or twist. Centered, filling most of the frame.
+- Clothing is shown flat-front as on an invisible "ghost" mannequin, with its natural shape, not the shape of the body it was on and not creased or bunched. Shoes are shown side by side from the front-side, bags upright, jewelry laid flat.
+- Be completely faithful to the real item. Keep its exact colors, fabric, sheen, texture, cut, length, rise, neckline, straps, closures, hardware, prints and embroidery, at the same sizes and positions.
+- Never add anything that isn't visible: no extra straps, rings, studs, buckles, cut-outs, pockets, legs, sleeves, trims, logos or text. If part of the item is hidden or cut off in the photo, finish it in the plainest, simplest way that matches what is visible (continue the same fabric and edges), never with new design details.
+- No person, no skin, no hair, no body parts, no hanger, no visible mannequin, no props, no shadow.
+- The background must be one completely flat solid ${background}, with nothing else on it, and the item must not use that color.`;
+}
+
+// tidy: the app's own cut-out of one piece, redrawn
 function tidyPrompt(name: string, background: string) {
-  return `This is a piece of clothing (${name}) cut out of a photo, maybe while someone was wearing it, so it may be creased, turned or partly hidden.
-Redraw it as a clean e-commerce product photo of this exact same piece: seen straight from the front, symmetric, as if on an invisible mannequin (or laid flat for shoes and bags), centered, filling most of the frame.
-Keep everything about the item the same: its exact colors, fabric, texture, cut, length, neckline, straps, buttons, prints and embroidery. Don't add or invent details.
-No person, no body parts, no hanger, no mannequin, no tags, no text, no shadow.
-The background must be one completely flat solid ${background}, with nothing else on it.`;
+  return `This picture shows one piece of clothing, "${name}", cut out of a photo, maybe while someone was wearing it, so it may be creased, turned or partly hidden.
+${productRules(background)}`;
+}
+
+// extract: one item picked out of the user's original photo, which may show
+// a whole outfit on a person. `description` comes from the tagger's look at
+// the same photo.
+function extractPrompt(name: string, description: string, background: string) {
+  return `This photo may show a whole outfit, maybe on a person. Find only this one item in it: "${name}"${description ? ` (${description})` : ""}. Ignore everything else in the photo.
+Redraw only that item, exactly as it looks in the photo.
+${productRules(background)}`;
 }
 
 const POSE_PROMPT = `Redraw this photo as a full-body fashion model photo of the same person.
-Keep their face, hair, skin tone and body shape exactly the same.
-They stand straight, facing the camera, in a relaxed model stance: feet slightly apart, arms hanging relaxed a little away from the body, so the arms don't cover the torso or hips.
-They wear a plain fitted black tank top and plain black bike shorts that end mid-thigh, and are barefoot. No jewelry, no bag, no hat.
+Keep their face, hair, skin tone, height and body shape exactly the same.
+The camera is straight in front of them at chest height, level, with no tilt, no angle and no wide-angle distortion.
+They face the camera squarely (shoulders and hips square to the camera, not turned), standing straight and symmetrical: feet slightly apart, weight even, arms hanging relaxed a little away from the body so they don't cover the torso or hips, head straight.
+They wear a plain fitted black tank top and plain black bike shorts that end mid-thigh, and are barefoot. No jewelry, no bag, no hat, no other clothes.
 Show the whole body from the top of the head to the feet, centered, with a little space above and below.
 Plain flat light gray studio background, soft even lighting, no shadows on the floor.`;
 
@@ -76,10 +98,11 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: "send JSON" }, 400);
   }
-  const mode = body.mode === "pose" ? "pose" : body.mode === "tidy" ? "tidy" : null;
+  const mode = body.mode === "pose" || body.mode === "tidy" || body.mode === "extract" ? body.mode : null;
+  const kind = mode === "pose" ? "pose" : "tidy"; // what the daily allowance counts
   const image = typeof body.image === "string" ? body.image : "";
   const mimeType = body.mimeType === "image/png" ? "image/png" : "image/jpeg";
-  if (!mode) return json({ error: "mode must be tidy or pose" }, 400);
+  if (!mode) return json({ error: "mode must be tidy, extract or pose" }, 400);
   if (!image || image.length > MAX_IMAGE_CHARS || !/^[A-Za-z0-9+/=]+$/.test(image)) return json({ error: "bad image" }, 400);
 
   // the caller's own Supabase client, so row-level security applies
@@ -89,13 +112,15 @@ Deno.serve(async (req) => {
   const { data: who } = await db.auth.getUser();
   if (!who.user) return json({ error: "sign in first" }, 401);
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-  const { count, error: countError } = await db.from("ai_usage").select("id", { count: "exact", head: true }).eq("kind", mode).gte("created_at", since);
+  const { count, error: countError } = await db.from("ai_usage").select("id", { count: "exact", head: true }).eq("kind", kind).gte("created_at", since);
   if (countError) return json({ error: "usage table missing: run the ai_usage migration" }, 500);
-  if ((count ?? 0) >= LIMITS[mode]) return json({ error: "daily limit", limit: LIMITS[mode] }, 429);
+  if ((count ?? 0) >= LIMITS[kind]) return json({ error: "daily limit", limit: LIMITS[kind] }, 429);
 
-  const name = String(body.name ?? "garment").replace(/[^\w '&-]/g, "").slice(0, 40) || "garment";
+  const clean = (v: unknown, max: number) => String(v ?? "").replace(/[^\w ,.'&()/-]/g, "").slice(0, max);
+  const name = clean(body.name, 40) || "garment";
+  const description = clean(body.description, 240);
   const background = body.background === "magenta" ? "pure magenta (#FF00FF)" : "pure chroma-key green (#00FF00)";
-  const prompt = mode === "tidy" ? tidyPrompt(name, background) : POSE_PROMPT;
+  const prompt = mode === "tidy" ? tidyPrompt(name, background) : mode === "extract" ? extractPrompt(name, description, background) : POSE_PROMPT;
 
   try {
     const model = await imageModel(key);
@@ -104,7 +129,7 @@ Deno.serve(async (req) => {
       headers: { "x-goog-api-key": key, "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ inlineData: { mimeType, data: image } }, { text: prompt }] }],
-        generationConfig: { responseModalities: ["IMAGE"], imageConfig: { aspectRatio: mode === "tidy" ? "1:1" : "9:16" } },
+        generationConfig: { responseModalities: ["IMAGE"], temperature: 0.4, imageConfig: { aspectRatio: mode === "pose" ? "9:16" : "1:1" } },
       }),
     });
     if (res.status === 429) return json({ error: "Gemini is busy, try again" }, 429);
@@ -119,7 +144,7 @@ Deno.serve(async (req) => {
       console.error("no image in reply", JSON.stringify(out).slice(0, 500));
       return json({ error: "Gemini didn't return a picture", reason: out.candidates?.[0]?.finishReason ?? out.promptFeedback?.blockReason ?? null }, 422);
     }
-    await db.from("ai_usage").insert({ kind: mode });
+    await db.from("ai_usage").insert({ kind });
     return json({ image: picture.data, mimeType: picture.mimeType, model });
   } catch (e) {
     console.error(e);

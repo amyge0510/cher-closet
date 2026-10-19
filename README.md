@@ -98,7 +98,11 @@ tagged with styles, colors and a pattern, so the quiz and matching have
 something to work with until real uploads exist.
 
 **MIS-MATCH!** judges the whole look, accessories included, and says why
-under the banner. The top and bottom must have at most one pattern, share a
+under the banner. When the outfit has any uploaded piece and someone is
+signed in, Gemini looks at the pictures and judges it (DRESS ME shows
+"HMM..." for a moment), since rules can't see that a dressy blouse doesn't
+go with bike shorts; each verdict is remembered. The demo rack uses the rules
+below. The top and bottom must have at most one pattern, share a
 style family, and not mix warm colors (brown, burgundy, red, yellow, olive,
 gold) with cool ones (navy, blue, pink, purple, green, silver). Black, white,
 gray, denim, cream and beige go with either. Black tights only go with an
@@ -125,7 +129,13 @@ MIS-MATCH! clears itself after three seconds.
 boards. Click one to wear it again, or use its X to delete it. Looks are kept
 with the account.
 
-**UPLOAD.** The UPLOAD button on the bottom bar opens a pop-up. Photos can
+**UPLOAD.** The UPLOAD button on the bottom bar opens a pop-up. Signed in,
+every photo goes to the AI first: Gemini lists every piece in it (tagged,
+with a description of what's visible), then redraws each piece straight-on
+as a product shot from the whole photo, faithful to what it can see and
+never adding details. A piece that was mostly hidden says so and waits for a
+check. If there's a person in the photo, it then offers to make them the
+model (MY MODEL PHOTO). Without the AI, the in-browser steps below take over. Photos can
 be added in three ways:
 
 - click UPLOAD FROM COMPUTER (several at once is fine)
@@ -266,7 +276,7 @@ tops and full-length pants keep their real proportions.
 image model and returns the redraw. It asks Google which image models the key
 can use and takes the newest Flash one, so it keeps working when Google
 renames models. To pin one, add a `GEMINI_IMAGE_MODEL` secret. Each person
-gets 25 TIDY UPs and 5 model photos a day. Requests are counted in the
+gets 40 garment redraws (uploads, TIDY UP, REDRAW) and 5 model photos a day. Requests are counted in the
 `ai_usage` table, and people can't delete their own rows to reset the count.
 
 To switch it on:
@@ -279,7 +289,9 @@ To switch it on:
 
 ## Tagging (the tag-garment Edge Function)
 
-`supabase/functions/tag-garment/index.ts` sends each cut-out to Google's
+`supabase/functions/tag-garment/index.ts` does three jobs: lists and tags
+every piece in an uploaded photo, tags a single cut-out, and judges a whole
+outfit for DRESS ME. It sends them to Google's
 Gemini, using the same `GEMINI_API_KEY` secret as the redraws. It asks Google
 which models the key can use and takes the newest Flash model; to pin one,
 add a `GEMINI_TEXT_MODEL` secret. The answer is forced into a JSON schema, so

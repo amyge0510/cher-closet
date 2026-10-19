@@ -23,8 +23,10 @@ type Phase =
 const PHRASES = ["STRIKING A POSE...", "FINDING YOUR ANGLES...", "STEPPING INTO THE STUDIO...", "ALMOST READY FOR THE RUNWAY..."];
 const pad = 14;
 
-export function BodyPhoto({ current, canRedraw, onUse, onReset, onClose }: {
+export function BodyPhoto({ current, canRedraw, initialPhoto, onUse, onReset, onClose }: {
   current: Body | null;
+  /** a photo from UPLOAD to start on straight away */
+  initialPhoto?: HTMLCanvasElement;
   /** signed in: Gemini is only for accounts */
   canRedraw: boolean;
   onUse: (canvas: HTMLCanvasElement, anchors: BodyAnchors) => void;
@@ -37,9 +39,8 @@ export function BodyPhoto({ current, canRedraw, onUse, onReset, onClose }: {
   const box = L.uploadBox;
   const inner = box.w - pad * 2;
 
-  const start = useCallback(async (file: Blob) => {
+  const make = useCallback(async (photo: HTMLCanvasElement) => {
     try {
-      const photo = await loadPhoto(file);
       setPhase({ kind: "working", photo });
       const { canvas, anchors } = await makeBody(photo);
       setPhase({ kind: "result", canvas, image: canvas.toDataURL("image/png"), anchors });
@@ -48,6 +49,14 @@ export function BodyPhoto({ current, canRedraw, onUse, onReset, onClose }: {
       setPhase({ kind: "error", message: e instanceof RedrawError ? e.message : "THAT DIDN'T WORK. TRY ANOTHER PHOTO." });
     }
   }, []);
+  const start = useCallback(
+    (file: Blob) =>
+      loadPhoto(file).then(make, () => setPhase({ kind: "error", message: "THAT PHOTO WOULDN'T OPEN. TRY A JPEG OR PNG." })),
+    [make],
+  );
+  useEffect(() => {
+    if (initialPhoto && canRedraw) make(initialPhoto);
+  }, [initialPhoto, canRedraw, make]);
 
   // paste a photo straight in
   useEffect(() => {

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from "react";
 import { categoriesFor, type Category } from "../closet/categories";
 import { judgeOutfit, matchingPairs } from "../closet/match";
-import type { Garment, Look, Slot } from "../closet/types";
+import type { Garment, Look, Slot, Verdict } from "../closet/types";
+import { loadImage, makeCanvas } from "../pixel/raster";
+import { jpegOf } from "../upload/gemini";
+import { judgeWithAi } from "../upload/tags";
 import { GarmentImage } from "../pixel/GarmentImage";
 import { PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
@@ -49,7 +52,7 @@ function ExtraSticker({ garment, onTakeOff }: { garment: Garment; onTakeOff: () 
   );
 }
 
-type Popup = { kind: "closet"; category: string } | { kind: "more" } | { kind: "style" } | { kind: "looks" } | { kind: "upload" } | { kind: "body" } | null;
+type Popup = { kind: "closet"; category: string } | { kind: "more" } | { kind: "style" } | { kind: "looks" } | { kind: "upload" } | { kind: "body"; photo?: HTMLCanvasElement } | null;
 
 const FLY_MS = 1000;
 const FLASH_MS = 1500;
@@ -203,10 +206,41 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   }, [scanning, stopScan, dispatch, scan]);
   useEffect(() => () => clearInterval(scanTimer.current), []);
 
-  const dressMe = useCallback(() => {
-    if (!top || !bottom) return;
-    dispatch({ type: "DRESS_ME", verdict: judgeOutfit(top, bottom, worn) });
-  }, [dispatch, top, bottom, worn]);
+  // DRESS ME. The demo rack is judged by the rules in match.ts, instantly.
+  // Real clothes are too varied for rules (a dressy blouse with bike shorts
+  // passes every one of them), so when the outfit has any uploaded piece and
+  // someone is signed in, Gemini looks at the whole outfit and judges it.
+  // Each verdict is remembered, so the same outfit isn't asked twice.
+  const [judging, setJudging] = useState(false);
+  const verdicts = useRef(new Map<string, Verdict>());
+  const dressMe = useCallback(async () => {
+    if (!top || !bottom || judging) return;
+    const rules = judgeOutfit(top, bottom, worn);
+    const pieces = [top, bottom, ...worn];
+    if (!canRedraw || pieces.every((g) => g.id.startsWith("demo-"))) return dispatch({ type: "DRESS_ME", verdict: rules });
+    const key = pieces.map((g) => g.id).sort().join("|");
+    let verdict = verdicts.current.get(key);
+    if (!verdict) {
+      setJudging(true);
+      try {
+        const images = await Promise.all(
+          pieces.map(async (g) => {
+            const img = await loadImage(g.image);
+            const c = makeCanvas(img.width, img.height);
+            c.getContext("2d")!.drawImage(img, 0, 0);
+            return { label: `${g.slot ?? g.category}: ${g.name}`, image: jpegOf(c, 384) };
+          }),
+        );
+        const ai = await judgeWithAi(images, wardrobe);
+        if (ai) verdicts.current.set(key, (verdict = { match: ai.match, reason: ai.reason, strikes: 0 }));
+      } catch (e) {
+        console.warn("couldn't ask the AI, using the rules:", e);
+      } finally {
+        setJudging(false);
+      }
+    }
+    dispatch({ type: "DRESS_ME", verdict: verdict ?? rules });
+  }, [dispatch, top, bottom, worn, canRedraw, judging, wardrobe]);
 
   const autoDress = useCallback(() => {
     const pairs = rankPairs(matchingPairs(tops, bottoms), tops, bottoms, myStyle);
@@ -339,7 +373,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
         </Bevel>
       )}
       <Bevel box={L.rightButton} tone="blue" onClick={dressMe} label="Dress me">
-        <ButtonLabel lines={["DRESS", "ME"]} />
+        <ButtonLabel lines={judging ? ["HMM..."] : ["DRESS", "ME"]} />
       </Bevel>
 
       <CategoryBar
@@ -356,6 +390,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
         <BodyPhoto
           current={body}
           canRedraw={canRedraw}
+          initialPhoto={popup.photo}
           onUse={(canvas, anchors) => {
             onBody(canvas, anchors);
             setPopup(null);
@@ -367,7 +402,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
           onClose={closePopup}
         />
       )}
-      {popup?.kind === "upload" && <Upload categories={categories} wardrobe={wardrobe} incoming={incoming} canRedraw={canRedraw} onFile={filed} onClose={closePopup} />}
+      {popup?.kind === "upload" && <Upload categories={categories} wardrobe={wardrobe} incoming={incoming} canRedraw={canRedraw} onFile={filed} onWantModel={(photo) => setPopup({ kind: "body", photo })} onClose={closePopup} />}
       {flying.map((f) => (
         <FlyingItem key={f.garment.id} garment={f.garment} from={f.from} to={f.to} onLanded={() => landed(f.garment)} />
       ))}

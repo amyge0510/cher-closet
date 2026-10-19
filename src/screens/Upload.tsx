@@ -9,22 +9,36 @@ import { L } from "../stage/layout";
 import { leaf, type Wardrobe } from "../style/styles";
 import { findPieces, finishCutout, forTagging, loadPhoto, pngBlob, type Piece, type Progress } from "../upload/cutout";
 import { Scanner } from "../upload/Scanner";
-import { garmentFrom, tagCategories, tagGarment, type Tags } from "../upload/tags";
-import { RedrawError, tidyGarment } from "../upload/gemini";
+import { garmentFrom, listItems, tagCategories, tagGarment, type Found, type Tags } from "../upload/tags";
+import { extractItem, jpegOf, RedrawError, tidyGarment } from "../upload/gemini";
 import { Bevel } from "./Parts";
 
-// The UPLOAD pop-up: pick photos, drop them, or paste one. Each photo goes
-// through: background removal (the pixel scanner), tagging, a quick look at
-// the result, then it's filed and floats down to its category tab.
+// The UPLOAD pop-up: pick photos, drop them, or paste one.
+//
+// Signed in, each photo goes to the AI first: Gemini lists every piece in it
+// (tagged), then redraws each one, straight-on, from the whole photo. If the
+// photo has a person in it, it offers to make them the model too.
+// Otherwise (or if the AI fails) the in-browser models cut the pieces out
+// and the pixels are tagged as a best guess.
+// Either way: the pixel scanner while working, a quick look at the result,
+// then it's filed and floats down to its category tab.
+
+// One piece still to file from the current photo: a cut-out made in the
+// browser, or an item the AI listed and still has to redraw.
+type Job = { kind: "cut"; piece: Piece } | { kind: "ai"; item: Found };
 
 type Phase =
   | { kind: "pick" }
-  | { kind: "cutting"; photo: HTMLCanvasElement; progress: { what: "download" | "cut"; f: number } | null }
+  | { kind: "cutting"; photo: HTMLCanvasElement; ai: boolean; progress: { what: "download" | "cut"; f: number } | null }
+  | { kind: "drawing"; photo: HTMLCanvasElement; name: string }
+  | { kind: "offer"; photo: HTMLCanvasElement }
   | { kind: "popping"; photo: HTMLCanvasElement; cut: HTMLCanvasElement; hint?: string }
   | { kind: "tagging"; photo: HTMLCanvasElement; cut: HTMLCanvasElement }
   | {
       kind: "show"; image: string; png: Blob; canvas: HTMLCanvasElement; tags: Tags; how: "ai" | "guess"; fixing: boolean;
-      /** TIDY UP: the cut-out before the redraw, to switch back to */
+      /** an AI-listed item: redrawing again goes back to the whole photo */
+      source?: { photo: HTMLCanvasElement; item: Found };
+      /** TIDY UP / REDRAW: the version before the redraw, to switch back to */
       original?: { image: string; png: Blob; canvas: HTMLCanvasElement };
       redrawing?: boolean;
       note?: string;
@@ -34,13 +48,14 @@ type Phase =
 const AUTO_FILE_MS = 3200; // The AI's tags file themselves after this long
 const CUT_PHRASES = ["SNIPPING...", "FINDING THE CLOTHES...", "LOSING THE BACKGROUND...", "AS IF!", "ALMOST..."];
 const TAG_PHRASES = ["READING THE TAG...", "NAMING IT...", "PICKING ITS STYLE..."];
+const AI_PHRASES = ["LOOKING CLOSELY...", "STRAIGHTENING IT OUT...", "GETTING EVERY DETAIL...", "AS IF!", "ALMOST..."];
 
 const pad = 14;
 const SCAN = 216; // the scanner's size on screen
 
 const imageFiles = (list: FileList | File[] | null | undefined) => [...(list ?? [])].filter((f) => f.type.startsWith("image/"));
 
-export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onClose }: {
+export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWantModel, onClose }: {
   categories: Category[];
   /** signed in, so TIDY UP (Gemini) is available */
   canRedraw: boolean;
@@ -49,6 +64,8 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onCl
   incoming: { files: Blob[]; key: number } | null;
   /** a finished garment, its PNG, and where on screen it was shown (to fly from) */
   onFile: (g: Garment, png: Blob, from: { x: number; y: number; size: number }) => void;
+  /** the photo had a person in it and they want to be the model */
+  onWantModel: (photo: HTMLCanvasElement) => void;
   onClose: () => void;
 }) {
   const [queue, setQueue] = useState<Blob[]>([]);
@@ -56,7 +73,7 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onCl
   const [phase, setPhase] = useState<Phase>({ kind: "pick" });
   const [phrase, setPhrase] = useState(0);
   // the pieces found in the current photo that are still to be filed
-  const [pieces, setPieces] = useState<{ photo: HTMLCanvasElement; left: Piece[]; total: number } | null>(null);
+  const [pieces, setPieces] = useState<{ photo: HTMLCanvasElement; left: Job[]; total: number; hasPerson: boolean } | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const box = L.uploadBox;
   const cats = tagCategories(categories);
@@ -71,6 +88,27 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onCl
     if (incoming) add(incoming.files);
   }, [incoming, add]);
 
+  // Starts on one piece: a browser cut-out pops its background away; an AI
+  // item gets redrawn from the whole photo.
+  const startJob = useCallback(
+    async (photo: HTMLCanvasElement, job: Job) => {
+      if (job.kind === "cut") return setPhase({ kind: "popping", photo, cut: job.piece.canvas, hint: job.piece.hint });
+      const { item } = job;
+      setPhase({ kind: "drawing", photo, name: item.name });
+      try {
+        const final = finishCutout(await extractItem(photo, item.name, item.description, item.colors));
+        const png = await pngBlob(final);
+        setPhase({
+          kind: "show", image: final.toDataURL("image/png"), png, canvas: final, tags: item, how: "ai", fixing: false, source: { photo, item },
+          note: item.partial ? "ONLY PART OF IT WAS IN THE PHOTO, SO SOME OF IT IS A GUESS. CHECK IT OVER." : undefined,
+        });
+      } catch (e) {
+        setPhase({ kind: "error", message: e instanceof RedrawError ? e.message : `COULDN'T REDRAW THE ${item.name.toUpperCase()}. TRY ANOTHER PHOTO.` });
+      }
+    },
+    [],
+  );
+
   // the next photo in line starts as soon as the last one is done
   const current = queue[0];
   useEffect(() => {
@@ -80,7 +118,23 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onCl
       try {
         const photo = await loadPhoto(current);
         if (cancelled) return;
-        setPhase({ kind: "cutting", photo, progress: null });
+        // signed in: the AI finds and redraws every piece
+        if (canRedraw) {
+          setPhase({ kind: "cutting", photo, ai: true, progress: null });
+          const listed = await listItems(jpegOf(photo), cats, wardrobe);
+          if (cancelled) return;
+          if (listed) {
+            const jobs: Job[] = listed.items.map((item) => ({ kind: "ai", item }));
+            if (!jobs.length) {
+              if (listed.hasPerson) return setPhase({ kind: "offer", photo });
+              return setPhase({ kind: "error", message: "COULDN'T FIND ANY CLOTHES IN THAT PHOTO. TRY ONE WITH THE OUTFIT IN FULL VIEW." });
+            }
+            setPieces({ photo, left: jobs.slice(1), total: jobs.length, hasPerson: listed.hasPerson });
+            return startJob(photo, jobs[0]);
+          }
+          // the AI isn't answering: cut the pieces out in the browser instead
+        }
+        setPhase({ kind: "cutting", photo, ai: false, progress: null });
         const progress: Progress = (what, f) => !cancelled && setPhase((p) => (p.kind === "cutting" ? { ...p, progress: { what, f } } : p));
         const found = await findPieces(photo, progress);
         if (cancelled) return;
@@ -93,9 +147,9 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onCl
           });
           return;
         }
-        const [first, ...rest] = found.pieces;
-        setPieces({ photo, left: rest, total: found.pieces.length });
-        setPhase({ kind: "popping", photo, cut: first.canvas, hint: first.hint });
+        const jobs: Job[] = found.pieces.map((piece) => ({ kind: "cut", piece }));
+        setPieces({ photo, left: jobs.slice(1), total: jobs.length, hasPerson: false });
+        startJob(photo, jobs[0]);
       } catch (e) {
         console.error(e);
         if (!cancelled) setPhase({ kind: "error", message: "THAT PHOTO WOULDN'T OPEN. TRY A JPEG OR PNG." });
@@ -119,7 +173,7 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onCl
 
   // rotating status phrases while working
   useEffect(() => {
-    if (phase.kind !== "cutting" && phase.kind !== "tagging") return;
+    if (phase.kind !== "cutting" && phase.kind !== "tagging" && phase.kind !== "drawing") return;
     const t = window.setInterval(() => setPhrase((n) => n + 1), 1300);
     return () => clearInterval(t);
   }, [phase.kind]);
@@ -134,18 +188,23 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onCl
     if (!queue.length && phase.kind === "pick") setTotal(0);
   }, [queue.length, phase.kind]);
 
-  // the next piece from the same photo, or the next photo
+  // the next piece from the same photo; then, if there was a person in it,
+  // the offer to make them the model; then the next photo
   const advance = useCallback(() => {
     if (pieces?.left.length) {
-      const [piece, ...rest] = pieces.left;
+      const [job, ...rest] = pieces.left;
       setPieces({ ...pieces, left: rest });
-      setPhase({ kind: "popping", photo: pieces.photo, cut: piece.canvas, hint: piece.hint });
+      startJob(pieces.photo, job);
+      return;
+    }
+    if (pieces?.hasPerson && phase.kind !== "offer") {
+      setPhase({ kind: "offer", photo: pieces.photo });
       return;
     }
     setPieces(null);
     if (queue.length <= 1) onClose();
     next();
-  }, [pieces, queue.length, onClose, next]);
+  }, [pieces, phase.kind, queue.length, onClose, next, startJob]);
 
   const file = useCallback(() => {
     if (phase.kind !== "show") return;
@@ -156,22 +215,28 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onCl
 
   // The AI's tags file themselves after a moment, unless you hit FIX IT
   useEffect(() => {
-    if (phase.kind !== "show" || phase.fixing || phase.redrawing || phase.original || phase.how !== "ai" || !phase.tags.isClothing) return;
+    if (phase.kind !== "show" || phase.fixing || phase.redrawing || phase.original || phase.note || phase.how !== "ai" || !phase.tags.isClothing) return;
     const t = window.setTimeout(file, AUTO_FILE_MS);
     return () => clearTimeout(t);
   }, [phase, file]);
 
-  // TIDY UP: Gemini redraws the piece as a straight-on product shot; the
-  // button then switches between the redraw and the original
+  // TIDY UP (a browser cut-out) or REDRAW (an AI item): Gemini draws the
+  // piece again as a straight-on product shot; the button then switches
+  // back to the version before
   const tidy = useCallback(async () => {
     if (phase.kind !== "show" || phase.redrawing) return;
     if (phase.original) {
       const { original, ...rest } = phase;
       return setPhase({ ...rest, ...original, original: undefined, note: undefined });
     }
-    setPhase({ ...phase, redrawing: true, note: undefined });
+    // the FIX IT buttons make way for the redraw
+    setPhase({ ...phase, redrawing: true, fixing: false, note: undefined });
     try {
-      const final = finishCutout(await tidyGarment(phase.canvas, phase.tags.name, phase.tags.colors));
+      const { source } = phase;
+      const drawn = source
+        ? await extractItem(source.photo, phase.tags.name, source.item.description, phase.tags.colors)
+        : await tidyGarment(phase.canvas, phase.tags.name, phase.tags.colors);
+      const final = finishCutout(drawn);
       const png = await pngBlob(final);
       setPhase((p) => (p.kind === "show" ? { ...p, image: final.toDataURL("image/png"), png, canvas: final, redrawing: false, original: { image: p.image, png: p.png, canvas: p.canvas } } : p));
     } catch (e) {
@@ -222,11 +287,39 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onCl
         </div>
       </>
     );
-  } else if (phase.kind === "cutting" || phase.kind === "popping" || phase.kind === "tagging") {
-    const cut = phase.kind === "cutting" ? null : phase.cut;
+  } else if (phase.kind === "offer") {
+    body = (
+      <>
+        <div style={{ position: "absolute", left: box.x + (box.w - 150) / 2, top: box.y + 46, width: 150, height: 190, border: `3px solid ${C.invEdge}`, boxSizing: "border-box", overflow: "hidden", background: C.invSlot }}>
+          <GarmentImage src={phase.photo.toDataURL("image/jpeg", 0.8)} w={144} h={184} fill={1} />
+        </div>
+        <div style={{ position: "absolute", left: box.x + pad, top: box.y + 250, width: box.w - pad * 2, display: "grid", gap: 8 }}>
+          <PixelLines text="WANT TO BE THE MODEL TOO?" maxWidth={box.w - pad * 2} color={C.invEdge} sx={2} sy={2.4} bold />
+          <PixelLines text="GEMINI REDRAWS YOU FROM THIS PHOTO STANDING STRAIGHT, READY TO BE DRESSED. THE PHOTO GOES TO GOOGLE ONLY FOR THIS." maxWidth={box.w - pad * 2} color={C.invText} sx={1.3} sy={1.7} />
+        </div>
+        <Bevel box={{ x: box.x + pad, y: box.y + box.h - pad - 34, w: 140, h: 34 }} tone="gray" onClick={advance} label="No thanks" style={{ borderWidth: 2 }}>
+          <PixelText text="NO THANKS" color={C.ink} sx={1.7} sy={2} bold />
+        </Bevel>
+        <Bevel box={{ x: box.x + box.w - pad - 196, y: box.y + box.h - pad - 34, w: 196, h: 34 }} tone="blue" onClick={() => onWantModel(phase.photo)} label="Make my model photo" style={{ borderWidth: 2 }}>
+          <PixelText text="MAKE MY MODEL PHOTO" color={C.white} sx={1.5} sy={2} bold shadow={C.btnBlueDark} />
+        </Bevel>
+      </>
+    );
+  } else if (phase.kind === "cutting" || phase.kind === "popping" || phase.kind === "tagging" || phase.kind === "drawing") {
+    const cut = phase.kind === "popping" || phase.kind === "tagging" ? phase.cut : null;
+    const ai = (phase.kind === "cutting" && phase.ai) || phase.kind === "drawing";
+    const title =
+      phase.kind === "tagging" ? "TAGGING"
+      : phase.kind === "drawing" ? "REDRAWING IT STRAIGHT"
+      : ai ? "FINDING THE CLOTHES"
+      : "REMOVING THE BACKGROUND";
     const status =
       phase.kind === "tagging"
         ? TAG_PHRASES[phrase % TAG_PHRASES.length]
+        : phase.kind === "drawing"
+          ? `${phase.name.toUpperCase()}: ${AI_PHRASES[phrase % AI_PHRASES.length]}`
+          : ai
+          ? AI_PHRASES[phrase % AI_PHRASES.length]
         : phase.kind === "cutting" && phase.progress?.what === "download" && phase.progress.f < 1
           ? `GETTING THE SCISSORS... ${Math.round(phase.progress.f * 100)}%`
           : CUT_PHRASES[phrase % CUT_PHRASES.length];
@@ -236,7 +329,7 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onCl
           <Scanner size={SCAN} photo={phase.photo} cutout={cut} onCleared={phase.kind === "popping" ? () => tag(phase.photo, phase.cut, phase.hint) : undefined} />
         </div>
         <div style={{ position: "absolute", left: box.x + pad, top: imageBox.y + SCAN + 18, width: box.w - pad * 2 }}>
-          <PixelLines text={phase.kind === "tagging" ? "TAGGING" : "REMOVING THE BACKGROUND"} maxWidth={box.w - pad * 2} color={C.invEdge} sx={2} sy={2.4} bold />
+          <PixelLines text={title} maxWidth={box.w - pad * 2} color={C.invEdge} sx={2} sy={2.4} bold />
         </div>
         <div style={{ position: "absolute", left: box.x + pad, top: imageBox.y + SCAN + 46, width: box.w - pad * 2 }}>
           <PixelLines text={status} maxWidth={box.w - pad * 2} color={C.invText} sx={1.5} sy={1.9} />
@@ -266,9 +359,9 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onCl
             <PixelLines text={`GOES IN ${catLabel(tags.category)}. ${tags.colors.join(", ").toUpperCase()}. ${styles}.`} maxWidth={box.w - pad * 2} color={C.invText} sx={1.4} sy={1.8} />
             {!tags.isClothing && <PixelLines text="HMM, THAT DOESN'T LOOK LIKE CLOTHES." maxWidth={box.w - pad * 2} color="#a3123a" sx={1.4} sy={1.8} />}
             {phase.redrawing ? (
-              <PixelLines text="TIDYING IT UP..." maxWidth={box.w - pad * 2} color={C.invText} sx={1.4} sy={1.8} />
+              <PixelLines text={phase.source ? "REDRAWING IT..." : "TIDYING IT UP..."} maxWidth={box.w - pad * 2} color={C.invText} sx={1.4} sy={1.8} />
             ) : phase.original ? (
-              <PixelLines text="REDRAWN BY AI. ORIGINAL SWITCHES BACK." maxWidth={box.w - pad * 2} color={C.invText} sx={1.4} sy={1.8} />
+              <PixelLines text={phase.source ? "REDRAWN AGAIN. UNDO SWITCHES BACK." : "REDRAWN BY AI. ORIGINAL SWITCHES BACK."} maxWidth={box.w - pad * 2} color={C.invText} sx={1.4} sy={1.8} />
             ) : (
               phase.how === "guess" && <PixelLines text="BEST GUESS. FIX IT IF IT'S WRONG." maxWidth={box.w - pad * 2} color={C.invText} sx={1.4} sy={1.8} />
             )}
@@ -314,8 +407,8 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onCl
                 <PixelText text={phase.fixing ? "DONE" : "FIX IT"} color={C.ink} sx={sx} sy={2} bold />
               </Bevel>
               {canRedraw && (
-                <Bevel box={{ x: xs[2], y, w: widths[2], h: 34 }} tone="gray" onClick={tidy} label={phase.original ? "Show the original" : "Tidy up with AI"} title="Gemini redraws it as a straight-on product shot (a few cents)" style={{ borderWidth: 2, opacity: phase.redrawing ? 0.6 : 1 }}>
-                  <PixelText text={phase.original ? "ORIGINAL" : "TIDY UP"} color={C.ink} sx={sx} sy={2} bold />
+                <Bevel box={{ x: xs[2], y, w: widths[2], h: 34 }} tone="gray" onClick={tidy} label={phase.original ? "Switch back" : phase.source ? "Redraw it" : "Tidy up with AI"} title="Gemini draws it again as a straight-on product shot (a few cents)" style={{ borderWidth: 2, opacity: phase.redrawing ? 0.6 : 1 }}>
+                  <PixelText text={phase.original ? (phase.source ? "UNDO" : "ORIGINAL") : phase.source ? "REDRAW" : "TIDY UP"} color={C.ink} sx={sx} sy={2} bold />
                 </Bevel>
               )}
               <Bevel box={{ x: xs[3], y, w: widths[3], h: 34 }} tone="blue" onClick={phase.redrawing ? undefined : file} label="File it" style={{ borderWidth: 2 }}>
@@ -339,7 +432,7 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onCl
     );
   }
 
-  const busy = phase.kind === "cutting" || phase.kind === "popping" || phase.kind === "tagging";
+  const busy = phase.kind === "cutting" || phase.kind === "popping" || phase.kind === "tagging" || phase.kind === "drawing";
   return (
     <>
       <div onClick={busy ? undefined : onClose} style={{ position: "absolute", inset: 0, zIndex: 30, background: "rgba(10,8,30,0.35)" }} />

@@ -70,6 +70,47 @@ async function askAi(jpeg: string, categories: string[], wardrobe: Wardrobe, hin
   return normalizeTags(data, categories);
 }
 
+// Signed in, so the AI functions will answer.
+async function signedIn() {
+  if (!supabase) return false;
+  const { data } = await supabase.auth.getSession();
+  return !!data.session;
+}
+
+export type Found = Tags & { description: string; partial: boolean };
+
+// Every garment in an uploaded photo, tagged, and whether a person is in it.
+// Null when the AI isn't available (not signed in, or not set up).
+export async function listItems(jpeg: string, categories: string[], wardrobe: Wardrobe): Promise<{ hasPerson: boolean; items: Found[] } | null> {
+  if (!supabase || !(await signedIn())) return null;
+  const styles = LEAVES.filter((l) => forWardrobe(l, wardrobe)).map((l) => ({ id: l.id, label: l.label }));
+  const { data, error } = await supabase.functions.invoke("tag-garment", {
+    body: { task: "list", image: jpeg, categories, colors: COLORS, patterns: PATTERNS, styles, wardrobe },
+  });
+  if (error || !data || !Array.isArray(data.items)) {
+    console.warn("listing failed:", error ?? data);
+    return null;
+  }
+  const items = (data.items as Record<string, unknown>[]).flatMap((raw) => {
+    const tags = normalizeTags({ ...raw, is_clothing: true }, categories);
+    if (!tags) return [];
+    return [{ ...tags, description: String(raw.description ?? "").slice(0, 240), partial: raw.visible === "part" }];
+  });
+  return { hasPerson: !!data.has_person, items: items.slice(0, 6) };
+}
+
+// The AI's verdict on a whole outfit: each piece as a labelled JPEG.
+export async function judgeWithAi(pieces: { label: string; image: string }[], wardrobe: Wardrobe): Promise<{ match: boolean; reason: string } | null> {
+  if (!supabase || !(await signedIn())) return null;
+  const { data, error } = await supabase.functions.invoke("tag-garment", { body: { task: "judge", pieces, wardrobe } });
+  if (error || typeof data?.match !== "boolean") {
+    console.warn("outfit judging failed:", error ?? data);
+    return null;
+  }
+  const reason = String(data.reason ?? "").toUpperCase().replace(/[^A-Z0-9 '.,!?:\-+()/&]/g, "").slice(0, 44);
+  return { match: data.match, reason: reason || (data.match ? "THE WHOLE LOOK GOES" : "THESE DON'T GO TOGETHER") };
+}
+
 // The tags for a cut-out, and whether they're the AI's or a guess. `hint` is
 // the category the clothes model saw (e.g. "skirts"), when it found one.
 export async function tagGarment(cutout: HTMLCanvasElement, jpeg: string, categories: string[], wardrobe: Wardrobe, hint?: string): Promise<{ tags: Tags; how: "ai" | "guess" }> {
