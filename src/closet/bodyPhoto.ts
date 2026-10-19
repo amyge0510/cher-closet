@@ -1,3 +1,4 @@
+import { cachedUrls } from "../lib/imageCache";
 import { supabase } from "../lib/supabase";
 import { clearEdgeBackground, keepMainBlobs, pngBlob, segmentPhoto, type Segment } from "../upload/cutout";
 import { modelPose } from "../upload/gemini";
@@ -130,8 +131,13 @@ export async function loadBody(): Promise<Body | null> {
   if (!supabase) return null;
   const { data } = await supabase.from("body_photos").select("image_path, anchors").eq("is_active", true).maybeSingle();
   if (!data) return null;
-  const { data: signed } = await supabase.storage.from("closet").createSignedUrl(data.image_path, SIGNED_URL_SECONDS);
-  return signed?.signedUrl ? { src: signed.signedUrl, anchors: data.anchors as BodyAnchors } : null;
+  const path = data.image_path as string;
+  const urls = await cachedUrls([path], async () => {
+    const { data: signed } = await supabase!.storage.from("closet").createSignedUrl(path, SIGNED_URL_SECONDS);
+    return new Map(signed?.signedUrl ? [[path, signed.signedUrl]] : []);
+  });
+  const src = urls.get(path);
+  return src ? { src, anchors: data.anchors as BodyAnchors } : null;
 }
 
 // Saves a new figure and makes it the one in use.

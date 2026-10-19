@@ -1,3 +1,4 @@
+import { cachedUrls, forgetImage } from "../lib/imageCache";
 import { supabase } from "../lib/supabase";
 import { isBuiltIn, slotFor } from "./categories";
 import type { Garment, Pattern, Slot } from "./types";
@@ -29,8 +30,10 @@ export async function loadCloset(): Promise<Garment[]> {
   if (error || !rows.length) return [];
 
   const paths = rows.map((r) => r.cutout_path).filter((p): p is string => !!p);
-  const { data: signed } = await supabase.storage.from("closet").createSignedUrls(paths, SIGNED_URL_SECONDS);
-  const urls = new Map((signed ?? []).filter((s) => s.signedUrl).map((s) => [s.path, s.signedUrl]));
+  const urls = await cachedUrls(paths, async (missing) => {
+    const { data: signed } = await supabase!.storage.from("closet").createSignedUrls(missing, SIGNED_URL_SECONDS);
+    return new Map((signed ?? []).filter((s) => s.signedUrl && s.path).map((s) => [s.path!, s.signedUrl as string]));
+  });
 
   return rows
     .filter((r) => r.cutout_path && urls.has(r.cutout_path))
@@ -76,5 +79,6 @@ export async function deleteGarment(owner: string, id: string): Promise<void> {
   const { error } = await supabase.from("garments").delete().eq("id", id);
   if (error) throw error;
   await supabase.storage.from("closet").remove([`${owner}/garments/${id}.png`]);
+  await forgetImage(`${owner}/garments/${id}.png`);
 }
 
