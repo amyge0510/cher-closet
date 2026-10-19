@@ -1,5 +1,7 @@
+import { cachedUrls, forgetImage } from "../lib/imageCache";
 import { supabase } from "../lib/supabase";
-import { clearEdgeBackground, keepMainBlobs, pngBlob, segmentPhoto, type Segment } from "../upload/cutout";
+import { clearEdgeBackground, keepMainBlobs, segmentPhoto, type Segment } from "../upload/cutout";
+import { loadImage, makeCanvas } from "../pixel/raster";
 import { modelPose } from "../upload/gemini";
 import { PLACEHOLDER_ANCHORS, type Anchor, type BodyAnchors } from "./body";
 
@@ -125,20 +127,51 @@ function toWhole(a: BodyAnchors, frame: Box, w: number, h: number): BodyAnchors 
 
 const SIGNED_URL_SECONDS = 60 * 60 * 12;
 
+// The figure is a photo on a flat background (no see-through parts), so it's
+// kept as a JPEG no bigger than the screen needs: a fraction of a PNG's size.
+const BODY_MAX = 1400; // longest side, pixels
+async function bodyJpeg(src: HTMLCanvasElement | HTMLImageElement): Promise<Blob> {
+  const s = Math.min(1, BODY_MAX / Math.max(src.width, src.height));
+  const c = makeCanvas(Math.round(src.width * s), Math.round(src.height * s));
+  const ctx = c.getContext("2d")!;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(src, 0, 0, c.width, c.height);
+  return new Promise((done, fail) => c.toBlob((b) => (b ? done(b) : fail(new Error("could not encode the figure"))), "image/jpeg", 0.88));
+}
+
 // The signed-in user's figure, if they've made one.
 export async function loadBody(): Promise<Body | null> {
   if (!supabase) return null;
-  const { data } = await supabase.from("body_photos").select("image_path, anchors").eq("is_active", true).maybeSingle();
+  const { data } = await supabase.from("body_photos").select("id, owner, image_path, anchors").eq("is_active", true).maybeSingle();
   if (!data) return null;
-  const { data: signed } = await supabase.storage.from("closet").createSignedUrl(data.image_path, SIGNED_URL_SECONDS);
-  return signed?.signedUrl ? { src: signed.signedUrl, anchors: data.anchors as BodyAnchors } : null;
+  const path = data.image_path as string;
+  const urls = await cachedUrls([path], async () => {
+    const { data: signed } = await supabase!.storage.from("closet").createSignedUrl(path, SIGNED_URL_SECONDS);
+    return new Map(signed?.signedUrl ? [[path, signed.signedUrl]] : []);
+  });
+  const src = urls.get(path);
+  if (!src) return null;
+  // figures saved as big PNGs before are swapped for a JPEG, quietly, once
+  if (path.endsWith(".png")) setTimeout(() => slim(data.id as string, data.owner as string, path, src).catch((e) => console.warn("couldn't shrink the model photo:", e)), 6000);
+  return { src, anchors: data.anchors as BodyAnchors };
+}
+
+async function slim(id: string, owner: string, oldPath: string, src: string) {
+  const jpeg = await bodyJpeg(await loadImage(src));
+  const path = `${owner}/body/${crypto.randomUUID()}.jpg`;
+  const up = await supabase!.storage.from("closet").upload(path, jpeg, { contentType: "image/jpeg" });
+  if (up.error) throw up.error;
+  const { error } = await supabase!.from("body_photos").update({ image_path: path }).eq("id", id);
+  if (error) throw error;
+  await supabase!.storage.from("closet").remove([oldPath]);
+  await forgetImage(oldPath);
 }
 
 // Saves a new figure and makes it the one in use.
 export async function saveBody(owner: string, canvas: HTMLCanvasElement, anchors: BodyAnchors): Promise<void> {
   if (!supabase) return;
-  const path = `${owner}/body/${crypto.randomUUID()}.png`;
-  const up = await supabase.storage.from("closet").upload(path, await pngBlob(canvas), { contentType: "image/png" });
+  const path = `${owner}/body/${crypto.randomUUID()}.jpg`;
+  const up = await supabase.storage.from("closet").upload(path, await bodyJpeg(canvas), { contentType: "image/jpeg" });
   if (up.error) throw up.error;
   await supabase.from("body_photos").update({ is_active: false }).eq("is_active", true);
   const { error } = await supabase.from("body_photos").insert({ image_path: path, anchors, is_active: true });
