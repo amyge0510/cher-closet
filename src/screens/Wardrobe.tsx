@@ -21,7 +21,8 @@ import { SavedLooks } from "./SavedLooks";
 import { StyleQuiz } from "./StyleQuiz";
 import { Bevel, ButtonLabel, CategoryBar, ControlStrip, Header, Leopard, overflowCategories, pos, tabCenter, wide } from "./Parts";
 import { Reveal } from "./Reveal";
-import { canWearPixel } from "../closet/pixelModel";
+import { canWearPixel, defaultLook, type PixelLook } from "../closet/pixelModel";
+import { PixelLookMenu } from "./PixelLookMenu";
 import { track } from "../lib/track";
 
 const MATCH_HOLD_MS = 1400; // black panels stay up this long before the reveal
@@ -58,7 +59,7 @@ function ExtraSticker({ garment, index = 0, of = 1, onTakeOff }: { garment: Garm
   );
 }
 
-type Popup = { kind: "closet"; category: string } | { kind: "more" } | { kind: "style" } | { kind: "looks" } | { kind: "upload" } | { kind: "body"; photo?: HTMLCanvasElement } | { kind: "hair" } | null;
+type Popup = { kind: "closet"; category: string } | { kind: "more" } | { kind: "style" } | { kind: "looks" } | { kind: "upload" } | { kind: "body"; photo?: HTMLCanvasElement } | { kind: "hair" } | { kind: "look" } | null;
 
 // Hairstyles for the dressed-up figure (HAIR, above the head). The id is
 // what Gemini is asked for; "" keeps the user's own hair.
@@ -142,6 +143,28 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   const tops = useMemo(() => closet.filter((g) => g.slot === "top"), [closet]);
   const bottoms = useMemo(() => closet.filter((g) => g.slot === "bottom"), [closet]);
   const [popup, setPopup] = useState<Popup>(null);
+  // the pixel model's look (hair, eyes, skin), kept in this browser
+  const lookKey = outfitKey ? outfitKey.replace("last-outfit", "pixel-look") : null;
+  const [look, setLookState] = useState<PixelLook>(() => {
+    try {
+      const saved = lookKey ? (JSON.parse(localStorage.getItem(lookKey) ?? "null") as PixelLook | null) : null;
+      if (saved?.hair) return saved;
+    } catch {
+      /* storage unavailable */
+    }
+    return defaultLook(wardrobe === "mens" ? "mens" : "womens");
+  });
+  const setLook = useCallback(
+    (l: PixelLook) => {
+      setLookState(l);
+      try {
+        if (lookKey) localStorage.setItem(lookKey, JSON.stringify(l));
+      } catch {
+        /* storage unavailable: it lasts until reload */
+      }
+    },
+    [lookKey],
+  );
   const closePopup = useCallback(() => setPopup(null), []);
   const wear = useCallback(
     (g: Garment) => {
@@ -502,7 +525,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
 
       {fullBody && top && bottom ? (
         <div style={{ ...pos(L.revealPanel), background: C.panel }}>
-          <Reveal w={L.revealPanel.w} h={L.revealPanel.h} top={top} bottom={bottom} extras={worn} figure={wardrobe === "mens" ? "mens" : "womens"} bodySrc={pixelModel ? null : body?.src} anchors={pixelModel ? undefined : body?.anchors} animate={screen === "reveal"} dressed={!pixelModel && dressed && dressed.key === dressKey ? dressed : undefined} pixel={pixelModel} onDone={revealDone} />
+          <Reveal w={L.revealPanel.w} h={L.revealPanel.h} top={top} bottom={bottom} extras={worn} figure={wardrobe === "mens" ? "mens" : "womens"} bodySrc={pixelModel ? null : body?.src} anchors={pixelModel ? undefined : body?.anchors} animate={screen === "reveal"} dressed={!pixelModel && dressed && dressed.key === dressKey ? dressed : undefined} pixel={pixelModel ? look : null} onDone={revealDone} />
         </div>
       ) : (
         <>
@@ -523,6 +546,12 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
         </>
       )}
 
+      {fullBody && pixelModel && (
+        <Bevel box={HAIR_BUTTON} tone={popup?.kind === "look" ? "blue" : "gray"} onClick={() => setPopup(popup?.kind === "look" ? null : { kind: "look" })} label="Change the model's look" style={{ borderWidth: 2, zIndex: 6 }}>
+          <PixelText text="LOOK ~" color={C.ink} sx={1.4} sy={1.8} bold />
+        </Bevel>
+      )}
+      {popup?.kind === "look" && <PixelLookMenu look={look} onChange={setLook} onClose={closePopup} />}
       {fullBody && body && canRedraw && !pixelModel && (
         <Bevel box={HAIR_BUTTON} tone={popup?.kind === "hair" ? "blue" : "gray"} onClick={() => setPopup(popup?.kind === "hair" ? null : { kind: "hair" })} label="Change the hairstyle" style={{ borderWidth: 2, zIndex: 6 }}>
           <PixelText text="HAIR ~" color={C.ink} sx={1.4} sy={1.8} bold />

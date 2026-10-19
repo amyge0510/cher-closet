@@ -86,10 +86,16 @@ People can add their own events but can't read any; only admins can, through
 **The pixel model.** With the closet on PIXEL, DRESS ME shows a pixel-art
 figure instead of a photo: a honey-blonde girl with space buns, or a guy with
 a curly top for menswear (`src/closet/pixelModel.ts`). Each pixel garment is
-cut from the figure's own torso, arms and legs on a 64x128 grid (a tee is the
-torso and the tops of the arms, jeans are the legs, a skirt flares from the
-hips), filled with the garment's pattern and outlined, so it fits the body
-instead of being laid on top. No photo, Gemini or HAIR in this mode.
+cut from the figure's own torso, arms and legs (a tee is the torso and the
+tops of the arms, jeans are the legs, a skirt flares from the hips), filled
+with the garment's pattern and outlined, so it fits the body instead of being
+laid on top. Every skirt and pair of shorts reaches past where the thighs
+part. The figure is laid out on a 64x128 grid and drawn at 2 pixels per
+step, so fingers, knees, toes and lashes show. Once dressed she blinks,
+smiles now and then, and her arms drift in and out (`poseAt`); her clothes
+move with her. LOOK (top right of the picture) changes girl or guy, nine
+hairstyles, hair color, eye color and skin tone, kept in this browser. No
+photo, Gemini or HAIR in this mode.
 
 **Pixel or my clothes.** The PIXEL | MY CLOTHES pill under the title switches the rack
 between your own uploaded clothes and the built-in pixel clothes. It starts on
