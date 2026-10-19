@@ -74,3 +74,47 @@ body,
 .fade-in {
   animation: fade-in 0.5s steps(6) both;
 }
+
+.cursor {
+  animation: blink 1s steps(1) infinite;
+  flex: none;
+}
+
+.menu-row:hover,
+.menu-row:focus-visible {
+  background: #dedee8 !important;
+  outline: none;
+}
+
+/* the intro's pink smoke clearing off the hanger screen */
+@keyframes smoke-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.25); }
+}
+
+.smoke-out {
+  animation: smoke-out 1.1s ease-out forwards;
+}
+
+/* a category tab that just received an upload */
+@keyframes tab-flash {
+  0%, 100% { background: transparent; }
+  50% { background: #ffffff; }
+}
+
+.tab-flash {
+  animation: tab-flash 0.3s steps(1) 5;
+}
+
+/* an upload floating down into its category tab */
+@keyframes fly-to-tab {
+  0% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(0, -14px) scale(1.06); }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0.1); opacity: 0.6; }
+}
+
+.fly-to-tab {
+  animation-name: fly-to-tab;
+  animation-timing-function: steps(14);
+  animation-fill-mode: forwards;
+}

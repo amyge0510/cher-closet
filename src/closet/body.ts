@@ -3,15 +3,53 @@ import { makeCanvas } from "../pixel/raster";
 // Where garments sit on a body photo, as fractions of the photo's box.
 // Stored per photo once users upload their own (body_photos.anchors).
 export type Anchor = { x: number; y: number; w: number; h: number };
-export type BodyAnchors = { top: Anchor; bottom: Anchor };
+// `extras` places accessories by category; ones without an anchor (underwear)
+// aren't drawn on the body.
+export type BodyAnchors = { top: Anchor; bottom: Anchor; extras: Record<string, Anchor> };
 
+// Garments are fitted to an anchor's width (and only shrunk further if they
+// would run past its bottom), so the top and bottom boxes reach down far
+// enough for long tops and full-length pants.
 export const PLACEHOLDER_ANCHORS: BodyAnchors = {
-  top: { x: 0.25, y: 0.165, w: 0.5, h: 0.3 },
-  bottom: { x: 0.31, y: 0.415, w: 0.38, h: 0.2 },
+  top: { x: 0.25, y: 0.165, w: 0.5, h: 0.36 },
+  bottom: { x: 0.31, y: 0.415, w: 0.38, h: 0.52 },
+  extras: {
+    pantyhose: { x: 0.36, y: 0.5, w: 0.28, h: 0.44 },
+    shoes: { x: 0.34, y: 0.885, w: 0.32, h: 0.09 },
+    scarves: { x: 0.38, y: 0.15, w: 0.24, h: 0.17 },
+    jewelry: { x: 0.43, y: 0.15, w: 0.14, h: 0.07 },
+    bags: { x: 0.64, y: 0.37, w: 0.22, h: 0.15 },
+    hats: { x: 0.4, y: 0.025, w: 0.2, h: 0.075 },
+    // jewelry by where it's worn (necklaces use "jewelry")
+    "jewelry-neck": { x: 0.43, y: 0.15, w: 0.14, h: 0.07 },
+    "jewelry-wrist": { x: 0.69, y: 0.44, w: 0.08, h: 0.05 },
+    "jewelry-ears": { x: 0.42, y: 0.09, w: 0.16, h: 0.04 },
+    "jewelry-hand": { x: 0.7, y: 0.47, w: 0.05, h: 0.03 },
+  },
 };
 
+// The spot for a kind of jewelry on a figure. Figures saved before jewelry
+// had its own spots work it out from the neck spot and the top's width.
+export function anchorFor(a: BodyAnchors, kind: string): Anchor | undefined {
+  const own = a.extras[`jewelry-${kind}`];
+  if (own) return own;
+  const neck = a.extras.jewelry ?? PLACEHOLDER_ANCHORS.extras.jewelry;
+  if (kind === "neck") return neck;
+  const t = a.top;
+  if (kind === "wrist") return { x: t.x + t.w * 0.86, y: a.bottom.y + 0.02, w: t.w * 0.16, h: 0.05 };
+  if (kind === "hand") return { x: t.x + t.w * 0.9, y: a.bottom.y + 0.05, w: t.w * 0.1, h: 0.03 };
+  if (kind === "ears") return { x: neck.x - neck.w * 0.1, y: neck.y - 0.06, w: neck.w * 1.2, h: 0.04 };
+  return undefined;
+}
+
+// Layering order on the body, bottom to top; "outfit" is the top and bottom.
+export const LAYERS = ["pantyhose", "outfit", "shoes", "scarves", "jewelry", "bags", "hats"];
+
+export type Figure = "womens" | "mens";
+
 // A simple stand-in figure, used until the user uploads a full-body photo.
-export function placeholderBody(w: number, h: number): HTMLCanvasElement {
+// The menswear one has short hair, broader shoulders and boxers.
+export function placeholderBody(w: number, h: number, figure: Figure = "womens"): HTMLCanvasElement {
   const c = makeCanvas(w, h);
   const ctx = c.getContext("2d")!;
   const X = (f: number) => f * w;
@@ -34,26 +72,34 @@ export function placeholderBody(w: number, h: number): HTMLCanvasElement {
     ctx.fill();
   };
 
+  const mens = figure === "mens";
+  const hair = mens ? "#5a3a22" : "#d9b06a";
   // hair behind the shoulders
-  poly([[0.42, 0.06], [0.58, 0.06], [0.61, 0.25], [0.39, 0.25]], "#d9b06a");
+  if (!mens) poly([[0.42, 0.06], [0.58, 0.06], [0.61, 0.25], [0.39, 0.25]], hair);
   // arms
-  limb([[0.38, 0.19], [0.32, 0.33], [0.27, 0.47]], X(0.06));
-  limb([[0.62, 0.19], [0.68, 0.33], [0.73, 0.47]], X(0.06));
+  const sh = mens ? 0.025 : 0; // broader shoulders
+  limb([[0.38 - sh, 0.19], [0.32 - sh, 0.33], [0.27 - sh, 0.47]], X(mens ? 0.07 : 0.06));
+  limb([[0.62 + sh, 0.19], [0.68 + sh, 0.33], [0.73 + sh, 0.47]], X(mens ? 0.07 : 0.06));
   // legs
   limb([[0.43, 0.48], [0.42, 0.7], [0.43, 0.93]], X(0.09));
   limb([[0.57, 0.48], [0.58, 0.7], [0.57, 0.93]], X(0.09));
   // torso and neck
-  poly([[0.37, 0.175], [0.63, 0.175], [0.61, 0.3], [0.6, 0.38], [0.63, 0.47], [0.37, 0.47], [0.4, 0.38], [0.39, 0.3]], skin);
+  if (mens) poly([[0.35, 0.175], [0.65, 0.175], [0.63, 0.3], [0.61, 0.38], [0.62, 0.47], [0.38, 0.47], [0.39, 0.38], [0.37, 0.3]], skin);
+  else poly([[0.37, 0.175], [0.63, 0.175], [0.61, 0.3], [0.6, 0.38], [0.63, 0.47], [0.37, 0.47], [0.4, 0.38], [0.39, 0.3]], skin);
   poly([[0.47, 0.12], [0.53, 0.12], [0.53, 0.18], [0.47, 0.18]], skin);
-  // head and fringe
+  // head and hair
   ctx.fillStyle = skin;
   ctx.beginPath();
   ctx.ellipse(X(0.5), Y(0.095), X(0.065), Y(0.045), 0, 0, Math.PI * 2);
   ctx.fill();
-  poly([[0.43, 0.08], [0.5, 0.05], [0.57, 0.08], [0.57, 0.06], [0.5, 0.045], [0.43, 0.06]], "#d9b06a");
-  // underwear
-  poly([[0.39, 0.23], [0.61, 0.23], [0.61, 0.275], [0.39, 0.275]], "#141018");
-  poly([[0.37, 0.44], [0.63, 0.44], [0.64, 0.53], [0.51, 0.53], [0.5, 0.5], [0.49, 0.53], [0.36, 0.53]], "#141018");
+  if (mens) poly([[0.435, 0.085], [0.44, 0.06], [0.5, 0.045], [0.56, 0.06], [0.565, 0.085], [0.55, 0.07], [0.45, 0.07]], hair);
+  else poly([[0.43, 0.08], [0.5, 0.05], [0.57, 0.08], [0.57, 0.06], [0.5, 0.045], [0.43, 0.06]], hair);
+  // underwear: boxers for the menswear figure
+  if (mens) poly([[0.37, 0.44], [0.63, 0.44], [0.645, 0.57], [0.52, 0.57], [0.5, 0.52], [0.48, 0.57], [0.355, 0.57]], "#2a3450");
+  else {
+    poly([[0.39, 0.23], [0.61, 0.23], [0.61, 0.275], [0.39, 0.275]], "#141018");
+    poly([[0.37, 0.44], [0.63, 0.44], [0.64, 0.53], [0.51, 0.53], [0.5, 0.5], [0.49, 0.53], [0.36, 0.53]], "#141018");
+  }
   // shoes
   poly([[0.39, 0.93], [0.46, 0.93], [0.47, 0.96], [0.38, 0.96]], "#2a2030");
   poly([[0.54, 0.93], [0.61, 0.93], [0.62, 0.96], [0.53, 0.96]], "#2a2030");

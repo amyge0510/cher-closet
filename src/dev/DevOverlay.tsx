@@ -47,7 +47,7 @@ export function DevOverlay({ state, dispatch, verdictReason }: { state: State; d
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "`") set({ open: !p.open });
+      if (e.key === "`" && !(e.target instanceof HTMLInputElement)) set({ open: !p.open });
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

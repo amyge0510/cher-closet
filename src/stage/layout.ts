@@ -5,6 +5,20 @@ export const STAGE_H = 480;
 
 export type Box = { x: number; y: number; w: number; h: number };
 
+// Where worn accessories sit on the leopard sides, next to the top and bottom.
+export const EXTRA_SPOTS: Record<string, Box> = {
+  jewelry: { x: 46, y: 44, w: 112, h: 80 },
+  scarves: { x: 40, y: 136, w: 124, h: 108 },
+  bags: { x: 36, y: 256, w: 132, h: 122 },
+  underwear: { x: 484, y: 44, w: 116, h: 80 },
+  pantyhose: { x: 492, y: 132, w: 100, h: 118 },
+  shoes: { x: 470, y: 262, w: 144, h: 112 },
+  // hats share the tights spot (menswear has no tights)
+  hats: { x: 492, y: 132, w: 100, h: 118 },
+};
+// any other category (one a user made up) shares the underwear spot
+export const extraSpot = (category: string): Box => EXTRA_SPOTS[category] ?? EXTRA_SPOTS.underwear;
+
 export const L = {
   header: { x: 0, y: 0, w: 640, h: 32 },
   title: { x: 2, y: 9, sx: 1.6, sy: 2 }, // "CHER'S WARDROBE"
@@ -37,14 +51,36 @@ export const L = {
 
   categoryBar: { x: 0, y: 450, w: 640, h: 30 },
   categoryText: { sx: 1.5, sy: 2, y: 459 },
-  categories: [
-    { label: "SHOES", x: 9 },
-    { label: "JEWELRY", x: 66 },
-    { label: "SCARVES", x: 148 },
-    { label: "PANTYHOSE", x: 224 },
-    { label: "UNDERWEAR", x: 315 },
-    { label: "PANTS", x: 412 },
-    { label: "SWEATERS", x: 466 },
-  ],
+  // labels are placed left to right from `start`; ones that don't fit before
+  // `end` go under MORE
+  categoryRun: { start: 9, end: 380, gap: 14 },
+  upload: { x: 388, y: 454, w: 98, h: 22 }, // UPLOAD, styled like MY STYLE
+  looks: { x: 492, y: 453, w: 66, h: 24 },
   more: { x: 562, y: 453, w: 62, h: 24 },
+
+  // the closet pop-up (Minecraft-style inventory), sitting just above the bar
+  inventory: { x: 136, y: 250, w: 368, h: 196 },
+  invPad: 10,
+  invHeader: 26,
+  invSlot: 36,
+  invCols: 9,
+  invRows: 3,
+  invScrollW: 16,
+  moreMenu: { x: 446, w: 184, rowH: 22 }, // grows upward from the bar
+
+  // MY STYLE button in the header, and the style quiz pop-up
+  styleButton: { x: 512, y: 6, w: 122, h: 21 },
+  saveLook: { x: 350, y: 414, w: 86, h: 26 }, // ♥ SAVE, on the dressed screen
+  bannerReason: { x: 80, y: 276, w: 490, h: 24 }, // why it's a mis-match
+  styleQuiz: { x: 8, y: 36, w: 624, h: 410 },
+  // the upload pop-up, in the middle of the screen
+  uploadBox: { x: 130, y: 52, w: 380, h: 380 },
+  quizBoard: { y: 80, w: 145, h: 290, gap: 8 },
+
+  // sign-in, laid out inside the center column
+  signTitle: { y: 52, sx: 3, sy: 3.4 },
+  signLabel: { y: 196, sx: 1.6, sy: 2 },
+  signField: { x: 216, y: 218, w: 216, h: 34 },
+  signHint: { y: 266, sx: 1.4, sy: 1.8 },
+  signError: { y: 316, sx: 1.4, sy: 1.8 },
 } as const;

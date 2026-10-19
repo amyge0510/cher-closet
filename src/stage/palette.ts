@@ -28,4 +28,12 @@ export const C = {
   splashHanger: "#d2d6ff",
   splashGlow: "#56589c",
   white: "#ffffff",
+  // closet pop-up: the Minecraft inventory, but white
+  invBg: "#f7f7fb",
+  invEdge: "#141433",
+  invSlot: "#dedee8",
+  invSlotHover: "#ffffff",
+  invSlotShadow: "#8c8ca6",
+  invText: "#3a3a5a",
+  dropGlow: "#ffffff",
 } as const;
