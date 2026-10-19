@@ -21,7 +21,7 @@ import { SavedLooks } from "./SavedLooks";
 import { StyleQuiz } from "./StyleQuiz";
 import { Bevel, ButtonLabel, CategoryBar, ControlStrip, Header, Leopard, overflowCategories, pos, tabCenter, wide } from "./Parts";
 import { Reveal } from "./Reveal";
-import { canWearPixel, defaultLook, type PixelLook } from "../closet/pixelModel";
+import { canWearPixel, defaultLook, validLook, type PixelLook } from "../closet/pixelModel";
 import { PixelLookMenu } from "./PixelLookMenu";
 import { track } from "../lib/track";
 
@@ -150,7 +150,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   const [look, setLookState] = useState<PixelLook>(() => {
     try {
       const saved = lookKey ? (JSON.parse(localStorage.getItem(lookKey) ?? "null") as PixelLook | null) : null;
-      if (saved?.hair) return saved;
+      if (validLook(saved)) return saved;
     } catch {
       /* storage unavailable */
     }

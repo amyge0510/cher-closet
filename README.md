@@ -84,19 +84,24 @@ People can add their own events but can't read any; only admins can, through
 `admin_users()` and `admin_events()`.
 
 **The pixel model.** With the closet on PIXEL, DRESS ME shows a pixel-art
-figure instead of a photo: a honey-blonde girl with space buns, or a guy with
-messy brown hair for menswear (`src/closet/pixelModel.ts`). Both are about
+figure instead of a photo: a girl with long dark hair, curtain bangs and white
+bows, or a guy with messy brown hair for menswear (`src/closet/pixelModel.ts`). Both are about
 6 1/2 heads tall, the legs parting a little over half way down. Each pixel
 garment is cut from the figure's own torso, arms and legs (a tee is the
 torso and the tops of the arms, jeans are the legs, a skirt flares from the
 hips), filled with its pattern, shaded at the sides and outlined, so it fits
 the body instead of being laid on top; every skirt reaches well past where
 the legs part. The figure is laid out on a 64x128 grid and drawn at 2 pixels
-per step, so fingers, knees, toes and lashes show, and hair is painted in
-rounded locks with a band of shine. Once dressed she sways her arms (each on
+per step, so fingers, knees and toes show. The face and hair are pixel art
+in bigger pixels (one per step), placed by hand in the code: each hairstyle
+lists where every column of hair starts and ends (the pointed bang locks,
+the strands framing the face, the part), then gets a base color, darker lock
+lines, shadow by the face, a shiny arc and an outline; the eyes have a thick
+upper lash with a flick, a two-tone iris with catchlights and a soft lower
+lash, with blush and full two-tone lips. Once dressed she sways her arms (each on
 its own beat), blinks, glances side to side and smiles, brows lifting
 (`poseAt`); the frames are built in layers (`pixelScene`) so this stays
-smooth. LOOK (bottom left of the picture) changes girl or guy, ten
+smooth. LOOK (bottom left of the picture) changes girl or guy, nine
 hairstyles, hair color, eye color and skin tone, kept in this browser. No
 photo, Gemini or HAIR in this mode.
 

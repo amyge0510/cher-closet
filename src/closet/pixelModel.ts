@@ -24,25 +24,25 @@ export const GRID_H = U_H * K;
 
 // ---- what the user can change ----
 
-export type HairStyle = "buns" | "waves" | "pony" | "bob" | "puff" | "messy" | "curls" | "buzz" | "sidePart" | "long";
+export type HairStyle = "bows" | "long" | "pony" | "bob" | "puff" | "messy" | "short" | "curls" | "buzz";
 export type PixelLook = { figure: Figure; hair: HairStyle; hairColor: string; eyes: string; skin: string };
 
 export const HAIR_STYLES: { id: HairStyle; label: string }[] = [
-  { id: "buns", label: "SPACE BUNS" },
-  { id: "waves", label: "LONG WAVES" },
+  { id: "bows", label: "LONG + BOWS" },
+  { id: "long", label: "LONG" },
   { id: "pony", label: "PONYTAIL" },
   { id: "bob", label: "BOB" },
   { id: "puff", label: "AFRO PUFF" },
   { id: "messy", label: "MESSY" },
+  { id: "short", label: "SHORT" },
   { id: "curls", label: "CURLY TOP" },
-  { id: "sidePart", label: "SIDE PART" },
   { id: "buzz", label: "BUZZ CUT" },
-  { id: "long", label: "SHOULDER" },
 ];
 export const HAIR_COLORS = [
+  { label: "Dark brown", hex: "#4a3230" },
   { label: "Honey blonde", hex: "#e2b04e" },
   { label: "Platinum", hex: "#ece0c0" },
-  { label: "Brown", hex: "#5a3a2a" },
+  { label: "Brown", hex: "#6a4630" },
   { label: "Black", hex: "#2a2024" },
   { label: "Auburn", hex: "#a0442a" },
   { label: "Pink", hex: "#f08ab8" },
@@ -50,6 +50,7 @@ export const HAIR_COLORS = [
   { label: "Blue", hex: "#4a6ad8" },
 ];
 export const EYE_COLORS = [
+  { label: "Dark", hex: "#3e3a56" },
   { label: "Blue", hex: "#3a5a9a" },
   { label: "Brown", hex: "#5a3418" },
   { label: "Green", hex: "#2f7a4a" },
@@ -68,8 +69,10 @@ export const SKIN_TONES = [
 
 export const defaultLook = (figure: Figure): PixelLook =>
   figure === "mens"
-    ? { figure, hair: "messy", hairColor: "#5a3a2a", eyes: "#5a3418", skin: "#f2c6a8" }
-    : { figure, hair: "buns", hairColor: "#e2b04e", eyes: "#3a5a9a", skin: "#f2c6a8" };
+    ? { figure, hair: "messy", hairColor: "#4a3230", eyes: "#5a3418", skin: "#f2c6a8" }
+    : { figure, hair: "bows", hairColor: "#4a3230", eyes: "#3e3a56", skin: "#f2c6a8" };
+// a saved look from before a style was retired falls back to the default
+export const validLook = (l: PixelLook | null | undefined): l is PixelLook => !!l && HAIR_STYLES.some((h) => h.id === l.hair);
 
 // ---- the idle animation ----
 
@@ -305,127 +308,211 @@ function patternAt(f: Fill, x: number, y: number): string {
 }
 
 // ---- hair ----
+//
+// Hair is drawn the way the pixel artists in the references draw it: in big
+// pixels (one per unit, the same size as the face's), laid out column by
+// column. Each style lists where every column of hair starts and ends, so
+// the bangs end in pointed locks at chosen heights, the side strands frame
+// the face, and the part and lock lines sit where they're placed. Then
+// every style gets the same finish: a flat base color, darker lock lines,
+// shadow next to the face and the part, a shiny arc across the crown, and
+// a dark outline.
 
-// a small fixed scramble, so strands and tips vary column to column
+// tones: 1 shine, 2 light, 3 base, 4 shadow, 5 lock line, 6 outline
+type Tones = Uint8Array; // U_W x U_H
+const tIdx = (x: number, y: number) => y * U_W + x;
+const newTones = (): Tones => new Uint8Array(U_W * U_H);
+
+// a style's columns: hair from top[i] to bottom[i] in column from + i
+function columns(t: Tones, from: number, top: number[], bottom: number[], tone = 3) {
+  top.forEach((y0, i) => {
+    for (let y = Math.max(0, y0); y <= bottom[i]; y++) t[tIdx(from + i, y)] = tone;
+  });
+}
+// recolors hair already there (a lock line, a shadow), from y0 to y1
+function stroke(t: Tones, x: number, y0: number, y1: number, tone: number) {
+  for (let y = y0; y <= y1; y++) if (t[tIdx(x, y)]) t[tIdx(x, y)] = tone;
+}
+// the crown: an arc over the head, its top at y 3 in the middle
+const crownTop = (x: number) => Math.round(12 - Math.sqrt(Math.max(0, 132 - (x - 32) ** 2)) * 0.78);
+const crownTops = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => crownTop(from + i));
+// shine: an arc of light two and three rows below the top of each column
+function shine(t: Tones, from: number, to: number) {
+  for (let x = from; x <= to; x++) {
+    let top = 0;
+    while (top < U_H && !t[tIdx(x, top)]) top++;
+    if (t[tIdx(x, top + 2)] === 3) t[tIdx(x, top + 2)] = x % 3 === 0 ? 1 : 2;
+    if (x % 2 === 0 && t[tIdx(x, top + 3)] === 3) t[tIdx(x, top + 3)] = 2;
+  }
+}
+// a dark outline round every edge
+function outline(t: Tones) {
+  const src = t.slice();
+  const empty = (x: number, y: number) => x < 0 || y < 0 || x >= U_W || y >= U_H || !src[tIdx(x, y)];
+  for (let y = 0; y < U_H; y++)
+    for (let x = 0; x < U_W; x++) if (src[tIdx(x, y)] && (empty(x - 1, y) || empty(x + 1, y) || empty(x, y - 1) || empty(x, y + 1))) t[tIdx(x, y)] = 6;
+}
+
+// a small fixed scramble, so the back of long hair ends unevenly
 const jitter = (n: number) => {
   const v = Math.sin(n * 12.9898) * 43758.5453;
   return v - Math.floor(v);
 };
 
-const crown = (ry = 9) => and(ellipse(32, 12, 11.5, ry), rect(0, 0, U_W - 1, 12));
-// a fringe of pointed locks across the forehead, from x0 to x1, hanging to y
-const fringe = (x0: number, x1: number, y: number, locks = 6) => {
-  const pts: Pt[] = [[x0, 6], [x1, 6]];
-  const w = (x1 - x0) / locks;
-  for (let i = locks; i >= 0; i--) {
-    pts.push([x0 + i * w, y - (i % 2 ? 0 : 2.2) - jitter(i + y) * 1.2]);
-  }
-  return poly(pts);
-};
+type HairLayers = { front: Tones; back: Tones | null; bows?: boolean; tie?: Pt };
 
-// [behind the body, in front of the face]
-function hairShapes(style: HairStyle): [Mask | null, Mask] {
+// Long and straight, with curtain bangs parted in the middle and strands
+// framing the face down past the shoulders (the scrimsart look).
+function longHair(): HairLayers {
+  const front = newTones();
+  columns(front, 19, [11, 9], [35, 39]);
+  columns(front, 21, crownTops(21, 43), [41, 38, 12, 13, 13, 12, 11, 12, 13, 13, 12, 10, 9, 10, 12, 13, 13, 12, 11, 12, 13, 38, 41]);
+  columns(front, 44, [9, 11], [39, 35]);
+  for (const x of [25, 28, 36, 39]) stroke(front, x, 9, 12, 5);
+  for (const x of [31, 33]) stroke(front, x, 5, 12, 4);
+  stroke(front, 22, 12, 38, 4);
+  stroke(front, 42, 12, 38, 4);
+  stroke(front, 20, 15, 37, 5);
+  stroke(front, 44, 15, 37, 5);
+  for (const x of [21, 43]) stroke(front, x, 16, 19, 2);
+  shine(front, 21, 43);
+  outline(front);
+  const back = newTones();
+  for (let x = 18; x <= 46; x++) columns(back, x, [8], [49 + Math.round(jitter(x) * 3) - (x < 20 || x > 44 ? 5 : 0)], 4);
+  for (const x of [20, 24, 28, 36, 40, 44]) stroke(back, x, 28, 52, 5);
+  for (const x of [19, 45]) stroke(back, x, 18, 44, 3);
+  outline(back);
+  return { front, back };
+}
+
+// A chin-length bob with blunt bangs.
+function bob(): HairLayers {
+  const front = newTones();
+  columns(front, 19, [10, 8], [26, 28]);
+  columns(front, 21, crownTops(21, 43), [28, 27, 12, 12, 13, 12, 12, 12, 13, 12, 12, 12, 12, 12, 13, 12, 12, 12, 13, 12, 12, 27, 28]);
+  columns(front, 44, [8, 10], [28, 26]);
+  for (const x of [26, 30, 34, 38]) stroke(front, x, 10, 12, 5);
+  for (const x of [20, 44]) stroke(front, x, 15, 26, 5);
+  stroke(front, 22, 12, 27, 4);
+  stroke(front, 42, 12, 27, 4);
+  shine(front, 21, 43);
+  outline(front);
+  const back = newTones();
+  columns(back, 20, Array(25).fill(8), Array(25).fill(28), 4);
+  outline(back);
+  return { front, back };
+}
+
+// A high ponytail, bangs swept to one side.
+function pony(): HairLayers {
+  const front = newTones();
+  columns(front, 20, [9], [15]);
+  columns(front, 21, crownTops(21, 43), [20, 22, 13, 13, 12, 12, 11, 11, 10, 10, 9, 9, 8, 8, 8, 8, 8, 8, 8, 8, 8, 17, 14]);
+  columns(front, 44, [9], [12]);
+  for (const x of [25, 28, 31]) stroke(front, x, 7, 12, 5);
+  stroke(front, 22, 12, 21, 4);
+  shine(front, 21, 43);
+  outline(front);
+  const back = newTones();
+  columns(back, 43, [4, 3, 2, 2, 3, 5, 8, 12, 16], [10, 24, 34, 40, 42, 40, 35, 28, 22]);
+  for (const x of [46, 48]) stroke(back, x, 10, 38, 5);
+  stroke(back, 44, 8, 22, 2);
+  outline(back);
+  return { front, back, tie: [43, 4] };
+}
+
+// Messy and tousled (the boy in the references): chunky tufts on top and a
+// choppy fringe falling to the brows.
+function messy(): HairLayers {
+  const front = newTones();
+  columns(front, 20, [9], [16]);
+  columns(front, 21, [7, 6, 4, 4, 5, 2, 2, 3, 4, 1, 1, 2, 4, 3, 3, 1, 2, 4, 5, 4, 5, 6, 8], [17, 15, 12, 13, 14, 12, 11, 13, 14, 13, 11, 12, 14, 13, 12, 11, 13, 14, 12, 11, 12, 15, 17]);
+  columns(front, 44, [9], [16]);
+  for (const x of [25, 29, 33, 37]) stroke(front, x, 8, 13, 5);
+  for (const x of [22, 42]) stroke(front, x, 10, 15, 4);
+  shine(front, 21, 43);
+  outline(front);
+  return { front, back: null };
+}
+
+// Short and neat, swept to the side.
+function short(): HairLayers {
+  const front = newTones();
+  columns(front, 21, crownTops(21, 43), [15, 14, 9, 9, 9, 10, 10, 10, 10, 9, 9, 9, 9, 9, 10, 10, 11, 11, 12, 12, 11, 13, 15]);
+  for (const x of [27, 31, 35]) stroke(front, x, 6, 10, 4);
+  shine(front, 21, 43);
+  outline(front);
+  return { front, back: null };
+}
+
+// The rest are drawn from shapes and painted in curls or fine strands.
+const crown = (ry = 9) => and(ellipse(32, 12, 11.5, ry), rect(0, 0, U_W - 1, 12));
+function shapedHair(style: HairStyle): [Mask | null, Mask] {
   switch (style) {
-    case "buns":
-      return [null, or(crown(), fringe(22.5, 41.5, 12.5, 7), poly([[20, 9], [24, 9], [24, 30], [22, 32], [20, 30]]), poly([[40, 9], [44, 9], [44, 30], [42, 32], [40, 30]]), ellipse(21, 4, 5.5, 5), ellipse(43, 4, 5.5, 5))];
-    case "waves": {
-      const back = or(rect(19, 10, 45, 44), ...[20, 25, 30, 35, 40, 44].map((x, i) => ellipse(x, 45 + (i % 2), 2.8, 2.6)));
-      return [back, or(crown(), poly([[21.5, 7], [42, 6], [42.5, 11], [33, 9.5], [27, 13], [22, 16]]), poly([[19.5, 10], [23.5, 10], [23, 30], [21, 40], [19, 38]]), poly([[40.5, 10], [44.5, 10], [45, 38], [43, 40], [41, 30]]))];
-    }
-    case "pony":
-      return [poly([[37, 2], [45, 0], [51, 7], [51.5, 22], [49, 34], [46, 40], [45, 28], [43, 10]]), or(crown(8.5), poly([[21.5, 8], [30, 7], [27, 12], [22.5, 17]]), rect(21, 9, 22.5, 19), rect(41.5, 9, 43, 19))];
-    case "bob":
-      return [null, or(crown(), fringe(22.5, 41.5, 12, 7), poly([[20, 8], [24, 8], [24, 26], [22.5, 28], [19, 28]]), poly([[40, 8], [44, 8], [45, 28], [41.5, 28], [40, 26]]))];
     case "puff":
       return [null, or(and(ellipse(32, 12, 10.5, 8.5), rect(0, 0, U_W - 1, 10)), ellipse(32, 0.5, 9, 6.5))];
-    case "messy": {
-      // tousled: a full crown, a choppy fringe falling into the eyes, and a
-      // few strands sticking up
-      const spikes = poly([[22, 6], [24, 1.5], [26.5, 4.5], [29, -0.5], [31.5, 3.5], [35, 0], [36.5, 4], [40.5, 1.5], [41, 6]]);
-      return [null, or(crown(9.5), spikes, fringe(22, 42, 14.5, 8), rect(21, 9, 22.5, 18), rect(41.5, 9, 43, 18), poly([[42, 7], [45.5, 5], [44, 10]]), poly([[22, 7], [18.5, 6], [20.5, 11]]))];
-    }
     case "curls":
       return [null, or(and(or(ellipse(32, 8, 11.5, 6.5), ellipse(23, 5, 4.5, 4.5), ellipse(29, 2.5, 5, 4), ellipse(36, 2.5, 5, 4), ellipse(41.5, 6, 4.5, 4.5)), rect(0, 0, U_W - 1, 11)), rect(21, 10, 22.5, 17), rect(41.5, 10, 43, 17))];
-    case "buzz":
-      return [null, or(and(ellipse(32, 13, 10.5, 9.5), rect(0, 0, U_W - 1, 8)), rect(21.5, 8, 22.5, 14), rect(41.5, 8, 42.5, 14))];
-    case "sidePart":
-      return [null, or(and(ellipse(32, 12, 11, 9), rect(0, 0, U_W - 1, 10)), poly([[21.5, 7], [43, 5], [43.5, 10.5], [31, 8.5], [23, 13.5]]), rect(21, 9, 22.5, 16), rect(41.5, 9, 43, 16))];
-    case "long":
-      return [rect(20, 10, 44, 33), or(crown(), poly([[21.5, 7], [31.5, 6], [27, 11], [22.5, 15]]), poly([[32.5, 6], [42.5, 7], [41.5, 15], [37, 11]]), rect(20, 10, 22.5, 32), rect(41.5, 10, 44, 32))];
+    default:
+      return [null, or(and(ellipse(32, 13, 10.5, 9.5), rect(0, 0, U_W - 1, 8)), crown(0), rect(21.5, 8, 22.5, 14), rect(41.5, 8, 42.5, 14))];
   }
 }
 
-// Paints hair the way pixel artists do: a base color with darker clumps of
-// strands, deeper shadow toward the sides and under the crown, a curved band
-// of shine near the top, uneven tips, and a dark outline.
-function paintHair(px: RGBA, m: Mask, base: string, curly: boolean) {
-  const hi = lighter(base, 0.38);
-  const soft = lighter(base, 0.16);
-  const mid = darker(base, 0.8);
-  const deep = darker(base, 0.62);
+// Curls: little round curls, a light top-left and dark bottom-right on each.
+function paintCurls(px: RGBA, m: Mask, base: string, curly: boolean) {
   const ink = darker(base, 0.42);
-  const top = new Int16Array(GRID_W).fill(-1);
-  const bottom = new Int16Array(GRID_W).fill(-1);
-  for (let x = 0; x < GRID_W; x++)
-    for (let y = 0; y < GRID_H; y++)
-      if (m[idx(x, y)]) {
-        if (top[x] < 0) top[x] = y;
-        bottom[x] = y;
-      }
-  // uneven tips: each column ends a pixel or two short of the next
-  const trimmed = m.slice();
-  for (let x = 0; x < GRID_W; x++) if (bottom[x] - top[x] > 16) for (let k = 0; k < Math.floor(jitter(x >> 1) * 3); k++) trimmed[idx(x, bottom[x] - k)] = 0;
   for (let y = 0; y < GRID_H; y++)
     for (let x = 0; x < GRID_W; x++) {
-      if (!trimmed[idx(x, y)]) continue;
-      if (isEdge(trimmed, x, y)) {
+      if (!m[idx(x, y)]) continue;
+      if (isEdge(m, x, y)) {
         dot(px, x, y, ink);
         continue;
       }
-      const depth = y - top[x];
-      let c = base;
-      if (curly) {
-        // little round curls: a light top-left, a dark bottom-right on each
-        const cx = (x + ((y >> 2) % 2) * 2) % 4;
-        const cy = y % 4;
-        c = cx + cy <= 1 ? soft : cx + cy >= 5 ? deep : (x * 7 + y * 3) % 11 === 0 ? mid : base;
-        if (depth < 6 && (x + y) % 3 === 0) c = hi;
-      } else {
-        // rounded locks, about 6 pixels wide, fanning out from the crown:
-        // each lit on its left, shaded on its right, with a thin dark line
-        // where two locks meet (broken here and there)
-        const fan = x - ((x - GRID_W / 2) * Math.min(depth, 24)) / 48;
-        const lockW = 6;
-        const lock = Math.floor((fan + jitter(Math.floor(fan / lockW)) * 2) / lockW);
-        const u = (fan - lock * lockW) / lockW;
-        if (u < 0.22) c = soft;
-        else if (u > 0.78) c = mid;
-        if (u > 0.9 && (y + lock * 5) % 9 > 1) c = deep;
-        // the shine: a curved band a little below the top of each column
-        const band = 7 + Math.round(Math.abs(x - GRID_W / 2) * 0.05);
-        if (depth >= band && depth <= band + 2 && u > 0.1 && u < 0.7) c = depth === band + 1 ? hi : soft;
+      if (!curly) {
+        dot(px, x, y, (x + y) % 5 === 0 ? darker(base, 0.8) : base);
+        continue;
       }
-      // volume: darker toward the sides and at the very ends
-      const l = x > 2 && !trimmed[idx(x - 3, y)];
-      const r = x < GRID_W - 3 && !trimmed[idx(x + 3, y)];
-      if (l || r) c = c === hi || c === soft ? base : mid;
-      if (bottom[x] - y < 3) c = deep;
-      dot(px, x, y, c);
+      const cx = (x + ((y >> 2) % 2) * 2) % 4;
+      const cy = y % 4;
+      dot(px, x, y, cx + cy <= 1 ? lighter(base, 0.16) : cx + cy >= 5 ? darker(base, 0.62) : base);
     }
 }
 
-function hairMask(look: PixelLook, layer: 0 | 1): Mask | null {
-  return hairShapes(look.hair)[layer];
+const authored: Partial<Record<HairStyle, () => HairLayers>> = { bows: () => ({ ...longHair(), bows: true }), long: longHair, bob, pony, messy, short };
+const hairCache = new Map<HairStyle, HairLayers>();
+const hairOf = (style: HairStyle) => {
+  let h = hairCache.get(style);
+  if (!h && authored[style]) hairCache.set(style, (h = authored[style]!()));
+  return h;
+};
+
+// a white satin bow, 10 x 7, centred on (cx, cy): two loops and a knot,
+// the ribbon ends hanging below
+const BOW = [".cc....cc.", "cBBc..cBBc", "cBBBckBBBc", "cbBBkkBBbc", ".cbbckbbc.", "..cc..cc..", ".cBc..cBc.", ".cc....cc."];
+const BOW_COLORS: Record<string, string> = { B: "#f8f8fe", b: "#d8dcf2", k: "#c2c8ea", c: "#8a90c4" };
+function drawBow(px: RGBA, cx: number, cy: number) {
+  BOW.forEach((row, j) => [...row].forEach((ch, i) => ch !== "." && unit(px, cx - 5 + i, cy - 3 + j, BOW_COLORS[ch])));
 }
 
 function drawHair(px: RGBA, look: PixelLook, layer: 0 | 1) {
-  const m = hairMask(look, layer);
+  const c = look.hairColor;
+  const h = hairOf(look.hair);
+  if (h) {
+    const t = layer === 0 ? h.back : h.front;
+    if (!t) return;
+    const palette = ["", lighter(c, 0.4), lighter(c, 0.18), c, darker(c, 0.78), darker(c, 0.6), darker(c, 0.42)];
+    for (let y = 0; y < U_H; y++) for (let x = 0; x < U_W; x++) if (t[tIdx(x, y)]) unit(px, x, y, palette[t[tIdx(x, y)]]);
+    if (layer === 1 && h.bows) {
+      drawBow(px, 21, 5);
+      drawBow(px, 44, 5);
+    }
+    if (layer === 0 && h.tie) for (let i = -1; i <= 1; i++) unit(px, h.tie[0] + i, h.tie[1], i ? "#f08ab8" : "#d86a9a");
+    return;
+  }
+  const m = shapedHair(look.hair)[layer];
   if (!m) return;
-  paintHair(px, m, look.hairColor, look.hair === "curls" || look.hair === "puff");
-  // ties and scrunchies in a contrasting color
-  if (layer === 1 && look.hair === "buns") for (const cx of [21, 43]) for (let x = cx - 4; x <= cx + 4; x++) for (const y of [8.5, 9.5]) unit(px, x, y, (x + Math.round(y)) % 2 ? "#c8b8f8" : "#a894e8");
+  paintCurls(px, m, c, look.hair !== "buzz");
   if (layer === 1 && look.hair === "puff") for (let x = 24; x <= 40; x++) unit(px, x, 5.5, x % 2 ? "#f08ab8" : "#d86a9a");
-  if (layer === 0 && look.hair === "pony") for (let x = 41; x <= 44; x++) unit(px, x, 3, "#f08ab8");
 }
 
 // ---- the body ----
@@ -434,6 +521,7 @@ function drawBody(px: RGBA, look: PixelLook, b: Body) {
   const skin = look.skin;
   const shade = darker(skin, 0.86);
   const line = darker(skin, 0.64);
+  const glow = lighter(skin, 0.22);
   fillMask(px, or(b.armL, b.armR, b.hands), skin, line);
   fillMask(px, or(b.legL, b.legR), skin, line);
   fillMask(px, or(b.torso, b.neck), skin, line);
@@ -441,14 +529,36 @@ function drawBody(px: RGBA, look: PixelLook, b: Body) {
   fillMask(px, b.head, skin, line, false);
   fillMask(px, b.feet, skin, line, false);
 
-  // a shadow under the chin, fingers, knees, toes, collarbones, navel
-  for (let x = 59; x <= 69; x++) dot(px, x, 52, shade);
-  for (let x = 60; x <= 68; x++) dot(px, x, 53, shade);
+  // a shadow under the chin
+  for (let x = 58; x <= 69; x++) dot(px, x, 52, shade);
+  for (let x = 59; x <= 68; x++) dot(px, x, 53, shade);
+  for (let x = 60; x <= 67; x++) dot(px, x, 54, shade);
+  // fingers
   for (const [hx, hy] of [b.handL, b.handR]) for (const dx of [-1.4, 0, 1.4]) for (let dy = 0.8; dy <= 2.8; dy += 0.5) dot(px, (hx + 0.5) * K + dx, (hy + dy) * K, line);
-  for (const kx of [27.4, 36.6]) for (let dx = -2; dx <= 2; dx++) dot(px, kx * K + dx, 88 * K + Math.abs(dx) * 0.5, shade);
-  for (const [fx, dir] of [[22, 1], [42, -1]] as const) for (let t = 0; t < 4; t++) dot(px, (fx + dir * t * 0.9) * K + 1, 119 * K, line);
+  // knees: a kneecap with a light top and a curved line under it
+  for (const kx of [27.4, 36.6]) {
+    const X = Math.round(kx * K);
+    for (let dx = -2; dx <= 2; dx++) dot(px, X + dx, 173, glow);
+    for (let dx = -2; dx <= 2; dx++) dot(px, X + dx, 174, glow);
+    for (let dx = -3; dx <= 3; dx++) dot(px, X + dx, 177 - (Math.abs(dx) === 3 ? 1 : 0), line);
+    dot(px, X - 1, 180, shade);
+    dot(px, X + 1, 180, shade);
+  }
+  // toes: four on each foot, with a light nail at the tip
+  for (const side of [-1, 1]) {
+    for (let t = 0; t < 4; t++) {
+      const ux = 32 + side * (9.6 - t * 1.25);
+      const X = Math.round(ux * K);
+      dot(px, X, 237, line);
+      dot(px, X, 238, line);
+      dot(px, X, 239, line);
+      dot(px, X + side, 239, glow);
+    }
+  }
+  // collarbones, navel
   for (let dx = -6; dx <= 6; dx++) if (Math.abs(dx) > 1) dot(px, 64 + dx, 66 + Math.abs(dx) * 0.25, shade);
   dot(px, 64, 104, line);
+  dot(px, 64, 105, shade);
 
   // underwear
   if (look.figure === "mens") fillMask(px, or(rows(b.torso, 58, 65), rows(or(b.legL, b.legR), 60, 72)), "#2a3a66", "#141c38");
@@ -458,88 +568,103 @@ function drawBody(px: RGBA, look: PixelLook, b: Body) {
   }
 }
 
-// The face, in real pixels, for a pose: brows, big eyes (or a blink), nose,
-// mouth and cheeks. The head is centred on x 64, y 30.
+// The face, in big pixels like the hair (one per unit), for a pose. Left
+// and right are mirror images about the middle of the head (columns c and
+// 63 - c). Eyes: a thick black upper lash flicking out at the corner, a
+// two-tone iris with a pupil and two catchlights, a soft lower lash. Lips:
+// full, with a dark line between, a highlight on the lower lip.
 function drawFace(px: RGBA, look: PixelLook, pose: Pose) {
-  const P = (x: number, y: number, c: string) => dot(px, x, y, c);
   const mens = look.figure === "mens";
   const skin = look.skin;
-  const shade = darker(skin, 0.84);
-  const line = darker(skin, 0.62);
+  const both = (x: number, y: number, c: string) => {
+    unit(px, x, y, c);
+    unit(px, 63 - x, y, c);
+  };
+  const U = (x: number, y: number, c: string) => unit(px, x, y, c);
   const lash = "#1c1426";
-  const brow = darker(look.hairColor, 0.62);
-  const by = 24 - pose.brow;
-  // brows: thin and slightly arched (straighter and thicker for him)
-  for (const [x0, dir] of [[50, 1], [70, -1]] as const)
-    for (let i = 0; i < 8; i++) {
-      const x = dir === 1 ? x0 + i : x0 + 7 - i;
-      P(x, by + (i === 0 || i === 7 ? 1 : 0), brow);
-      if (mens && i > 0 && i < 7) P(x, by + 1, brow);
-    }
-  // eyes: 9 wide; outer corner flicks up
-  for (const [x0, outer] of [[50, -1], [70, 1]] as const) {
-    const y0 = 29;
-    if (pose.blink === 2) {
-      for (let i = 0; i < 9; i++) P(x0 + i, y0 + 4 + (i > 1 && i < 7 ? 1 : 0), lash);
-      if (!mens) P(outer < 0 ? x0 - 1 : x0 + 9, y0 + 3, lash);
-      continue;
-    }
-    const lid = pose.blink === 1 ? 2 : 0; // a half blink drops the upper lid
-    for (let i = 1; i < 8; i++) P(x0 + i, y0 + lid, lash);
-    for (let i = 0; i < 9; i++) if ((outer < 0 ? i < 4 : i > 4) || mens) P(x0 + i, y0 + lid + 1, lash);
-    if (!mens) {
-      const ox = outer < 0 ? x0 - 1 : x0 + 9;
-      P(ox, y0 + lid, lash);
-      P(ox + outer, y0 + lid - 1, lash);
-    }
-    const cx = x0 + 4 + pose.gaze * 1;
-    for (let y = y0 + lid + 2; y <= y0 + 6; y++)
-      for (let i = 1; i < 8; i++) {
-        const x = x0 + i;
-        const iris = Math.abs(x - cx) <= 2;
-        P(x, y, iris ? (y <= y0 + lid + 2 ? darker(look.eyes, 0.6) : y >= y0 + 5 ? lighter(look.eyes, 0.25) : look.eyes) : "#fbf8f6");
+  const white = "#fbf8f6";
+  const lowLash = mix(skin, lash, 0.22);
+  const brow = mix(look.hairColor, skin, 0.35);
+
+  // brows (mostly under the bangs, as in the references)
+  // a soft arc: high in the middle, both ends a little lower
+  const by = 12 - pose.brow;
+  for (let x = 26; x <= 28; x++) both(x, by, brow);
+  both(29, by + 1, brow);
+
+  // eyes: columns 25..30 on the left, 33..38 on the right
+  if (pose.blink === 2) {
+    for (let x = 26; x <= 29; x++) both(x, 16, lash);
+    both(25, 15, lash);
+    both(30, 15, lash);
+    both(27, 17, lowLash);
+    both(28, 17, lowLash);
+  } else {
+    const lid = pose.blink === 1 ? 1 : 0;
+    for (let x = 25; x <= 29; x++) both(x, 14 + lid, lash); // thinner toward the nose
+    both(25, 13 + lid, lash); // the flick
+    both(25, 15 + lid, lash);
+    for (let y = 15 + lid; y <= 17; y++) for (let x = 26; x <= 30; x++) both(x, y, white);
+    // the iris follows her gaze; on the right eye "left" is the mirror
+    for (const side of [0, 1]) {
+      const g = side ? -pose.gaze : pose.gaze;
+      const ic = 28 + g; // iris centre column, 3 wide
+      const put = (x: number, y: number, c: string) => U(side ? 63 - x : x, y, c);
+      for (let x = ic - 1; x <= ic + 1; x++) {
+        if (!lid) put(x, 15, darker(look.eyes, 0.55));
+        put(x, 16, look.eyes);
+        put(x, 17, lighter(look.eyes, 0.22));
       }
-    for (let y = Math.max(y0 + 3, y0 + lid + 2); y <= y0 + 4; y++) for (const x of [cx, cx + 1]) P(x - (x === cx + 1 ? 1 : 0), y, "#120c1a");
-    if (!lid) {
-      P(cx - 1, y0 + 3, "#ffffff");
-      P(cx - 2, y0 + 3, "#ffffff");
-      P(cx + 1, y0 + 5, "#ffffff");
+      put(ic, 16, "#120c1a");
+      if (!lid) put(ic, 15, "#120c1a");
+      if (!lid) put(ic - 1, 15, "#ffffff");
+      put(ic + 1, 17, white);
     }
-    for (let i = 2; i < 7; i++) P(x0 + i, y0 + 7, line); // lower lash
+    for (let x = 27; x <= 29; x++) both(x, 18, lowLash);
   }
-  // nose: a soft shadow and a nostril
-  P(64, 37, shade);
-  P(64, 38, shade);
-  P(63, 40, line);
-  P(65, 40, shade);
-  // mouth
-  const lip = mens ? mix(skin, "#a85a5a", 0.45) : "#d65a74";
-  const lipDark = darker(lip, 0.78);
-  const lipHi = lighter(lip, 0.35);
+
+  // nose: a soft shadow and the tip
+  U(32, 19, darker(skin, 0.9));
+  U(31, 20, darker(skin, 0.86));
+  U(32, 20, darker(skin, 0.72));
+
+  // blush: a soft round flush under each eye
+  const blush = mix(skin, "#f27a8c", pose.mouth === 2 ? 0.55 : 0.42);
+  const blushSoft = mix(skin, "#f27a8c", 0.24);
+  for (const [x, y, strong] of [[24, 19, 1], [25, 19, 1], [23, 19, 0], [26, 19, 0], [24, 20, 0], [25, 20, 0]] as const) both(x, y, strong ? blush : blushSoft);
+
+  // lips: columns 29..34
+  const lip = mens ? mix(skin, "#b0605e", 0.4) : "#e06a86";
+  const lipDark = mens ? darker(lip, 0.82) : "#a8405e";
+  const lipHi = mens ? lip : "#f6b4c4";
+  const row = (y: number, x0: number, x1: number, c: string) => {
+    for (let x = x0; x <= x1; x++) U(x, y, c);
+  };
   if (pose.mouth === 0) {
-    for (let x = 61; x <= 67; x++) P(x, 44, lipDark);
-    if (!mens) {
-      for (let x = 62; x <= 66; x++) P(x, 45, lip);
-      P(64, 45, lipHi);
+    if (mens) {
+      row(22, 30, 33, lipDark);
+      row(23, 31, 32, lip);
+    } else {
+      row(21, 30, 33, lip);
+      row(22, 29, 34, lipDark);
+      row(23, 29, 34, lip);
+      U(31, 23, lipHi);
+      row(24, 30, 33, lip);
     }
   } else if (pose.mouth === 1) {
-    P(60, 43, lipDark);
-    P(68, 43, lipDark);
-    for (let x = 61; x <= 67; x++) P(x, 44, lipDark);
-    if (!mens) for (let x = 62; x <= 66; x++) P(x, 45, lip);
+    U(29, 21, lipDark);
+    U(34, 21, lipDark);
+    row(22, 30, 33, lipDark);
+    row(23, 30, 33, lip);
+    if (!mens) U(31, 23, lipHi);
   } else {
-    P(59, 42, lipDark);
-    P(69, 42, lipDark);
-    P(60, 43, lipDark);
-    P(68, 43, lipDark);
-    for (let x = 61; x <= 67; x++) P(x, 44, lipDark);
-    for (let x = 61; x <= 67; x++) P(x, 45, "#fffaf4");
-    for (let x = 62; x <= 66; x++) P(x, 46, lip);
+    U(29, 21, lipDark);
+    U(34, 21, lipDark);
+    U(29, 22, lipDark);
+    U(34, 22, lipDark);
+    row(22, 30, 33, "#fffaf4");
+    row(23, 30, 33, mens ? lipDark : lip);
   }
-  // cheeks: soft blush, brighter when she smiles
-  const blush = mix(skin, "#f07a8a", pose.mouth === 2 ? 0.5 : 0.36);
-  for (const cx of [48, 76]) for (let i = 0; i < 5; i++) for (let j = 0; j < 2; j++) if (!(j === 1 && (i === 0 || i === 4))) P(cx + i, 38 + j, blush);
-  if (!mens) P(80, 41, darker(skin, 0.7)); // a beauty mark
 }
 
 // ---- garments ----
