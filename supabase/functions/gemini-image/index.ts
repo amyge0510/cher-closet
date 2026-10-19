@@ -108,7 +108,7 @@ Only the pose, clothes, lighting and background change:
 // per piece, labelled), for the DRESS ME reveal.
 function dressPrompt(labels: string[], hair: string) {
   return `The first image is a full-body photo of a person. The next images are clothing items, labelled: ${labels.join("; ")}.
-Show this same person wearing exactly these items, together, as one outfit.
+Show this same person wearing exactly these items, together, as one outfit. All ${labels.length} items must be visible in the picture; never leave one out.
 ${SAME_PERSON}
 - Keep the exact same pose, framing, camera angle, position and size in the frame as the first image, so the two pictures line up.
 - Replace the black tank top and shorts with the outfit. If no shoes are given, they stay barefoot; if no top or bottom is given for a part of the body, keep the plain black tank or shorts there.
@@ -164,7 +164,9 @@ Deno.serve(async (req) => {
   const pieces = (Array.isArray(body.pieces) ? body.pieces : [])
     .map((p) => ({ label: clean((p as { label?: unknown })?.label, 60), image: String((p as { image?: unknown })?.image ?? "") }))
     .filter((p) => p.image && p.image.length <= MAX_IMAGE_CHARS && /^[A-Za-z0-9+/=]+$/.test(p.image))
-    .slice(0, 7);
+    // a whole outfit: top, bottom, jacket, shoes, a bag, a hat, tights and
+    // a few pieces of jewelry (the app sends the clothes first)
+    .slice(0, 12);
   if (mode === "dress" && !pieces.length) return json({ error: "send the outfit's pieces" }, 400);
   const hair = clean(body.hair, 60);
   const prompt =

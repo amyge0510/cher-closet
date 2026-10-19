@@ -431,7 +431,13 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   // the last dressed photo of this outfit (any hairstyle): it stays on screen
   // while a new hairstyle is drawn, so the outfit never disappears
   const lastDressed = useRef<{ outfit: string; src: string } | null>(null);
-  const outfitPieces = useMemo(() => (top && bottom ? (top === bottom ? [top, ...worn] : [top, bottom, ...worn]) : []), [top, bottom, worn]);
+  // clothes first, then accessories, so a jacket is never the piece left
+  // out when there are too many to send
+  const outfitPieces = useMemo(() => {
+    if (!top || !bottom) return [];
+    const extras = [...worn.filter((g) => g.category === "jackets"), ...worn.filter((g) => g.category !== "jackets")];
+    return top === bottom ? [top, ...extras] : [top, bottom, ...extras];
+  }, [top, bottom, worn]);
   // PIXEL closet: the pixel-art model wears the pixel clothes (no photo, no AI)
   const pixelModel = source === "pixel" && outfitPieces.length > 0 && canWearPixel(outfitPieces);
   // STRIKE A POSE: she holds a pose (the next of the three each time) while
