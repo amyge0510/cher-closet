@@ -204,6 +204,11 @@ function picker(t: Target, seed: number, avoid: Set<string>, penalty: number) {
   };
 }
 
+// Heels are never easy, whatever the tags say (the tagger sometimes files
+// plain pumps under minimal or clean girl).
+const HEELS = /heel|pump|stiletto|slingback|wedge|platform sandal/i;
+export const isHeel = (g: Garment) => g.category === "shoes" && HEELS.test(g.name);
+
 // The accessories that go with an outfit: shoes, jewelry, a bag, and a scarf
 // or tights.
 const ACCESSORY_ROLES: [keyof typeof SPOTS, string[]][] = [
@@ -224,7 +229,9 @@ const ACCESSORY_ROLES: [keyof typeof SPOTS, string[]][] = [
 // calls for them by name (fishnets for goth, knee socks for Clueless).
 function accessories(closet: Garment[], top: Garment | undefined, bottom: Garment | undefined, t: Target, best: ReturnType<typeof picker>, bestShoes: ReturnType<typeof picker>) {
   const chosen: Garment[] = [];
-  const wanted = (g: Garment) => g.category !== "pantyhose" || stylesOf(g).some((s) => t.leaves.includes(s));
+  const easy = t.families.length > 0 && t.families.every((f) => f === "easy");
+  const wanted = (g: Garment) =>
+    (g.category !== "pantyhose" || stylesOf(g).some((s) => t.leaves.includes(s))) && !(easy && isHeel(g));
   // suggestions stay spotless: no strikes at all, not just under the limit
   const goes = (g: Garment) => {
     if (!top || !bottom) return true;

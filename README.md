@@ -56,6 +56,12 @@ the computer scene: hangers → browsing → MIS-MATCH! → her reaction), cut f
 4.5s to 18.75s of the source and scaled down to 640px wide. An H.264 MP4
 plays in every modern browser. Without the file, the TV shows static for a few seconds before the whirlpool.
 
+**Play with: mine or pixels.** Under MORE, PLAY WITH switches the rack
+between your own uploaded clothes and the built-in pixel clothes. It starts on
+yours once you've uploaded a top and a bottom, and uploading something always
+switches back to yours. Until then, MINE keeps the pixel clothes mixed in so
+there's always an outfit to make. The choice is remembered on this browser.
+
 **Dresses.** DRESSES is its own category. A dress rides the top carousel and
 is a whole outfit: the two windows in the middle become one tall window for
 the dress, and its controls (and ← →) flip through dresses only. BROWSE
@@ -104,6 +110,8 @@ Each outfit (a top and a bottom that go together) belongs to one style
 only: of the styles both pieces are tagged with, the one they claim most
 strongly (tags are listed best first). So a black mesh corset tagged both
 goth and coquette can't make the same outfit a SOFT board and an EDGY one.
+Heels and pumps never go on an EASY board (everyday, clean girl, minimal,
+athleisure, streetwear), whatever their tags say.
 SOFT also never takes an outfit whose top or bottom is mainly black, navy,
 brown, burgundy, gray or olive, whatever the tags say.
 EVERYDAY is the exception: any outfit both tagged everyday counts for it.

@@ -194,6 +194,17 @@ describe("one style per outfit", () => {
     expect(options(startQuiz(), [softFirst, denim]).map((o) => o.id)).toEqual(["edgy"]);
   });
 
+  it("never puts heels on an EASY board, even if they're tagged easy", () => {
+    const tee: Garment = { id: "e1", category: "tops", slot: "top", name: "White Tee", image: "", colors: ["white"], pattern: "solid", styles: ["everyday"] };
+    const jeans: Garment = { ...tee, id: "e2", category: "bottoms", slot: "bottom", name: "Blue Jeans", colors: ["blue"] };
+    const pumps: Garment = { ...tee, id: "e3", category: "shoes", slot: null, name: "Silver Glitter Pumps", colors: ["silver"], styles: ["minimal", "everyday"] };
+    const sneakers: Garment = { ...pumps, id: "e4", name: "White Sneakers", colors: ["white"] };
+    const shoesOn = (closet: Garment[]) => boardsFor(closet, startQuiz()).flatMap((b) => b.items.map((i) => i.garment.id));
+    expect(shoesOn([tee, jeans, pumps])).not.toContain("e3");
+    expect(shoesOn([tee, jeans, pumps, sneakers])).toContain("e4");
+    expect(accessoriesFor([tee, jeans, pumps], [tee, jeans], null, [], 1).shoes).toBeUndefined();
+  });
+
   it("counts the outfit for its strongest shared style only", () => {
     expect(coverage(small, "goth")).toBe(1);
     expect(coverage(small, "coquette")).toBe(0);

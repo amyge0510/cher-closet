@@ -103,7 +103,7 @@ function FlyingItem({ garment, from, to, onLanded }: { garment: Garment; from: {
 const MAX_LOOKS = 48;
 const SAVED_FLASH_MS = 1500;
 
-export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut, myStyle, onSaveStyle, looks, onSaveLooks, wardrobe, onChangeWardrobe, onUploaded, onDeleteGarment, onRetag, notice, body, canRedraw, onBody, onResetBody, closetReady = true, outfitKey }: {
+export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut, myStyle, onSaveStyle, looks, onSaveLooks, wardrobe, onChangeWardrobe, source = "pixel", onChangeSource, onUploaded, onDeleteGarment, onRetag, notice, body, canRedraw, onBody, onResetBody, closetReady = true, outfitKey }: {
   state: State;
   dispatch: Dispatch<Action>;
   closet: Garment[];
@@ -117,6 +117,9 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   /** womenswear / menswear / both: which styles and demo clothes to show */
   wardrobe: WardrobeChoice;
   onChangeWardrobe: (w: WardrobeChoice) => void;
+  /** whose clothes are on the rack: the person's own uploads, or the built-in pixel ones */
+  source?: "mine" | "pixel";
+  onChangeSource?: (s: "mine" | "pixel") => void;
   /** a garment that was just uploaded and tagged */
   onUploaded: (g: Garment, png: Blob) => void;
   /** one of the user's own pieces, deleted from the closet pop-up */
@@ -661,6 +664,14 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
           settings={[
             { key: "body", label: "MY MODEL PHOTO", title: "Use a photo of yourself on the dressed-up screen", act: () => setPopup({ kind: "body" }) },
             ...(onRetag ? [{ key: "retag", label: "RE-TAG MY CLOSET", title: "Have the AI read the styles of your uploads again", act: () => (setPopup(null), onRetag()) }] : []),
+            ...(onChangeSource
+              ? [{
+                  key: "source",
+                  label: source === "mine" ? "PLAY WITH: MINE" : "PLAY WITH: PIXELS",
+                  title: "Switch between your own uploaded clothes and the built-in pixel clothes",
+                  act: () => onChangeSource(source === "mine" ? "pixel" : "mine"),
+                }]
+              : []),
             {
               key: "wardrobe",
               label: `CLOTHES: ${WARDROBES.find((w) => w.id === wardrobe)?.label}`,
