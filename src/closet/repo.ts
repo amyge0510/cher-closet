@@ -1,4 +1,4 @@
-import { cachedUrls, forgetImage } from "../lib/imageCache";
+import { cachedUrls } from "../lib/imageCache";
 import { supabase } from "../lib/supabase";
 import { isBuiltIn, slotFor } from "./categories";
 import type { Garment, Pattern, Slot } from "./types";
@@ -91,6 +91,5 @@ export async function deleteGarment(owner: string, id: string): Promise<void> {
   const { error } = await supabase.from("garments").delete().eq("id", id);
   if (error) throw error;
   await supabase.storage.from("closet").remove([`${owner}/garments/${id}.png`]);
-  await forgetImage(`${owner}/garments/${id}.png`);
 }
 

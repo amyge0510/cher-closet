@@ -8,24 +8,25 @@ import { isPhone, PHONE } from "./stage/layout";
 // (or back) reloads into the other one. Only a real turn counts: the
 // keyboard opening must never reload (it would wipe what's being typed).
 const turned = () => {
-  if (isPhone() !== PHONE && location.hash !== "#admin") location.reload();
+  if (isPhone() !== PHONE && !PAGE) location.reload();
 };
 screen.orientation?.addEventListener("change", turned);
 window.addEventListener("orientationchange", turned);
 
-// /#admin is the owner's analytics dashboard, a plain page instead of the closet
-const ADMIN = location.hash === "#admin";
+// /#admin is the owner's analytics dashboard and /#recover puts deleted
+// clothes back: plain pages instead of the closet
+const PAGES = ["#admin", "#recover"];
+const PAGE = PAGES.includes(location.hash) ? location.hash : null;
 const Dashboard = lazy(() => import("./admin/Dashboard").then((m) => ({ default: m.Dashboard })));
+const Recover = lazy(() => import("./admin/Recover").then((m) => ({ default: m.Recover })));
 window.addEventListener("hashchange", () => {
-  if ((location.hash === "#admin") !== ADMIN) location.reload();
+  if ((PAGES.includes(location.hash) ? location.hash : null) !== PAGE) location.reload();
 });
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {ADMIN ? (
-      <Suspense fallback={null}>
-        <Dashboard />
-      </Suspense>
+    {PAGE ? (
+      <Suspense fallback={null}>{PAGE === "#admin" ? <Dashboard /> : <Recover />}</Suspense>
     ) : (
       <App />
     )}
