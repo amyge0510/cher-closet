@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { closetTitle, wardrobeTitle } from "./auth/names";
 import { introSeenOf, looksOf, styleOf, useAuth, wardrobeOf } from "./auth/useAuth";
 import type { Look } from "./closet/types";
@@ -14,6 +14,7 @@ import { SignIn } from "./screens/SignIn";
 import { Splash } from "./screens/Splash";
 import { Wardrobe } from "./screens/Wardrobe";
 import { Stage } from "./stage/Stage";
+import { setTracking, track } from "./lib/track";
 import { initialState, reducer } from "./state/machine";
 
 const DevOverlay = import.meta.env.DEV ? lazy(() => import("./dev/DevOverlay").then((m) => ({ default: m.DevOverlay }))) : null;
@@ -165,15 +166,17 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
   const [looks, setLooks] = useState(savedLooks);
   const saveMyLooks = useCallback(
     (l: Look[]) => {
+      if (l.length > looks.length) track("save_look");
       setLooks(l);
       persistLooks(l).catch(() => {});
     },
-    [persistLooks],
+    [persistLooks, looks.length],
   );
   const [state, dispatch] = useReducer(reducer, initialState);
   const [myStyle, setMyStyle] = useState(savedStyle);
   const saveMyStyle = useCallback(
     (s: MyStyle) => {
+      track("style_quiz", { style: s.leaf });
       setMyStyle(s);
       persistStyle(s).catch(() => {});
     },
@@ -196,6 +199,17 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
   const [source, setSource] = useState(() => loadGuest<ClosetSource>(sourceKey));
   const complete = own.some((g) => g.slot === "top") && own.some((g) => g.slot === "bottom");
   const playing: ClosetSource = source ?? (complete ? "mine" : "pixel");
+  // one "visit" each time the closet opens, for the owner's dashboard
+  const visited = useRef(false);
+  useEffect(() => {
+    setTracking(signedIn);
+    return () => setTracking(false);
+  }, [signedIn]);
+  useEffect(() => {
+    if (!signedIn || !closetReady || visited.current) return;
+    visited.current = true;
+    track("visit", { source: playing });
+  }, [signedIn, closetReady, playing]);
   const changeSource = useCallback(
     (s: ClosetSource) => {
       setSource(s);
@@ -226,6 +240,7 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
   }, [signedIn]);
   const applyBody = useCallback(
     (canvas: HTMLCanvasElement, anchors: BodyAnchors) => {
+      track("upload_me");
       setBody({ src: canvas.toDataURL("image/png"), anchors });
       if (userId)
         saveBody(userId, canvas, anchors).catch((e) => {
@@ -246,6 +261,7 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
   }, [notice]);
   const uploaded = useCallback(
     (g: Garment, png: Blob) => {
+      track("upload_clothes", { category: g.category });
       setOwn((o) => [...o, g]);
       // a new upload should be in the closet they're looking at
       changeSource("mine");

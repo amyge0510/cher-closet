@@ -22,6 +22,7 @@ import { StyleQuiz } from "./StyleQuiz";
 import { Bevel, ButtonLabel, CategoryBar, ControlStrip, Header, Leopard, overflowCategories, pos, tabCenter, wide } from "./Parts";
 import { Reveal } from "./Reveal";
 import { canWearPixel } from "../closet/pixelModel";
+import { track } from "../lib/track";
 
 const MATCH_HOLD_MS = 1400; // black panels stay up this long before the reveal
 const MISMATCH_MS = 3000; // MIS-MATCH! clears itself after this long
@@ -297,6 +298,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   // whatever it settled on.
   const browse = useCallback(() => {
     if (scanning) return stopScan();
+    track("browse", { source });
     dispatch({ type: "BROWSE" });
     const settle = () => {
       const t = tops[topIndex.current % Math.max(1, tops.length)];
@@ -306,7 +308,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       dispatch({ type: "SET_OUTFIT", top: topIndex.current, bottom: bottomIndex.current, extras });
     };
     scan("top", () => (isDress(tops[topIndex.current % Math.max(1, tops.length)]) ? settle() : scan("bottom", settle)));
-  }, [scanning, stopScan, dispatch, scan, tops, bottoms, closet, myStyle]);
+  }, [scanning, stopScan, dispatch, scan, tops, bottoms, closet, myStyle, source]);
   useEffect(() => () => clearInterval(scanTimer.current), []);
 
   // DRESS ME. The demo rack is judged by the rules in match.ts, instantly.
@@ -318,6 +320,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   const verdicts = useRef(new Map<string, Verdict>());
   const dressMe = useCallback(async () => {
     if (!top || !bottom || judging) return;
+    track("dress_me", { source });
     const rules = judgeOutfit(top, bottom, worn);
     const pieces = wearingDress ? [top, ...worn] : [top, bottom, ...worn];
     if (!canRedraw || pieces.every((g) => g.id.startsWith("demo-"))) return dispatch({ type: "DRESS_ME", verdict: rules });
@@ -343,17 +346,18 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       }
     }
     dispatch({ type: "DRESS_ME", verdict: verdict ?? rules });
-  }, [dispatch, top, bottom, worn, canRedraw, judging, wardrobe]);
+  }, [dispatch, top, bottom, worn, canRedraw, judging, wardrobe, source]);
 
   const autoDress = useCallback(() => {
     const pairs = rankPairs(matchingPairs(tops, bottoms), tops, bottoms, myStyle);
     if (!pairs.length) return;
+    track("auto_dress", { source });
     const others = pairs.filter(([t, b]) => t !== state.top || b !== state.bottom);
     const [t, b] = (others.length ? others : pairs)[Math.floor(Math.random() * (others.length || pairs.length))];
     // everything changes, accessories included
     const extras = accessoriesFor(closet, [tops[t], bottoms[b]], myStyle, Object.values(state.extras), Math.floor(Math.random() * 1e9));
     dispatch({ type: "AUTO_DRESS", top: t, bottom: b, extras });
-  }, [dispatch, closet, tops, bottoms, state.top, state.bottom, state.extras, myStyle]);
+  }, [dispatch, closet, tops, bottoms, state.top, state.bottom, state.extras, myStyle, source]);
 
   useEffect(() => {
     if (screen !== "match") return;
@@ -493,7 +497,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       />
       <Leopard box={L.leopardLeft} />
       <Leopard box={L.leopardRight} />
-      {onChangeSource && <SourceToggle source={source} onChange={onChangeSource} />}
+      {onChangeSource && <SourceToggle source={source} onChange={(s) => (s !== source && track("switch_source", { to: s }), onChangeSource(s))} />}
       <div style={{ ...pos(L.center), background: C.frameDark, borderLeft: `2px solid ${C.frame}`, borderRight: `2px solid ${C.frame}`, boxSizing: "border-box" }} />
 
       {fullBody && top && bottom ? (

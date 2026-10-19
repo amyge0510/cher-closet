@@ -65,6 +65,24 @@ leopard. The navy bars and the leopard run on to the edges of any phone
 wider than that shape (`--bleed` in `Stage.tsx`, `wide()` in `Parts.tsx`).
 Turning the phone sideways reloads into the computer layout.
 
+**Analytics (owner only).** The app logs what signed-in people do (opening
+the closet, BROWSE, DRESS ME, AUTO DRESS, saved looks, the style quiz,
+uploads, switching between PIXEL and MY CLOTHES), each marked phone or
+computer (`src/lib/track.ts`). Guests aren't logged. The dashboard is at
+`/#admin` on the site: totals, then one row per person (came back, tried
+once, new; uploads; which closet they use) and a timeline when you tap them.
+Setup, once: run `supabase/migrations/20261020000000_analytics.sql` in the
+Supabase SQL editor, then add yourself as the admin with your phone number
+(country code first, no plus sign):
+
+```sql
+insert into public.admins (user_id)
+select id from auth.users where phone = '12135550123';
+```
+
+People can add their own events but can't read any; only admins can, through
+`admin_users()` and `admin_events()`.
+
 **The pixel model.** With the closet on PIXEL, DRESS ME shows a pixel-art
 figure instead of a photo: a honey-blonde girl with space buns, or a guy with
 a curly top for menswear (`src/closet/pixelModel.ts`). Each pixel garment is
