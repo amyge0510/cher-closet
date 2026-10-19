@@ -67,3 +67,11 @@ export async function saveGarment(owner: string, g: Garment, png: Blob): Promise
   });
   if (error) throw error;
 }
+
+// Deletes an uploaded garment: its row and its cut-out.
+export async function deleteGarment(owner: string, id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("garments").delete().eq("id", id);
+  if (error) throw error;
+  await supabase.storage.from("closet").remove([`${owner}/garments/${id}.png`]);
+}

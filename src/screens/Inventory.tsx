@@ -3,11 +3,12 @@ import type { Category } from "../closet/categories";
 import type { Garment, Slot } from "../closet/types";
 import { PixelField } from "../pixel/PixelField";
 import { GarmentImage } from "../pixel/GarmentImage";
-import { PixelText } from "../pixel/PixelText";
+import { PixelLines, PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
 import { extraSpot, L, type Box } from "../stage/layout";
 import { useToStage } from "../stage/Stage";
 
+const DELETE_RED = "#c0183a";
 const DRAG_START_PX = 4; // stage pixels the pointer must travel before a press becomes a drag
 const DRAG_ICON = 56;
 
@@ -35,14 +36,19 @@ type Press = { g: Garment; x0: number; y0: number; dragging: boolean };
 // The closet pop-up: every garment in a category as a grid of inventory slots.
 // Click a piece to wear it, or drag it out: tops and bottoms onto their panel,
 // accessories anywhere on the screen.
-export function Inventory({ category, categories, closet, onClose, onWear, onDragStart }: {
+export function Inventory({ category, categories, closet, onClose, onWear, onDragStart, onDelete }: {
   category: string;
   categories: Category[];
   closet: Garment[];
   onClose: () => void;
   onWear: (g: Garment) => void;
   onDragStart: () => void;
+  /** deletes one of the user's own pieces (the demo rack can't be deleted) */
+  onDelete?: (g: Garment) => void;
 }) {
+  // the piece waiting on "are you sure?"
+  const [confirming, setConfirming] = useState<Garment | null>(null);
+  const deletable = (g: Garment) => !!onDelete && !g.id.startsWith("demo-");
   const toStage = useToStage();
   const [query, setQuery] = useState("");
   const [scroll, setScroll] = useState(0);
@@ -208,6 +214,21 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
               }}
             >
               {g && <GarmentImage src={g.image} w={S - 6} h={S - 6} fill={0.95} />}
+              {g && hover === g && deletable(g) && (
+                <button
+                  type="button"
+                  aria-label={`Delete ${g.name}`}
+                  title="Delete"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirming(g);
+                  }}
+                  style={{ position: "absolute", right: -1, top: -1, width: 13, height: 13, padding: 0, border: `1px solid ${C.white}`, background: DELETE_RED, display: "grid", placeItems: "center", cursor: "pointer" }}
+                >
+                  <PixelText text="X" color={C.white} sx={1} sy={1} />
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -240,6 +261,35 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
           <PixelText text={status} color={C.invText} sx={1.5} sy={2} />
         </div>
       </div>
+
+      {confirming && (
+        <>
+          <div onClick={() => setConfirming(null)} style={{ position: "absolute", inset: 0, zIndex: 25, background: "rgba(10,8,30,0.35)" }} />
+          <div role="alertdialog" aria-label="Delete this piece?" style={{ position: "absolute", left: 200, top: 150, width: 240, height: 150, boxSizing: "border-box", padding: 12, background: C.invBg, border: `3px solid ${C.invEdge}`, zIndex: 26, display: "grid", gridTemplateRows: "1fr auto", gap: 10 }}>
+            <div style={{ display: "grid", gap: 8, alignContent: "start" }}>
+              <PixelLines text={`DELETE THE ${confirming.name.toUpperCase()}?`} maxWidth={210} color={C.invEdge} sx={1.6} sy={2} bold />
+              <PixelLines text="IT'S REMOVED FROM YOUR CLOSET FOR GOOD. THIS CAN'T BE UNDONE." maxWidth={210} color={C.invText} sx={1.3} sy={1.7} />
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button type="button" className="bevel" onClick={() => setConfirming(null)} style={{ position: "relative", width: 96, height: 30, borderWidth: 2, background: C.btnGray, borderColor: `${C.btnGrayLight} ${C.btnGrayDark} ${C.btnGrayDark} ${C.btnGrayLight}` }}>
+                <PixelText text="CANCEL" color={C.ink} sx={1.5} sy={1.9} bold />
+              </button>
+              <button
+                type="button"
+                className="bevel"
+                autoFocus
+                onClick={() => {
+                  onDelete?.(confirming);
+                  setConfirming(null);
+                }}
+                style={{ position: "relative", width: 96, height: 30, borderWidth: 2, background: DELETE_RED, borderColor: "#e4677f #6a0a1f #6a0a1f #e4677f" }}
+              >
+                <PixelText text="DELETE" color={C.white} sx={1.5} sy={1.9} bold />
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {drag && (
         <>

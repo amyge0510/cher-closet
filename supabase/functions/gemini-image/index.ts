@@ -4,6 +4,7 @@
 //     photo (often a whole outfit, worn) and redrawn as a straight-on product
 //     shot, on a flat chroma-key background the app then removes.
 //   mode "tidy": the same, from the app's own cut-out of one piece.
+//   mode "dress": the user's model photo, dressed in an outfit's pieces.
 //   mode "pose": a photo of the user is redrawn as the same person standing
 //     in a "model stance", in a plain black tank and shorts, so the closet
 //     can dress them.
@@ -14,8 +15,9 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 
-// per person per day; "tidy" counts every garment redraw (tidy and extract)
-const LIMITS = { tidy: 40, pose: 5 } as const;
+// per person per day; "tidy" counts every garment picture (tidy, extract and
+// dress); "pose" counts model photos
+const LIMITS = { tidy: 60, pose: 5 } as const;
 const MAX_IMAGE_CHARS = 6_000_000;
 const API = "https://generativelanguage.googleapis.com/v1beta";
 
@@ -78,13 +80,37 @@ Redraw only that item, exactly as it looks in the photo.
 ${productRules(background)}`;
 }
 
+// Said in every prompt with a person in it. The face is the whole point:
+// if it changes, it isn't the user any more.
+const SAME_PERSON = `IDENTITY IS THE MOST IMPORTANT RULE. This must be unmistakably the same real person as in the photo, as if photographed again:
+- Keep the face exactly as it is: the same face shape, jawline, cheekbones, chin, forehead, eye shape and size, eyelids, eyebrows, nose shape and width, lips, smile lines, ears, and any freckles, moles, marks or makeup.
+- Keep the same skin tone and texture, the same age and the same ethnicity. Don't beautify, retouch, slim, smooth, lighten, darken or "improve" anything.
+- Keep the same body shape, proportions and height.
+- If the face in the photo is small, blurry, turned or partly hidden, stay as close to what is visible as possible rather than inventing a different face.`;
+
 const POSE_PROMPT = `Redraw this photo as a full-body fashion model photo of the same person.
-Keep their face, hair, skin tone, height and body shape exactly the same.
-The camera is straight in front of them at chest height, level, with no tilt, no angle and no wide-angle distortion.
-They face the camera squarely (shoulders and hips square to the camera, not turned), standing straight and symmetrical: feet slightly apart, weight even, arms hanging relaxed a little away from the body so they don't cover the torso or hips, head straight.
-They wear a plain fitted black tank top and plain black bike shorts that end mid-thigh, and are barefoot. No jewelry, no bag, no hat, no other clothes.
-Show the whole body from the top of the head to the feet, centered, with a little space above and below.
-Plain flat light gray studio background, soft even lighting, no shadows on the floor.`;
+${SAME_PERSON}
+Only the pose, clothes, lighting and background change:
+- The camera is straight in front of them at chest height, level, with no tilt, no angle and no wide-angle distortion.
+- They face the camera squarely (shoulders and hips square to the camera, not turned), standing straight and symmetrical: feet slightly apart, weight even, arms hanging relaxed a little away from the body so they don't cover the torso or hips, head straight, neutral relaxed expression.
+- Hair: the same hair as in the photo (color, length, texture, parting), neatly falling behind or beside the shoulders so it doesn't cover the torso.
+- They wear a plain fitted black tank top and plain black bike shorts that end mid-thigh, and are barefoot. No jewelry, no bag, no hat, no other clothes.
+- Show the whole body from the top of the head to the feet, centered, with a little space above and below.
+- Plain flat light gray studio background, soft even lighting, no shadows on the floor.`;
+
+// dress: the user's model photo, dressed in the chosen pieces (one picture
+// per piece, labelled), for the DRESS ME reveal.
+function dressPrompt(labels: string[], hair: string) {
+  return `The first image is a full-body photo of a person. The next images are clothing items, labelled: ${labels.join("; ")}.
+Show this same person wearing exactly these items, together, as one outfit.
+${SAME_PERSON}
+- Keep the exact same pose, framing, camera angle, position and size in the frame as the first image, so the two pictures line up.
+- Replace the black tank top and shorts with the outfit. If no shoes are given, they stay barefoot; if no top or bottom is given for a part of the body, keep the plain black tank or shorts there.
+- Each item must look exactly like its picture: the same colors, fabric, sheen, cut, length, fit, straps, closures, hardware, prints and details, worn naturally with real folds and fit on this body. Don't add, remove or redesign anything.
+- Hair: ${hair ? `change only the hairstyle to: ${hair}. Keep the same hair color and natural hairline.` : "keep the hair exactly as in the first image."}
+- The whole body from the top of the head to the feet stays in frame.
+- Background: one flat solid pale lavender (#C3CBF3), no floor line, no shadows, nothing else.`;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -98,11 +124,11 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: "send JSON" }, 400);
   }
-  const mode = body.mode === "pose" || body.mode === "tidy" || body.mode === "extract" ? body.mode : null;
+  const mode = body.mode === "pose" || body.mode === "tidy" || body.mode === "extract" || body.mode === "dress" ? body.mode : null;
   const kind = mode === "pose" ? "pose" : "tidy"; // what the daily allowance counts
   const image = typeof body.image === "string" ? body.image : "";
   const mimeType = body.mimeType === "image/png" ? "image/png" : "image/jpeg";
-  if (!mode) return json({ error: "mode must be tidy, extract or pose" }, 400);
+  if (!mode) return json({ error: "mode must be tidy, extract, dress or pose" }, 400);
   if (!image || image.length > MAX_IMAGE_CHARS || !/^[A-Za-z0-9+/=]+$/.test(image)) return json({ error: "bad image" }, 400);
 
   // the caller's own Supabase client, so row-level security applies
@@ -120,7 +146,19 @@ Deno.serve(async (req) => {
   const name = clean(body.name, 40) || "garment";
   const description = clean(body.description, 240);
   const background = body.background === "magenta" ? "pure magenta (#FF00FF)" : "pure chroma-key green (#00FF00)";
-  const prompt = mode === "tidy" ? tidyPrompt(name, background) : mode === "extract" ? extractPrompt(name, description, background) : POSE_PROMPT;
+  // dress: the outfit's pieces, each a labelled JPEG
+  const pieces = (Array.isArray(body.pieces) ? body.pieces : [])
+    .map((p) => ({ label: clean((p as { label?: unknown })?.label, 60), image: String((p as { image?: unknown })?.image ?? "") }))
+    .filter((p) => p.image && p.image.length <= MAX_IMAGE_CHARS && /^[A-Za-z0-9+/=]+$/.test(p.image))
+    .slice(0, 7);
+  if (mode === "dress" && !pieces.length) return json({ error: "send the outfit's pieces" }, 400);
+  const hair = clean(body.hair, 60);
+  const prompt =
+    mode === "tidy" ? tidyPrompt(name, background)
+    : mode === "extract" ? extractPrompt(name, description, background)
+    : mode === "dress" ? dressPrompt(pieces.map((p) => p.label), hair)
+    : POSE_PROMPT;
+  const inputs = [{ inlineData: { mimeType, data: image } }, ...pieces.map((p) => ({ inlineData: { mimeType: "image/jpeg", data: p.image } }))];
 
   try {
     const model = await imageModel(key);
@@ -128,8 +166,8 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: { "x-goog-api-key": key, "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ inlineData: { mimeType, data: image } }, { text: prompt }] }],
-        generationConfig: { responseModalities: ["IMAGE"], temperature: 0.4, imageConfig: { aspectRatio: mode === "pose" ? "9:16" : "1:1" } },
+        contents: [{ role: "user", parts: [...inputs, { text: prompt }] }],
+        generationConfig: { responseModalities: ["IMAGE"], temperature: mode === "pose" || mode === "dress" ? 0.3 : 0.4, imageConfig: { aspectRatio: mode === "pose" || mode === "dress" ? "9:16" : "1:1" } },
       }),
     });
     if (res.status === 429) return json({ error: "Gemini is busy, try again" }, 429);

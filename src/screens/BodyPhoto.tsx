@@ -54,8 +54,12 @@ export function BodyPhoto({ current, canRedraw, initialPhoto, onUse, onReset, on
       loadPhoto(file).then(make, () => setPhase({ kind: "error", message: "THAT PHOTO WOULDN'T OPEN. TRY A JPEG OR PNG." })),
     [make],
   );
+  // a photo handed over from UPLOAD starts once (never twice: it costs)
+  const started = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
-    if (initialPhoto && canRedraw) make(initialPhoto);
+    if (!initialPhoto || !canRedraw || started.current === initialPhoto) return;
+    started.current = initialPhoto;
+    make(initialPhoto);
   }, [initialPhoto, canRedraw, make]);
 
   // paste a photo straight in

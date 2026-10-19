@@ -3,7 +3,7 @@ import { categoriesFor, type Category } from "../closet/categories";
 import { judgeOutfit, matchingPairs } from "../closet/match";
 import type { Garment, Look, Slot, Verdict } from "../closet/types";
 import { loadImage, makeCanvas } from "../pixel/raster";
-import { jpegOf } from "../upload/gemini";
+import { dressUp, jpegOf, RedrawError } from "../upload/gemini";
 import { judgeWithAi } from "../upload/tags";
 import { GarmentImage } from "../pixel/GarmentImage";
 import { PixelText } from "../pixel/PixelText";
@@ -52,7 +52,23 @@ function ExtraSticker({ garment, onTakeOff }: { garment: Garment; onTakeOff: () 
   );
 }
 
-type Popup = { kind: "closet"; category: string } | { kind: "more" } | { kind: "style" } | { kind: "looks" } | { kind: "upload" } | { kind: "body"; photo?: HTMLCanvasElement } | null;
+type Popup = { kind: "closet"; category: string } | { kind: "more" } | { kind: "style" } | { kind: "looks" } | { kind: "upload" } | { kind: "body"; photo?: HTMLCanvasElement } | { kind: "hair" } | null;
+
+// Hairstyles for the dressed-up figure (HAIR, above the head). The id is
+// what Gemini is asked for; "" keeps the user's own hair.
+const HAIRSTYLES = [
+  { id: "", label: "MY OWN HAIR" },
+  { id: "a sleek high ponytail", label: "SLEEK PONYTAIL" },
+  { id: "a messy high bun", label: "MESSY BUN" },
+  { id: "long loose glossy waves", label: "LOOSE WAVES" },
+  { id: "a big bouncy 90s blowout", label: "90S BLOWOUT" },
+  { id: "half-up, half-down with a claw clip", label: "HALF-UP" },
+  { id: "two long braids", label: "BRAIDS" },
+  { id: "a sleek chin-length bob", label: "BOB" },
+  { id: "soft curtain bangs with the rest down", label: "CURTAIN BANGS" },
+];
+const HAIR_KEY = "cher-hair";
+const HAIR_BUTTON = { x: L.revealPanel.x + L.revealPanel.w - 74, y: L.revealPanel.y + 6, w: 68, h: 22 };
 
 const FLY_MS = 1000;
 const FLASH_MS = 1500;
@@ -81,7 +97,7 @@ function FlyingItem({ garment, from, to, onLanded }: { garment: Garment; from: {
 const MAX_LOOKS = 48;
 const SAVED_FLASH_MS = 1500;
 
-export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut, myStyle, onSaveStyle, looks, onSaveLooks, wardrobe, onChangeWardrobe, onUploaded, notice, body, canRedraw, onBody, onResetBody }: {
+export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut, myStyle, onSaveStyle, looks, onSaveLooks, wardrobe, onChangeWardrobe, onUploaded, onDeleteGarment, notice, body, canRedraw, onBody, onResetBody }: {
   state: State;
   dispatch: Dispatch<Action>;
   closet: Garment[];
@@ -97,6 +113,8 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   onChangeWardrobe: (w: WardrobeChoice) => void;
   /** a garment that was just uploaded and tagged */
   onUploaded: (g: Garment, png: Blob) => void;
+  /** one of the user's own pieces, deleted from the closet pop-up */
+  onDeleteGarment: (g: Garment) => void;
   /** a short message to show for a moment, e.g. a failed save */
   notice?: string | null;
   /** the user's own figure for the reveal (MY MODEL PHOTO), if any */
@@ -266,6 +284,59 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
 
   const revealDone = useCallback(() => dispatch({ type: "REVEAL_DONE" }), [dispatch]);
 
+  // Gemini dresses the user's own figure (MY MODEL PHOTO) in the outfit, in
+  // the chosen hairstyle. Each result is remembered for this visit.
+  const [hair, setHairState] = useState(() => {
+    try {
+      return localStorage.getItem(HAIR_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  });
+  const setHair = useCallback((h: string) => {
+    setHairState(h);
+    try {
+      localStorage.setItem(HAIR_KEY, h);
+    } catch {
+      /* it lasts until reload */
+    }
+  }, []);
+  const [note, setNote] = useState<string | null>(null);
+  useEffect(() => {
+    if (!note) return;
+    const t = window.setTimeout(() => setNote(null), 3500);
+    return () => clearTimeout(t);
+  }, [note]);
+  const dressedPhotos = useRef(new Map<string, string>());
+  const [dressed, setDressed] = useState<{ key: string; src: string | null; waiting: boolean } | null>(null);
+  const outfitPieces = useMemo(() => (top && bottom ? [top, bottom, ...worn] : []), [top, bottom, worn]);
+  const dressKey =
+    body && canRedraw && outfitPieces.length && (screen === "reveal" || screen === "dressed")
+      ? [body.src.length, body.src.slice(-48), ...outfitPieces.map((g) => g.id), hair].join("|")
+      : null;
+  useEffect(() => {
+    if (!dressKey || !body) return;
+    const cached = dressedPhotos.current.get(dressKey);
+    if (cached) return setDressed({ key: dressKey, src: cached, waiting: false });
+    let cancelled = false;
+    setDressed({ key: dressKey, src: null, waiting: true });
+    dressUp(body.src, outfitPieces.map((g) => ({ label: `${g.slot ?? g.category}: ${g.name}`, image: g.image })), hair)
+      .then((src) => {
+        dressedPhotos.current.set(dressKey, src);
+        if (!cancelled) setDressed({ key: dressKey, src, waiting: false });
+      })
+      .catch((e) => {
+        console.warn("couldn't dress the model photo:", e);
+        if (cancelled) return;
+        setDressed({ key: dressKey, src: null, waiting: false });
+        setNote(e instanceof RedrawError ? e.message : "COULDN'T DRESS YOUR PHOTO, SO HERE'S A QUICK PREVIEW.");
+      });
+    return () => {
+      cancelled = true;
+    };
+    // dressKey covers the body, the outfit and the hair
+  }, [dressKey]);
+
   // UPLOAD: photos can be pasted anywhere on the closet, not just in the pop-up
   const [incoming, setIncoming] = useState<{ files: Blob[]; key: number } | null>(null);
   useEffect(() => {
@@ -330,7 +401,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
 
       {fullBody && top && bottom ? (
         <div style={{ ...pos(L.revealPanel), background: C.panel }}>
-          <Reveal w={L.revealPanel.w} h={L.revealPanel.h} top={top} bottom={bottom} extras={worn} figure={wardrobe === "mens" ? "mens" : "womens"} bodySrc={body?.src} anchors={body?.anchors} animate={screen === "reveal"} onDone={revealDone} />
+          <Reveal w={L.revealPanel.w} h={L.revealPanel.h} top={top} bottom={bottom} extras={worn} figure={wardrobe === "mens" ? "mens" : "womens"} bodySrc={body?.src} anchors={body?.anchors} animate={screen === "reveal"} dressed={dressed && dressed.key === dressKey ? dressed : undefined} onDone={revealDone} />
         </div>
       ) : (
         <>
@@ -339,6 +410,40 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
           <GarmentPanel box={L.bottomPanel} garment={bottom} matched={matched} />
           <ControlStrip box={L.bottomControls} onPrev={() => step("bottom", -1)} onNext={() => step("bottom", 1)} onScan={() => scan("bottom")} lit={scanning === "bottom" ? 2 : undefined} disabled={matched} />
         </>
+      )}
+
+      {fullBody && body && canRedraw && (
+        <Bevel box={HAIR_BUTTON} tone={popup?.kind === "hair" ? "blue" : "gray"} onClick={() => setPopup(popup?.kind === "hair" ? null : { kind: "hair" })} label="Change the hairstyle" style={{ borderWidth: 2, zIndex: 6 }}>
+          <PixelText text="HAIR ~" color={C.ink} sx={1.4} sy={1.8} bold />
+        </Bevel>
+      )}
+      {popup?.kind === "hair" && (
+        <>
+          <div onClick={closePopup} style={{ position: "absolute", left: 0, top: 0, width: 640, height: 450, zIndex: 20 }} />
+          <div role="menu" style={{ position: "absolute", left: HAIR_BUTTON.x + HAIR_BUTTON.w - 170, top: HAIR_BUTTON.y + HAIR_BUTTON.h + 4, width: 170, boxSizing: "border-box", padding: 3, background: C.invBg, border: `3px solid ${C.invEdge}`, zIndex: 21 }}>
+            {HAIRSTYLES.map((h) => (
+              <button
+                key={h.id || "own"}
+                type="button"
+                role="menuitemradio"
+                aria-checked={hair === h.id}
+                className="menu-row"
+                onClick={() => {
+                  setHair(h.id);
+                  setPopup(null);
+                }}
+                style={{ display: "flex", alignItems: "center", width: "100%", height: 22, padding: "0 6px", border: 0, background: hair === h.id ? C.invSlot : "transparent", cursor: "pointer" }}
+              >
+                <PixelText text={(hair === h.id ? "> " : "") + h.label} color={C.invText} sx={1.4} sy={1.8} />
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      {fullBody && dressed?.waiting && dressed.key === dressKey && (
+        <div role="status" style={{ position: "absolute", left: L.revealPanel.x, top: L.revealPanel.y + L.revealPanel.h - 66, width: L.revealPanel.w, display: "grid", placeItems: "center", zIndex: 5, pointerEvents: "none" }}>
+          <PixelText text="DRESSING YOU..." color={C.ink} sx={1.8} sy={2.2} bold shadow={C.white} />
+        </div>
       )}
 
       {screen === "dressed" && (
@@ -406,14 +511,17 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       {flying.map((f) => (
         <FlyingItem key={f.garment.id} garment={f.garment} from={f.from} to={f.to} onLanded={() => landed(f.garment)} />
       ))}
-      {notice && (
+      {(notice ?? note) && (
         <div role="status" style={{ ...pos(L.bannerReason), background: C.navy, display: "grid", placeItems: "center", zIndex: 41 }}>
-          <PixelText text={notice} color={C.lavender} sx={1.4} sy={1.8} />
+          <PixelText text={(notice ?? note)!} color={C.lavender} sx={1.4} sy={1.8} />
         </div>
       )}
 
       {popup?.kind === "closet" && (
-        <Inventory category={popup.category} categories={categories} closet={closet} onClose={closePopup} onWear={wear} onDragStart={showRack} />
+        <Inventory category={popup.category} categories={categories} closet={closet} onClose={closePopup} onWear={wear} onDragStart={showRack} onDelete={(g) => {
+          if (state.extras[g.category] === g.id) dispatch({ type: "TAKE_OFF", category: g.category });
+          onDeleteGarment(g);
+        }} />
       )}
       {popup?.kind === "style" && (
         <StyleQuiz

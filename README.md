@@ -258,6 +258,18 @@ SMS service such as Twilio.
 
 Until someone uploads their own clothes, they see the demo closet.
 
+**DRESS ME with your own figure.** With a model photo and signed in, the
+reveal shows your figure with a scan bar ("DRESSING YOU..."), while Gemini
+dresses it in the outfit's actual pieces, keeping your face, body and pose
+exactly. The dressed photo then dissolves in block by block. Results are
+remembered for the visit. **HAIR**, in the top-right corner above the head,
+re-dresses you in another hairstyle (or your own). If the AI can't answer,
+the clothes are placed on the figure instead.
+
+**Deleting.** Hover over one of your own pieces in the closet pop-up and an
+X appears. It asks to confirm, with a red DELETE button, and removes the
+piece and its picture from your account. The demo rack can't be deleted.
+
 **MY MODEL PHOTO** (under MORE, signed in only). Pick or paste any photo of
 yourself. Gemini redraws you standing straight, facing forward, in a plain
 black tank and shorts, on a plain background. The clothes model then finds
@@ -276,7 +288,9 @@ tops and full-length pants keep their real proportions.
 image model and returns the redraw. It asks Google which image models the key
 can use and takes the newest Flash one, so it keeps working when Google
 renames models. To pin one, add a `GEMINI_IMAGE_MODEL` secret. Each person
-gets 40 garment redraws (uploads, TIDY UP, REDRAW) and 5 model photos a day. Requests are counted in the
+gets 60 garment pictures (uploads, TIDY UP, REDRAW, DRESS ME) and 5 model
+photos a day. Every prompt with a person in it stresses keeping their face,
+skin, body and age exactly the same. Requests are counted in the
 `ai_usage` table, and people can't delete their own rows to reset the count.
 
 To switch it on:

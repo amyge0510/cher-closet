@@ -9,7 +9,7 @@ import { keyOut } from "./smooth";
 
 export class RedrawError extends Error {}
 
-async function redraw(mode: "tidy" | "extract" | "pose", image: string, mimeType: string, extra: Record<string, unknown> = {}): Promise<HTMLCanvasElement> {
+async function redraw(mode: "tidy" | "extract" | "pose" | "dress", image: string, mimeType: string, extra: Record<string, unknown> = {}): Promise<HTMLCanvasElement> {
   if (!supabase) throw new RedrawError("SIGN IN TO USE THIS.");
   const { data, error } = await supabase.functions.invoke("gemini-image", { body: { mode, image, mimeType, ...extra } });
   if (error) {
@@ -92,4 +92,33 @@ export async function tidyGarment(cutout: HTMLCanvasElement, name: string, color
 // The user, redrawn standing in a model stance in a black tank and shorts.
 export async function modelPose(photo: HTMLCanvasElement): Promise<HTMLCanvasElement> {
   return redraw("pose", base64(photo, "image/jpeg", 0.9), "image/jpeg");
+}
+
+// Draws any image (data URL or signed storage URL) onto a canvas.
+async function canvasOf(src: string): Promise<HTMLCanvasElement> {
+  const img = await loadImage(src);
+  const c = makeCanvas(img.width, img.height);
+  c.getContext("2d")!.drawImage(img, 0, 0);
+  return c;
+}
+
+// The user's model photo, dressed by Gemini in an outfit's pieces (DRESS
+// ME). `hair` is a hairstyle to switch to, or "" to keep theirs. Returns a
+// PNG data URL with the background cleared.
+export async function dressUp(bodySrc: string, pieces: { label: string; image: string }[], hair: string): Promise<string> {
+  const body = await canvasOf(bodySrc);
+  // the figure on the same lavender it's asked to come back on
+  const s = Math.min(1, 1024 / Math.max(body.width, body.height));
+  const flat = makeCanvas(body.width * s, body.height * s);
+  const fctx = flat.getContext("2d")!;
+  fctx.fillStyle = "#c3cbf3";
+  fctx.fillRect(0, 0, flat.width, flat.height);
+  fctx.drawImage(body, 0, 0, flat.width, flat.height);
+  const garments = await Promise.all(pieces.map(async (p) => ({ label: p.label, image: jpegOf(await canvasOf(p.image), 512) })));
+  const out = await redraw("dress", base64(flat, "image/jpeg", 0.9), "image/jpeg", { pieces: garments, hair });
+  const ctx = out.getContext("2d")!;
+  const img = ctx.getImageData(0, 0, out.width, out.height);
+  clearEdgeBackground(img.data, out.width, out.height);
+  ctx.putImageData(img, 0, 0);
+  return out.toDataURL("image/png");
 }

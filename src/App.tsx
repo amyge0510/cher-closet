@@ -5,7 +5,7 @@ import type { Look } from "./closet/types";
 import type { MyStyle, Wardrobe as WardrobeChoice } from "./style/styles";
 import { categoriesFor } from "./closet/categories";
 import { demoCloset } from "./closet/demoArt";
-import { loadCloset, saveGarment } from "./closet/repo";
+import { deleteGarment, loadCloset, saveGarment } from "./closet/repo";
 import { clearBody, loadBody, saveBody, type Body } from "./closet/bodyPhoto";
 import type { BodyAnchors } from "./closet/body";
 import type { Garment } from "./closet/types";
@@ -198,6 +198,17 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
     return complete ? own : [...demoCloset(wardrobe), ...own];
   }, [own, wardrobe]);
   const [notice, setNotice] = useState<string | null>(null);
+  const removeGarment = useCallback(
+    (g: Garment) => {
+      setOwn((o) => o.filter((x) => x.id !== g.id));
+      if (userId)
+        deleteGarment(userId, g.id).catch((e) => {
+          console.error("could not delete:", e);
+          setNotice("COULDN'T DELETE THAT FROM YOUR ACCOUNT. TRY AGAIN LATER.");
+        });
+    },
+    [userId],
+  );
   // MY MODEL PHOTO: the user's own figure for the reveal
   const [body, setBody] = useState<Body | null>(null);
   useEffect(() => {
@@ -242,7 +253,7 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
       {state.screen === "splash" ? (
         <Splash onDone={splashDone} smokeIn={afterIntro} />
       ) : (
-        <Wardrobe state={state} dispatch={dispatch} closet={closet} categories={categories} title={title} onSignOut={onSignOut} myStyle={myStyle} onSaveStyle={saveMyStyle} looks={looks} onSaveLooks={saveMyLooks} wardrobe={wardrobe} onChangeWardrobe={changeWardrobe} onUploaded={uploaded} notice={notice} body={body} canRedraw={signedIn} onBody={applyBody} onResetBody={resetBody} />
+        <Wardrobe state={state} dispatch={dispatch} closet={closet} categories={categories} title={title} onSignOut={onSignOut} myStyle={myStyle} onSaveStyle={saveMyStyle} looks={looks} onSaveLooks={saveMyLooks} wardrobe={wardrobe} onChangeWardrobe={changeWardrobe} onUploaded={uploaded} onDeleteGarment={removeGarment} notice={notice} body={body} canRedraw={signedIn} onBody={applyBody} onResetBody={resetBody} />
       )}
       {DevOverlay && (
         <Suspense fallback={null}>
