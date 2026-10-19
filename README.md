@@ -218,7 +218,10 @@ with a description of what's visible), then redraws each piece straight-on
 as a product shot from the whole photo, faithful to what it can see and
 never adding details. A redraw that comes out broken (tiny, or with big
 chunks missing) is quietly drawn again once, and the better one shown. A
-piece that was mostly hidden says so. If there's a person in the photo, it then offers to make them the
+piece that was mostly hidden says so. The pieces aren't drawn one by one
+as you go: once a photo's pieces are listed they're all started at once (3
+at a time, `src/upload/ahead.ts`), and the next photo is listed and started
+while you look at this one's. If there's a person in the photo, it then offers to make them the
 model (MY MODEL PHOTO). Without the AI, the in-browser steps below take over. Photos can
 be added in three ways:
 

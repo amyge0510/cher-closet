@@ -9,8 +9,9 @@ import { L, PHONE } from "../stage/layout";
 import { leaf, type Wardrobe } from "../style/styles";
 import { findPieces, finishCutout, forTagging, loadPhoto, pngBlob, type Piece, type Progress } from "../upload/cutout";
 import { Scanner } from "../upload/Scanner";
-import { garmentFrom, listItems, tagCategories, tagGarment, type Found, type Tags } from "../upload/tags";
-import { extractItem, jpegOf, RedrawError, tidyGarment } from "../upload/gemini";
+import { garmentFrom, tagCategories, tagGarment, type Found, type Tags } from "../upload/tags";
+import { extractItem, RedrawError, tidyGarment } from "../upload/gemini";
+import { Ahead } from "../upload/ahead";
 import { Bevel, DIM } from "./Parts";
 
 // The UPLOAD pop-up: pick photos, drop them, or paste one.
@@ -87,6 +88,8 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
   // STOP: each run of the upload has a number; STOP starts a new one, so
   // whatever the old run was still waiting on is ignored when it lands
   const run = useRef(0);
+  const ahead = useRef(new Ahead());
+  useEffect(() => () => ahead.current.stop(), []);
 
   const add = useCallback((files: Blob[]) => {
     if (!files.length) return;
@@ -107,7 +110,8 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
       const id = run.current;
       setPhase({ kind: "drawing", photo, name: item.name });
       try {
-        const final = finishCutout(await extractItem(photo, item.name, item.description, item.colors));
+        // usually already drawn (or on its way) by now
+        const final = await ahead.current.drawing(photo, item);
         const png = await pngBlob(final);
         if (id !== run.current) return;
         setPhase({
@@ -124,17 +128,22 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
 
   // the next photo in line starts as soon as the last one is done
   const current = queue[0];
+  const following = useRef<Blob | undefined>(undefined);
+  following.current = queue[1];
   useEffect(() => {
     if (!current) return;
     let cancelled = false;
     (async () => {
       try {
-        const photo = await loadPhoto(current);
+        // signed in: the AI finds and redraws every piece (all at once, see Ahead)
+        const opened = canRedraw ? ahead.current.open(current, cats, wardrobe) : null;
+        const photo = await (opened?.photo ?? loadPhoto(current));
         if (cancelled) return;
-        // signed in: the AI finds and redraws every piece
-        if (canRedraw) {
+        if (opened) {
           setPhase({ kind: "cutting", photo, ai: true, progress: null });
-          const listed = await listItems(jpegOf(photo), cats, wardrobe);
+          const listed = await opened.listed;
+          // the next photo gets going while this one's pieces are looked at
+          if (following.current) ahead.current.open(following.current, cats, wardrobe);
           if (cancelled) return;
           if (listed) {
             const jobs: Job[] = listed.items.map((item) => ({ kind: "ai", item }));
@@ -489,6 +498,8 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
   // (A picture already sent to the AI still finishes there; its answer is ignored.)
   const stop = () => {
     run.current++;
+    ahead.current.stop();
+    ahead.current = new Ahead();
     setQueue([]);
     setPieces(null);
     setTotal(0);
