@@ -18,7 +18,6 @@ export const BUILT_IN: Category[] = [
   { id: "scarves", label: "SCARVES", slot: null },
   { id: "pantyhose", label: "PANTYHOSE", slot: null },
   { id: "underwear", label: "UNDERWEAR", slot: null },
-  { id: "sweaters", label: "SWEATERS", slot: "top" },
 ];
 
 export const isDress = (g: { category: string } | undefined) => g?.category === "dresses";
@@ -40,6 +39,10 @@ export function jewelryKind(name: string): JewelryKind {
   if (/\bring\b|rings\b|signet/.test(n)) return "hand";
   return "neck";
 }
+
+// Categories folded into another: sweaters are filed under TOPS.
+const MERGED: Record<string, string> = { sweaters: "tops" };
+export const canonicalCategory = (id: string) => MERGED[id] ?? id;
 
 export function slotFor(categoryId: string): Slot | null {
   return BUILT_IN.find((c) => c.id === categoryId)?.slot ?? null;

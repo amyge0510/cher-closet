@@ -1,6 +1,6 @@
 import { cachedUrls } from "../lib/imageCache";
 import { supabase } from "../lib/supabase";
-import { isBuiltIn, slotFor } from "./categories";
+import { canonicalCategory, isBuiltIn, slotFor } from "./categories";
 import type { Garment, Pattern, Slot } from "./types";
 
 type Row = {
@@ -51,10 +51,10 @@ async function loadGarments(owners: string[]): Promise<Garment[]> {
     .filter((r) => r.cutout_path && urls.has(r.cutout_path))
     .map((r) => ({
       id: r.id,
-      category: r.category,
+      category: canonicalCategory(r.category),
       // a built-in category decides the slot (jackets filed as tops before
       // they went over the top keep working)
-      slot: isBuiltIn(r.category) ? slotFor(r.category) : r.slot,
+      slot: isBuiltIn(canonicalCategory(r.category)) ? slotFor(canonicalCategory(r.category)) : r.slot,
       name: r.name,
       image: urls.get(r.cutout_path!)!,
       colors: r.colors,

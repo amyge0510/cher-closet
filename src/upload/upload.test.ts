@@ -78,6 +78,11 @@ describe("tags", () => {
     expect(t).toEqual({ category: "tops", name: "Black Leather Jacket", colors: ["black", "silver"], pattern: "solid", styles: ["moto"], isClothing: true });
   });
 
+  it("files sweaters under tops (SWEATERS was folded into TOPS)", () => {
+    expect(cats).not.toContain("sweaters");
+    expect(normalizeTags({ category: "sweaters", name: "cream cardigan", colors: ["cream"], pattern: "knit", styles: [] }, cats)?.category).toBe("tops");
+  });
+
   it("rejects an unknown category", () => {
     expect(normalizeTags({ category: "spaceships", name: "x", colors: [], pattern: "solid", styles: [] }, cats)).toBeNull();
     expect(cats).toEqual(expect.arrayContaining(["tops", "bottoms", "bags", "hats"]));
