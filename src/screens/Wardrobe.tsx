@@ -450,9 +450,10 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
     // dressKey covers the body, the outfit and the hair
   }, [dressKey]);
 
-  // UPLOAD: photos can be pasted anywhere on the closet, not just in the pop-up
+  // UPLOAD: photos can be pasted anywhere on your own closet, not just in the pop-up
   const [incoming, setIncoming] = useState<{ files: Blob[]; key: number } | null>(null);
   useEffect(() => {
+    if (source !== "mine") return;
     const onPaste = (e: ClipboardEvent) => {
       const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith("image/"));
       if (!files.length) return;
@@ -462,7 +463,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
     };
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, []);
+  }, [source]);
   const [flying, setFlying] = useState<{ garment: Garment; from: { x: number; y: number; size: number }; to: { x: number; y: number } }[]>([]);
   const [flash, setFlash] = useState<string | null>(null);
   const filed = useCallback(
@@ -615,7 +616,8 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
         onPick={(id) => setPopup(popup?.kind === "closet" && popup.category === id ? null : { kind: "closet", category: id })}
         onMore={() => setPopup(popup?.kind === "more" ? null : { kind: "more" })}
         onLooks={() => setPopup(popup?.kind === "looks" ? null : { kind: "looks" })}
-        onUpload={() => setPopup(popup?.kind === "upload" ? null : { kind: "upload" })}
+        // uploads go in your own closet, so there's no UPLOAD in Amy's
+        onUpload={source === "mine" ? () => setPopup(popup?.kind === "upload" ? null : { kind: "upload" }) : undefined}
         flash={flash}
       />
 

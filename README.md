@@ -88,7 +88,7 @@ switches the rack. Everyone starts on Amy's closet: the clothes of the
 showcase account (the admins, see `supabase/migrations/20261022000000_showcase.sql`),
 which everyone signed in can see and play with but not change or delete.
 Only the clothes are shared, not that account's model photo. MY CLOSET is the
-person's own uploads; while it's empty, a pop-up asks them to upload (or go
+person's own uploads, and only there is there an UPLOAD button; while it's empty, a pop-up asks them to upload (or go
 back to Amy's). Uploading always switches to MY CLOSET, and the choice is
 remembered on this browser. Without a backend (or before the showcase is set
 up), Amy's closet shows the built-in demo clothes instead.

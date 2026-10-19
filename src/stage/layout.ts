@@ -118,7 +118,7 @@ const DESK_L = {
   bannerReason: { x: 80, y: 276, w: 490, h: 24 }, // why it's a mis-match
   styleQuiz: { x: 8, y: 36, w: 624, h: 410 },
   // the upload pop-up, in the middle of the screen
-  uploadBox: { x: 130, y: 52, w: 380, h: 380 },
+  uploadBox: { x: 130, y: 36, w: 380, h: 410 },
   quizBoard: { y: 80, w: 145, h: 290, gap: 8, cols: 4 },
 
   // sign-in, laid out inside the center column
@@ -201,7 +201,7 @@ function phoneLayout(W: number): Layout {
     styleButton: { x: W - 8 - 112, y: 8, w: 112, h: 24 },
     saveLook: { x: px + pw - 92, y: 566, w: 86, h: 28 },
     styleQuiz: { x: Math.round((W - 368) / 2), y: 72, w: 368, h: 566 }, // leopard shows all round
-    uploadBox: { x: Math.round((W - 380) / 2), y: 150, w: 380, h: 380 },
+    uploadBox: { x: Math.round((W - 380) / 2), y: 110, w: 380, h: 470 },
     quizBoard: { y: 130, w: 160, h: 188, gap: 10, cols: 2 },
 
     // sign-in: one wide panel in the middle of the leopard

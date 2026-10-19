@@ -4,7 +4,7 @@ import { splitForBar, type Category } from "../closet/categories";
 import { layoutText } from "../pixel/font";
 import { PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
-import { L, STAGE_W, type Box } from "../stage/layout";
+import { L, PHONE, STAGE_W, type Box } from "../stage/layout";
 
 const pos = (b: Box): CSSProperties => ({ position: "absolute", left: b.x, top: b.y, width: b.w, height: b.h });
 
@@ -141,6 +141,10 @@ export function CategoryBar({ categories, active, onPick, onMore, onLooks, onUpl
     cursor: onPick ? "pointer" : "default",
     font: "inherit",
   });
+  // on a phone, LOOKS and MORE share the row when there's no UPLOAD
+  const half = (L.more.x + L.more.w - L.upload.x - 6) / 2;
+  const looksBox = PHONE && !onUpload ? { ...L.looks, x: L.upload.x, w: half } : L.looks;
+  const moreBox = PHONE && !onUpload ? { ...L.more, x: L.upload.x + half + 6, w: half } : L.more;
   return (
     <>
       <div style={{ ...wide(L.categoryBar), background: C.navy, borderTop: `2px solid ${C.frame}`, boxSizing: "border-box" }} />
@@ -165,7 +169,7 @@ export function CategoryBar({ categories, active, onPick, onMore, onLooks, onUpl
           aria-label="Saved looks"
           onClick={onLooks}
           style={{
-            ...pos(L.looks),
+            ...pos(looksBox),
             boxSizing: "border-box",
             border: 0,
             borderLeft: `2px solid ${C.lavender}`,
@@ -188,7 +192,7 @@ export function CategoryBar({ categories, active, onPick, onMore, onLooks, onUpl
           className={flash && more.some((c) => c.id === flash) ? "tab-flash" : undefined}
           onClick={onMore}
           style={{
-            ...pos(L.more),
+            ...pos(moreBox),
             boxSizing: "border-box",
             border: 0,
             borderLeft: `2px solid ${C.lavender}`,

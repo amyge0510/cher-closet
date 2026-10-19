@@ -54,6 +54,9 @@ const AI_PHRASES = ["LOOKING CLOSELY...", "STRAIGHTENING IT OUT...", "GETTING EV
 
 const pad = 14;
 const SCAN = 216; // the scanner's size on screen
+// the finished piece, a little smaller on a computer so its name, tags and
+// notes fit above the buttons
+const SHOW = PHONE ? SCAN : 176;
 
 const imageFiles = (list: FileList | File[] | null | undefined) => [...(list ?? [])].filter((f) => f.type.startsWith("image/"));
 
@@ -191,6 +194,7 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
   }, [phase.kind]);
 
   const imageBox = { x: box.x + (box.w - SCAN) / 2, y: box.y + 48, size: SCAN };
+  const showBox = { x: box.x + (box.w - SHOW) / 2, y: box.y + 48, size: SHOW };
   const next = useCallback(() => {
     setQueue((q) => q.slice(1));
     setPhase({ kind: "pick" });
@@ -221,7 +225,7 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
   const file = useCallback(() => {
     if (phase.kind !== "show") return;
     const g = garmentFrom(crypto.randomUUID(), phase.image, phase.tags);
-    onFile(g, phase.png, imageBox);
+    onFile(g, phase.png, showBox);
     advance();
   }, [phase, onFile, advance]);
 
@@ -261,7 +265,7 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
   const catLabel = (id: string) => categories.find((c) => c.id === id)?.label ?? id.toUpperCase();
   const position = [total > 1 && `PHOTO ${total - queue.length + 1} OF ${total}`, pieces && pieces.total > 1 && `PIECE ${pieces.total - pieces.left.length} OF ${pieces.total}`]
     .filter(Boolean)
-    .join(" · ");
+    .join(" - ");
 
   let body;
   if (phase.kind === "pick") {
@@ -368,25 +372,25 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
     const styles = tags.styles.map((s) => leaf(s)?.label ?? s).join(", ") || "EVERYDAY";
     body = (
       <>
-        <div style={{ position: "absolute", left: imageBox.x, top: imageBox.y, width: SCAN, height: phase.fixing ? 120 : SCAN, background: C.invSlot, display: "grid", placeItems: "center", boxSizing: "border-box", border: `3px solid ${C.invEdge}` }}>
+        <div style={{ position: "absolute", left: showBox.x, top: showBox.y, width: SHOW, height: phase.fixing ? 120 : SHOW, background: C.invSlot, display: "grid", placeItems: "center", boxSizing: "border-box", border: `3px solid ${C.invEdge}` }}>
           {phase.note && !phase.redrawing && (
             <div role="alert" style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "6px 8px", background: "#a3123a", zIndex: 1 }}>
-              <PixelLines text={phase.note} maxWidth={SCAN - 22} color={C.white} sx={1.3} sy={1.7} />
+              <PixelLines text={phase.note} maxWidth={SHOW - 22} color={C.white} sx={1.3} sy={1.7} />
             </div>
           )}
           {phase.redrawing ? (
-            <Scanner size={SCAN - 6} photo={phase.canvas} cutout={null} />
+            <Scanner size={SHOW - 6} photo={phase.canvas} cutout={null} />
           ) : (
-            <GarmentImage key={phase.image} src={phase.image} w={phase.fixing ? 100 : SCAN - 24} h={phase.fixing ? 100 : SCAN - 24} fill={0.95} outline={C.white} />
+            <GarmentImage key={phase.image} src={phase.image} w={phase.fixing ? 100 : SHOW - 24} h={phase.fixing ? 100 : SHOW - 24} fill={0.95} outline={C.white} />
           )}
         </div>
         {phase.asking ? (
           <>
-            <div style={{ position: "absolute", left: box.x + pad, top: imageBox.y + SCAN + 8, width: box.w - pad * 2 }}>
+            <div style={{ position: "absolute", left: box.x + pad, top: showBox.y + SHOW + 8, width: box.w - pad * 2 }}>
               <PixelLines text="WHAT'S WRONG WITH IT? E.G. IT'S A LONG DRESS" maxWidth={box.w - pad * 2} color={C.invText} sx={1.3} sy={1.7} />
             </div>
             <PixelField
-              box={{ x: box.x + pad, y: imageBox.y + SCAN + 26, w: box.w - pad * 2 - 70, h: 28 }}
+              box={{ x: box.x + pad, y: showBox.y + SHOW + 26, w: box.w - pad * 2 - 70, h: 28 }}
               label="What's wrong with it"
               value={phase.ask ?? ""}
               onChange={(v) => setPhase((p) => (p.kind === "show" ? { ...p, ask: v.slice(0, 120) } : p))}
@@ -397,27 +401,27 @@ export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onWa
               sx={1.4}
               sy={1.8}
             />
-            <Bevel box={{ x: box.x + box.w - pad - 62, y: imageBox.y + SCAN + 26, w: 62, h: 28 }} tone="blue" onClick={redrawWith} label="Redraw with this note" style={{ borderWidth: 2 }}>
+            <Bevel box={{ x: box.x + box.w - pad - 62, y: showBox.y + SHOW + 26, w: 62, h: 28 }} tone="blue" onClick={redrawWith} label="Redraw with this note" style={{ borderWidth: 2 }}>
               <PixelText text="GO" color={C.white} sx={1.8} sy={2} bold shadow={C.btnBlueDark} />
             </Bevel>
           </>
         ) : !phase.fixing ? (
-          <div style={{ position: "absolute", left: box.x + pad, top: imageBox.y + SCAN + 10, width: box.w - pad * 2, display: "grid", gap: 6, justifyItems: "center" }}>
-            <PixelLines text={tags.name.toUpperCase()} maxWidth={box.w - pad * 2} color={C.invEdge} sx={2.2} sy={2.6} bold />
-            <PixelLines text={`GOES IN ${catLabel(tags.category)}. ${tags.colors.join(", ").toUpperCase()}. ${styles}.`} maxWidth={box.w - pad * 2} color={C.invText} sx={1.4} sy={1.8} />
-            {!tags.isClothing && <PixelLines text="HMM, THAT DOESN'T LOOK LIKE CLOTHES." maxWidth={box.w - pad * 2} color="#a3123a" sx={1.4} sy={1.8} />}
+          <div style={{ position: "absolute", left: box.x + pad, top: showBox.y + SHOW + 10, width: box.w - pad * 2, display: "grid", gap: 5, justifyItems: "center" }}>
+            <PixelLines text={tags.name.toUpperCase()} maxWidth={box.w - pad * 2} color={C.invEdge} sx={1.9} sy={2.2} bold />
+            <PixelLines text={`GOES IN ${catLabel(tags.category)}. ${tags.colors.join(", ").toUpperCase()}. ${styles}.`} maxWidth={box.w - pad * 2} color={C.invText} sx={1.3} sy={1.6} />
+            {!tags.isClothing && <PixelLines text="HMM, THAT DOESN'T LOOK LIKE CLOTHES." maxWidth={box.w - pad * 2} color="#a3123a" sx={1.3} sy={1.6} />}
             {phase.redrawing ? (
-              <PixelLines text={phase.source ? "REDRAWING IT..." : "TIDYING IT UP..."} maxWidth={box.w - pad * 2} color={C.invText} sx={1.4} sy={1.8} />
+              <PixelLines text={phase.source ? "REDRAWING IT..." : "TIDYING IT UP..."} maxWidth={box.w - pad * 2} color={C.invText} sx={1.3} sy={1.6} />
             ) : phase.original ? (
-              <PixelLines text={phase.source ? "REDRAWN AGAIN. UNDO SWITCHES BACK." : "REDRAWN BY AI. ORIGINAL SWITCHES BACK."} maxWidth={box.w - pad * 2} color={C.invText} sx={1.4} sy={1.8} />
+              <PixelLines text={phase.source ? "REDRAWN AGAIN. UNDO SWITCHES BACK." : "REDRAWN BY AI. ORIGINAL SWITCHES BACK."} maxWidth={box.w - pad * 2} color={C.invText} sx={1.3} sy={1.6} />
             ) : (
-              phase.how === "guess" && <PixelLines text="BEST GUESS. FIX IT IF IT'S WRONG." maxWidth={box.w - pad * 2} color={C.invText} sx={1.4} sy={1.8} />
+              phase.how === "guess" && <PixelLines text="BEST GUESS. FIX IT IF IT'S WRONG." maxWidth={box.w - pad * 2} color={C.invText} sx={1.3} sy={1.6} />
             )}
           </div>
         ) : (
           <>
-            <PixelField box={{ x: box.x + pad, y: imageBox.y + 130, w: box.w - pad * 2, h: 30 }} label="Name" value={tags.name.toUpperCase()} onChange={(v) => setTags({ name: v })} maxLength={28} sx={1.8} sy={2.2} />
-            <div style={{ position: "absolute", left: box.x + pad, top: imageBox.y + 168, width: box.w - pad * 2, display: "flex", flexWrap: "wrap", gap: 4 }}>
+            <PixelField box={{ x: box.x + pad, y: showBox.y + 130, w: box.w - pad * 2, h: 30 }} label="Name" value={tags.name.toUpperCase()} onChange={(v) => setTags({ name: v })} maxLength={28} sx={1.8} sy={2.2} />
+            <div style={{ position: "absolute", left: box.x + pad, top: showBox.y + 168, width: box.w - pad * 2, display: "flex", flexWrap: "wrap", gap: 4 }}>
               {cats.map((id) => (
                 <button
                   key={id}
