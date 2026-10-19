@@ -26,19 +26,27 @@ const CELL = 18; // dissolve block size, canvas pixels (6 stage pixels)
 const HOLD_MS = 700; // show the bare body first
 const DISSOLVE_MS = 1300;
 
-async function bodyCanvas(src: string | null | undefined, cw: number, ch: number, figure?: Figure) {
-  if (!src) return placeholderBody(cw, ch, figure);
+type Frame = { x: number; y: number; w: number; h: number };
+
+// The body drawn into the panel, and `frame`, the box it fills (anchors are
+// fractions of that box). A user's own figure keeps a little space around it.
+async function bodyCanvas(src: string | null | undefined, cw: number, ch: number, figure?: Figure): Promise<{ canvas: HTMLCanvasElement; frame: Frame }> {
+  if (!src) return { canvas: placeholderBody(cw, ch, figure), frame: { x: 0, y: 0, w: cw, h: ch } };
   const img = await loadImage(src);
   const c = makeCanvas(cw, ch);
-  const box = containBox(img.width, img.height, cw, ch);
-  c.getContext("2d")!.drawImage(img, box.x, box.y, box.w, box.h);
-  return c;
+  const m = ch * 0.03;
+  const box = containBox(img.width, img.height, cw - m * 2, ch - m * 2);
+  const frame = { x: box.x + m, y: box.y + m, w: box.w, h: box.h };
+  c.getContext("2d")!.drawImage(img, frame.x, frame.y, frame.w, frame.h);
+  return { canvas: c, frame };
 }
 
-async function place(ctx: CanvasRenderingContext2D, src: string, a: Anchor, cw: number, ch: number) {
+// A garment fitted into its anchor: as wide as the anchor, centered, hanging
+// from its top edge (and only shrunk if it would run past the bottom).
+async function place(ctx: CanvasRenderingContext2D, src: string, a: Anchor, f: Frame) {
   const img = await loadImage(src);
-  const box = containBox(img.width, img.height, a.w * cw, a.h * ch, "top");
-  ctx.drawImage(img, Math.round(a.x * cw + box.x), Math.round(a.y * ch + box.y), Math.round(box.w), Math.round(box.h));
+  const box = containBox(img.width, img.height, a.w * f.w, a.h * f.h, "top");
+  ctx.drawImage(img, Math.round(f.x + a.x * f.w + box.x), Math.round(f.y + a.y * f.h + box.y), Math.round(box.w), Math.round(box.h));
 }
 
 // The full-body screen: the body appears, then the outfit dissolves onto it
@@ -59,18 +67,18 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
     const vctx = view.getContext("2d")!;
 
     (async () => {
-      const body = await bodyCanvas(bodySrc, cw, ch, figure);
+      const { canvas: body, frame } = await bodyCanvas(bodySrc, cw, ch, figure);
       const outfit = makeCanvas(cw, ch);
       const octx = outfit.getContext("2d")!;
       for (const layer of LAYERS) {
         if (layer === "outfit") {
-          await place(octx, bottom.image, anchors.bottom, cw, ch);
-          await place(octx, top.image, anchors.top, cw, ch);
+          await place(octx, bottom.image, anchors.bottom, frame);
+          await place(octx, top.image, anchors.top, frame);
           continue;
         }
         const g = extras.find((e) => e.category === layer);
         const a = anchors.extras[layer];
-        if (g && a) await place(octx, g.image, a, cw, ch);
+        if (g && a) await place(octx, g.image, a, frame);
       }
       if (cancelled) return;
 

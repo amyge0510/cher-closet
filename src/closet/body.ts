@@ -7,9 +7,12 @@ export type Anchor = { x: number; y: number; w: number; h: number };
 // aren't drawn on the body.
 export type BodyAnchors = { top: Anchor; bottom: Anchor; extras: Record<string, Anchor> };
 
+// Garments are fitted to an anchor's width (and only shrunk further if they
+// would run past its bottom), so the top and bottom boxes reach down far
+// enough for long tops and full-length pants.
 export const PLACEHOLDER_ANCHORS: BodyAnchors = {
-  top: { x: 0.25, y: 0.165, w: 0.5, h: 0.3 },
-  bottom: { x: 0.31, y: 0.415, w: 0.38, h: 0.2 },
+  top: { x: 0.25, y: 0.165, w: 0.5, h: 0.36 },
+  bottom: { x: 0.31, y: 0.415, w: 0.38, h: 0.52 },
   extras: {
     pantyhose: { x: 0.36, y: 0.5, w: 0.28, h: 0.44 },
     shoes: { x: 0.34, y: 0.885, w: 0.32, h: 0.09 },

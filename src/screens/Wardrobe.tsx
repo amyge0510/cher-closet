@@ -11,6 +11,9 @@ import { accessoriesFor, rankPairs, type BoardItem } from "../style/quiz";
 import { leaf, WARDROBES, type MyStyle, type Wardrobe as WardrobeChoice } from "../style/styles";
 import { Inventory, MoreMenu } from "./Inventory";
 import { Upload } from "./Upload";
+import { BodyPhoto } from "./BodyPhoto";
+import type { Body } from "../closet/bodyPhoto";
+import type { BodyAnchors } from "../closet/body";
 import { SavedLooks } from "./SavedLooks";
 import { StyleQuiz } from "./StyleQuiz";
 import { Bevel, ButtonLabel, CategoryBar, ControlStrip, Header, Leopard, overflowCategories, pos, tabCenter } from "./Parts";
@@ -46,7 +49,7 @@ function ExtraSticker({ garment, onTakeOff }: { garment: Garment; onTakeOff: () 
   );
 }
 
-type Popup = { kind: "closet"; category: string } | { kind: "more" } | { kind: "style" } | { kind: "looks" } | { kind: "upload" } | null;
+type Popup = { kind: "closet"; category: string } | { kind: "more" } | { kind: "style" } | { kind: "looks" } | { kind: "upload" } | { kind: "body" } | null;
 
 const FLY_MS = 1000;
 const FLASH_MS = 1500;
@@ -75,7 +78,7 @@ function FlyingItem({ garment, from, to, onLanded }: { garment: Garment; from: {
 const MAX_LOOKS = 48;
 const SAVED_FLASH_MS = 1500;
 
-export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut, myStyle, onSaveStyle, looks, onSaveLooks, wardrobe, onChangeWardrobe, onUploaded, notice }: {
+export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut, myStyle, onSaveStyle, looks, onSaveLooks, wardrobe, onChangeWardrobe, onUploaded, notice, body, canRedraw, onBody, onResetBody }: {
   state: State;
   dispatch: Dispatch<Action>;
   closet: Garment[];
@@ -93,6 +96,12 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   onUploaded: (g: Garment, png: Blob) => void;
   /** a short message to show for a moment, e.g. a failed save */
   notice?: string | null;
+  /** the user's own figure for the reveal (MY MODEL PHOTO), if any */
+  body: Body | null;
+  /** signed in, so the Gemini redraws (TIDY UP, MY MODEL PHOTO) work */
+  canRedraw: boolean;
+  onBody: (canvas: HTMLCanvasElement, anchors: BodyAnchors) => void;
+  onResetBody: () => void;
 }) {
   const { screen } = state;
   const tops = useMemo(() => closet.filter((g) => g.slot === "top"), [closet]);
@@ -287,7 +296,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
 
       {fullBody && top && bottom ? (
         <div style={{ ...pos(L.revealPanel), background: C.panel }}>
-          <Reveal w={L.revealPanel.w} h={L.revealPanel.h} top={top} bottom={bottom} extras={worn} figure={wardrobe === "mens" ? "mens" : "womens"} animate={screen === "reveal"} onDone={revealDone} />
+          <Reveal w={L.revealPanel.w} h={L.revealPanel.h} top={top} bottom={bottom} extras={worn} figure={wardrobe === "mens" ? "mens" : "womens"} bodySrc={body?.src} anchors={body?.anchors} animate={screen === "reveal"} onDone={revealDone} />
         </div>
       ) : (
         <>
@@ -343,7 +352,22 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
         flash={flash}
       />
 
-      {popup?.kind === "upload" && <Upload categories={categories} wardrobe={wardrobe} incoming={incoming} onFile={filed} onClose={closePopup} />}
+      {popup?.kind === "body" && (
+        <BodyPhoto
+          current={body}
+          canRedraw={canRedraw}
+          onUse={(canvas, anchors) => {
+            onBody(canvas, anchors);
+            setPopup(null);
+          }}
+          onReset={() => {
+            onResetBody();
+            setPopup(null);
+          }}
+          onClose={closePopup}
+        />
+      )}
+      {popup?.kind === "upload" && <Upload categories={categories} wardrobe={wardrobe} incoming={incoming} canRedraw={canRedraw} onFile={filed} onClose={closePopup} />}
       {flying.map((f) => (
         <FlyingItem key={f.garment.id} garment={f.garment} from={f.from} to={f.to} onLanded={() => landed(f.garment)} />
       ))}
@@ -384,6 +408,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
           onPick={(id) => setPopup({ kind: "closet", category: id })}
           onSignOut={onSignOut}
           settings={[
+            { key: "body", label: "MY MODEL PHOTO", title: "Use a photo of yourself on the dressed-up screen", act: () => setPopup({ kind: "body" }) },
             {
               key: "wardrobe",
               label: `CLOTHES: ${WARDROBES.find((w) => w.id === wardrobe)?.label}`,

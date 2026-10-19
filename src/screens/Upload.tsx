@@ -10,6 +10,7 @@ import { leaf, type Wardrobe } from "../style/styles";
 import { findPieces, finishCutout, forTagging, loadPhoto, pngBlob, type Piece, type Progress } from "../upload/cutout";
 import { Scanner } from "../upload/Scanner";
 import { garmentFrom, tagCategories, tagGarment, type Tags } from "../upload/tags";
+import { RedrawError, tidyGarment } from "../upload/gemini";
 import { Bevel } from "./Parts";
 
 // The UPLOAD pop-up: pick photos, drop them, or paste one. Each photo goes
@@ -21,7 +22,13 @@ type Phase =
   | { kind: "cutting"; photo: HTMLCanvasElement; progress: { what: "download" | "cut"; f: number } | null }
   | { kind: "popping"; photo: HTMLCanvasElement; cut: HTMLCanvasElement; hint?: string }
   | { kind: "tagging"; photo: HTMLCanvasElement; cut: HTMLCanvasElement }
-  | { kind: "show"; image: string; png: Blob; tags: Tags; how: "claude" | "guess"; fixing: boolean }
+  | {
+      kind: "show"; image: string; png: Blob; canvas: HTMLCanvasElement; tags: Tags; how: "claude" | "guess"; fixing: boolean;
+      /** TIDY UP: the cut-out before the redraw, to switch back to */
+      original?: { image: string; png: Blob; canvas: HTMLCanvasElement };
+      redrawing?: boolean;
+      note?: string;
+    }
   | { kind: "error"; message: string };
 
 const AUTO_FILE_MS = 3200; // Claude's tags file themselves after this long
@@ -33,8 +40,10 @@ const SCAN = 216; // the scanner's size on screen
 
 const imageFiles = (list: FileList | File[] | null | undefined) => [...(list ?? [])].filter((f) => f.type.startsWith("image/"));
 
-export function Upload({ categories, wardrobe, incoming, onFile, onClose }: {
+export function Upload({ categories, wardrobe, incoming, canRedraw, onFile, onClose }: {
   categories: Category[];
+  /** signed in, so TIDY UP (Gemini) is available */
+  canRedraw: boolean;
   wardrobe: Wardrobe;
   /** images pasted or dropped from outside the pop-up */
   incoming: { files: Blob[]; key: number } | null;
@@ -103,7 +112,7 @@ export function Upload({ categories, wardrobe, incoming, onFile, onClose }: {
       setPhase({ kind: "tagging", photo, cut });
       const final = finishCutout(cut);
       const [{ tags, how }, png] = await Promise.all([tagGarment(final, await forTagging(final), cats, wardrobe, hint), pngBlob(final)]);
-      setPhase({ kind: "show", image: final.toDataURL("image/png"), png, tags, how, fixing: false });
+      setPhase({ kind: "show", image: final.toDataURL("image/png"), png, canvas: final, tags, how, fixing: false });
     },
     [cats.join(), wardrobe],
   );
@@ -147,10 +156,28 @@ export function Upload({ categories, wardrobe, incoming, onFile, onClose }: {
 
   // Claude's tags file themselves after a moment, unless you hit FIX IT
   useEffect(() => {
-    if (phase.kind !== "show" || phase.fixing || phase.how !== "claude" || !phase.tags.isClothing) return;
+    if (phase.kind !== "show" || phase.fixing || phase.redrawing || phase.original || phase.how !== "claude" || !phase.tags.isClothing) return;
     const t = window.setTimeout(file, AUTO_FILE_MS);
     return () => clearTimeout(t);
   }, [phase, file]);
+
+  // TIDY UP: Gemini redraws the piece as a straight-on product shot; the
+  // button then switches between the redraw and the original
+  const tidy = useCallback(async () => {
+    if (phase.kind !== "show" || phase.redrawing) return;
+    if (phase.original) {
+      const { original, ...rest } = phase;
+      return setPhase({ ...rest, ...original, original: undefined, note: undefined });
+    }
+    setPhase({ ...phase, redrawing: true, note: undefined });
+    try {
+      const final = finishCutout(await tidyGarment(phase.canvas, phase.tags.name, phase.tags.colors));
+      const png = await pngBlob(final);
+      setPhase((p) => (p.kind === "show" ? { ...p, image: final.toDataURL("image/png"), png, canvas: final, redrawing: false, original: { image: p.image, png: p.png, canvas: p.canvas } } : p));
+    } catch (e) {
+      setPhase((p) => (p.kind === "show" ? { ...p, redrawing: false, note: e instanceof RedrawError ? e.message : "THE REDRAW DIDN'T WORK." } : p));
+    }
+  }, [phase]);
 
   const setTags = (patch: Partial<Tags>) => setPhase((p) => (p.kind === "show" ? { ...p, tags: { ...p.tags, ...patch } } : p));
   const catLabel = (id: string) => categories.find((c) => c.id === id)?.label ?? id.toUpperCase();
@@ -222,14 +249,26 @@ export function Upload({ categories, wardrobe, incoming, onFile, onClose }: {
     body = (
       <>
         <div style={{ position: "absolute", left: imageBox.x, top: imageBox.y, width: SCAN, height: phase.fixing ? 120 : SCAN, background: C.invSlot, display: "grid", placeItems: "center", boxSizing: "border-box", border: `3px solid ${C.invEdge}` }}>
-          <GarmentImage key={phase.image} src={phase.image} w={phase.fixing ? 100 : SCAN - 24} h={phase.fixing ? 100 : SCAN - 24} fill={0.95} outline={C.white} />
+          {phase.redrawing ? (
+            <Scanner size={SCAN - 6} photo={phase.canvas} cutout={null} />
+          ) : (
+            <GarmentImage key={phase.image} src={phase.image} w={phase.fixing ? 100 : SCAN - 24} h={phase.fixing ? 100 : SCAN - 24} fill={0.95} outline={C.white} />
+          )}
         </div>
         {!phase.fixing ? (
           <div style={{ position: "absolute", left: box.x + pad, top: imageBox.y + SCAN + 10, width: box.w - pad * 2, display: "grid", gap: 6, justifyItems: "center" }}>
             <PixelLines text={tags.name.toUpperCase()} maxWidth={box.w - pad * 2} color={C.invEdge} sx={2.2} sy={2.6} bold />
             <PixelLines text={`GOES IN ${catLabel(tags.category)}. ${tags.colors.join(", ").toUpperCase()}. ${styles}.`} maxWidth={box.w - pad * 2} color={C.invText} sx={1.4} sy={1.8} />
             {!tags.isClothing && <PixelLines text="HMM, THAT DOESN'T LOOK LIKE CLOTHES." maxWidth={box.w - pad * 2} color="#a3123a" sx={1.4} sy={1.8} />}
-            {phase.how === "guess" && <PixelLines text="BEST GUESS. FIX IT IF IT'S WRONG." maxWidth={box.w - pad * 2} color={C.invText} sx={1.4} sy={1.8} />}
+            {phase.redrawing ? (
+              <PixelLines text="TIDYING IT UP..." maxWidth={box.w - pad * 2} color={C.invText} sx={1.4} sy={1.8} />
+            ) : phase.note ? (
+              <PixelLines text={phase.note} maxWidth={box.w - pad * 2} color="#a3123a" sx={1.4} sy={1.8} />
+            ) : phase.original ? (
+              <PixelLines text="REDRAWN BY AI. ORIGINAL SWITCHES BACK." maxWidth={box.w - pad * 2} color={C.invText} sx={1.4} sy={1.8} />
+            ) : (
+              phase.how === "guess" && <PixelLines text="BEST GUESS. FIX IT IF IT'S WRONG." maxWidth={box.w - pad * 2} color={C.invText} sx={1.4} sy={1.8} />
+            )}
           </div>
         ) : (
           <>
@@ -256,15 +295,32 @@ export function Upload({ categories, wardrobe, incoming, onFile, onClose }: {
             </div>
           </>
         )}
-        <Bevel box={{ x: box.x + pad, y: box.y + box.h - pad - 34, w: 104, h: 34 }} tone="gray" onClick={advance} label="Skip this piece" title="Don't file this one" style={{ borderWidth: 2 }}>
-          <PixelText text="SKIP" color={C.ink} sx={1.8} sy={2} bold />
-        </Bevel>
-        <Bevel box={{ x: box.x + pad + 112, y: box.y + box.h - pad - 34, w: 120, h: 34 }} tone="gray" onClick={() => setPhase({ ...phase, fixing: !phase.fixing })} label="Fix the tags" style={{ borderWidth: 2 }}>
-          <PixelText text={phase.fixing ? "DONE" : "FIX IT"} color={C.ink} sx={1.8} sy={2} bold />
-        </Bevel>
-        <Bevel box={{ x: box.x + box.w - pad - 120, y: box.y + box.h - pad - 34, w: 120, h: 34 }} tone="blue" onClick={file} label="File it" style={{ borderWidth: 2 }}>
-          <PixelText text="FILE IT" color={C.white} sx={1.8} sy={2} bold shadow={C.btnBlueDark} />
-        </Bevel>
+        {(() => {
+          // SKIP · FIX IT · (TIDY UP) · FILE IT along the bottom
+          const y = box.y + box.h - pad - 34;
+          const widths = canRedraw ? [76, 84, 100, 80] : [104, 120, 0, 120];
+          const left = box.x + pad;
+          const xs = canRedraw ? [left, left + 80, left + 168, left + 272] : [left, left + 112, 0, box.x + box.w - pad - 120];
+          const sx = canRedraw ? 1.5 : 1.8;
+          return (
+            <>
+              <Bevel box={{ x: xs[0], y, w: widths[0], h: 34 }} tone="gray" onClick={advance} label="Skip this piece" title="Don't file this one" style={{ borderWidth: 2 }}>
+                <PixelText text="SKIP" color={C.ink} sx={sx} sy={2} bold />
+              </Bevel>
+              <Bevel box={{ x: xs[1], y, w: widths[1], h: 34 }} tone="gray" onClick={() => setPhase({ ...phase, fixing: !phase.fixing })} label="Fix the tags" style={{ borderWidth: 2 }}>
+                <PixelText text={phase.fixing ? "DONE" : "FIX IT"} color={C.ink} sx={sx} sy={2} bold />
+              </Bevel>
+              {canRedraw && (
+                <Bevel box={{ x: xs[2], y, w: widths[2], h: 34 }} tone="gray" onClick={tidy} label={phase.original ? "Show the original" : "Tidy up with AI"} title="Gemini redraws it as a straight-on product shot (a few cents)" style={{ borderWidth: 2, opacity: phase.redrawing ? 0.6 : 1 }}>
+                  <PixelText text={phase.original ? "ORIGINAL" : "TIDY UP"} color={C.ink} sx={sx} sy={2} bold />
+                </Bevel>
+              )}
+              <Bevel box={{ x: xs[3], y, w: widths[3], h: 34 }} tone="blue" onClick={phase.redrawing ? undefined : file} label="File it" style={{ borderWidth: 2 }}>
+                <PixelText text="FILE IT" color={C.white} sx={sx} sy={2} bold shadow={C.btnBlueDark} />
+              </Bevel>
+            </>
+          );
+        })()}
       </>
     );
   } else {

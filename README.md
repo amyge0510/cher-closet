@@ -143,6 +143,13 @@ Each photo goes through:
 3. **A quick look.** FIX IT lets you rename it or move it to another
    category. Claude's tags file themselves after about three seconds, while
    a guess waits for FILE IT.
+   Edges are cleaned up automatically: bits of background stuck to the edge
+   (in colors the garment doesn't have) are trimmed, jagged steps are
+   rounded off, and the edge is softened by a pixel.
+   **TIDY UP** (signed in only) has Gemini redraw the piece as a straight-on
+   product shot, keeping its colors, prints and details. It's drawn on a
+   chroma-green background (magenta for green clothes), which the app keys
+   out. ORIGINAL switches back. Each redraw costs a few cents.
 4. **Filing.** The piece floats down into its tab on the bar (or into MORE),
    and the tab blinks.
 
@@ -241,6 +248,35 @@ SMS service such as Twilio.
 
 Until someone uploads their own clothes, they see the demo closet.
 
+**MY MODEL PHOTO** (under MORE, signed in only). Pick or paste any photo of
+yourself. Gemini redraws you standing straight, facing forward, in a plain
+black tank and shorts, on a plain background. The clothes model then finds
+the tank, shorts, legs and head on that picture. That gives the exact spots
+where tops, bottoms, tights, shoes, hats, scarves, jewelry and bags go on your
+own figure (`src/closet/bodyPhoto.ts`). The figure is cut out and replaces
+the stand-in on the dressed-up screen. USE THE STAND-IN goes back. The
+pop-up says plainly that the photo goes to Google only for this.
+
+Garments are fitted to their spot's width and hang from its top, so long
+tops and full-length pants keep their real proportions.
+
+## Gemini redraws (the gemini-image Edge Function)
+
+`supabase/functions/gemini-image/index.ts` sends a picture to Google's Gemini
+image model and returns the redraw. It asks Google which image models the key
+can use and takes the newest Flash one, so it keeps working when Google
+renames models. To pin one, add a `GEMINI_IMAGE_MODEL` secret. Each person
+gets 25 TIDY UPs and 5 model photos a day. Requests are counted in the
+`ai_usage` table, and people can't delete their own rows to reset the count.
+
+To switch it on:
+
+1. In **SQL Editor**, run `supabase/migrations/20261019000000_ai_usage.sql`.
+2. Make sure the secret `GEMINI_API_KEY` (or `gemini_api_key`) is under
+   **Edge Functions → Secrets**.
+3. Deploy the function: **Edge Functions → Deploy a new function → Via
+   Editor**, name it `gemini-image`, paste in the file, and deploy.
+
 ## Claude tagging (the tag-garment Edge Function)
 
 `supabase/functions/tag-garment/index.ts` sends each cut-out to Claude
@@ -264,5 +300,5 @@ To switch it on:
 
 ## Next
 
-1. Full-body photo upload, with anchor placement for the reveal.
-2. Editing a filed piece's tags from the closet pop-up.
+1. Editing a filed piece's tags (and TIDY UP) from the closet pop-up.
+2. An AI try-on of the whole outfit on DRESS ME, saved per outfit.

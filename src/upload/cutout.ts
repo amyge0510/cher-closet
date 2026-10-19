@@ -1,4 +1,5 @@
 import { loadImage, makeCanvas, trimCanvas } from "../pixel/raster";
+import { smoothEdges } from "./smooth";
 
 // Turning a photo into one cut-out per piece of clothing, on a clear
 // background. Everything runs in the browser, for free, and photos never
@@ -75,10 +76,18 @@ async function loadSegmenter(progress?: Progress): Promise<Segmenter> {
 
 // Splits a photo of someone wearing an outfit into its pieces. Returns null
 // when there's no person in it.
-async function clothesPieces(photo: HTMLCanvasElement, progress?: Progress): Promise<Piece[] | null> {
+export type Segment = Awaited<ReturnType<Segmenter>>[number];
+
+// Labels every pixel of a photo of a person: Face, Hair, Upper-clothes,
+// Pants, Left-leg... (one mask per label found).
+export async function segmentPhoto(photo: HTMLCanvasElement, progress?: Progress): Promise<Segment[]> {
   const seg = await loadSegmenter(progress);
   progress?.("cut", 0);
-  const parts = await withTimeout(seg(photo), MODEL_TIMEOUT_MS);
+  return withTimeout(seg(photo), MODEL_TIMEOUT_MS);
+}
+
+async function clothesPieces(photo: HTMLCanvasElement, progress?: Progress): Promise<Piece[] | null> {
+  const parts = await segmentPhoto(photo, progress);
   const total = photo.width * photo.height;
   const area = (m: { data: ArrayLike<number> }) => {
     let n = 0;
@@ -272,14 +281,19 @@ export function keepMainBlobs(mask: Uint8Array, w: number, h: number): number {
   return kept / total;
 }
 
-// Trims the cut-out to the garment and shrinks it for storage.
+// Smooths the edge (see smooth.ts), trims the cut-out to the garment and
+// shrinks it for storage.
 export function finishCutout(c: HTMLCanvasElement): HTMLCanvasElement {
+  const ctx = c.getContext("2d")!;
+  const img = ctx.getImageData(0, 0, c.width, c.height);
+  smoothEdges(img.data, c.width, c.height);
+  ctx.putImageData(img, 0, 0);
   const t = trimCanvas(c, 4);
   const s = Math.min(1, MAX_CUTOUT / Math.max(t.width, t.height));
   const out = makeCanvas(t.width * s, t.height * s);
-  const ctx = out.getContext("2d")!;
-  ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(t, 0, 0, out.width, out.height);
+  const octx = out.getContext("2d")!;
+  octx.imageSmoothingQuality = "high";
+  octx.drawImage(t, 0, 0, out.width, out.height);
   return out;
 }
 
