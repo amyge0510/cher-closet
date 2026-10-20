@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from "react";
 import { categoriesFor, isDress, type Category } from "../closet/categories";
-import { judgeOutfit, matchingPairs } from "../closet/match";
+import { judge, judgeOutfit, matchingPairs } from "../closet/match";
 import type { Garment, Look, Slot, Verdict } from "../closet/types";
 import { loadImage, makeCanvas } from "../pixel/raster";
 import { dressUp, jpegOf, RedrawError } from "../upload/gemini";
@@ -154,11 +154,23 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   const closePopup = useCallback(() => setPopup(null), []);
   const wear = useCallback(
     (g: Garment) => {
-      if (g.slot) dispatch({ type: "PICK", slot: g.slot, index: (g.slot === "top" ? tops : bottoms).indexOf(g) });
+      const b = bottoms.indexOf(g);
+      if (g.slot === "bottom" && isDress(tops[state.top % Math.max(1, tops.length)])) {
+        // a dress is on: a skirt or pants takes its place, with a top that
+        // goes with it (any top if none do), picked at random
+        const others = tops.flatMap((t, i) => (isDress(t) ? [] : [i]));
+        const going = others.filter((i) => judge(tops[i], g).match);
+        const pool = going.length ? going : others;
+        if (pool.length) {
+          dispatch({ type: "SET_OUTFIT", top: pool[Math.floor(Math.random() * pool.length)], bottom: b, extras: state.extras });
+          return setPopup(null);
+        }
+      }
+      if (g.slot) dispatch({ type: "PICK", slot: g.slot, index: g.slot === "top" ? tops.indexOf(g) : b });
       else dispatch({ type: "WEAR", category: g.category, id: g.id });
       setPopup(null);
     },
-    [dispatch, tops, bottoms],
+    [dispatch, tops, bottoms, state.top, state.extras],
   );
   // worn accessories, with the slot each is in ("jewelry:2" for layers)
   const wornSlots = useMemo(
