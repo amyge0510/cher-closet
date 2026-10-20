@@ -93,6 +93,11 @@ back to Amy's). Uploading always switches to MY CLOSET, and the choice is
 remembered on this browser. Without a backend (or before the showcase is set
 up), Amy's closet shows the built-in demo clothes instead.
 
+**MY BODY.** On the dressed screen, BODY (under HAIR) lets you describe
+your shape in a few words (e.g. "curvy, small waist, slim legs"). It's sent
+with every DRESS ME, and the AI is told firmly to keep your real
+proportions. It's kept in this browser.
+
 **Loading.** While the clothes arrive, the top and bottom windows, worn
 accessories and closet slots show a pixel loading ring
 (`src/pixel/LoadingRing.tsx`). Pictures are kept in the browser between
@@ -218,7 +223,10 @@ with a description of what's visible), then redraws each piece straight-on
 as a product shot from the whole photo, faithful to what it can see and
 never adding details. A redraw that comes out broken (tiny, or with big
 chunks missing) is quietly drawn again once, and the better one shown. A
-piece that was mostly hidden says so. If there's a person in the photo, it then offers to make them the
+piece that was mostly hidden says so. The pieces aren't drawn one by one
+as you go: once a photo's pieces are listed they're all started at once (3
+at a time, `src/upload/ahead.ts`), and the next photo is listed and started
+while you look at this one's. If there's a person in the photo, it then offers to make them the
 model (MY MODEL PHOTO). Without the AI, the in-browser steps below take over. Photos can
 be added in three ways:
 

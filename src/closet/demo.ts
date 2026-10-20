@@ -82,13 +82,13 @@ export const DEMO_SPECS: DemoSpec[] = [
   item("tops", "cropTop", "Wrap Top", solid("#f6d4dc"), ["babypink"], ["ballet", "coquette"]),
 
   // sweaters
-  item("sweaters", "blouse", "Cream Cable Knit", knit("#efe4cc", "#d6c6a4"), ["cream"], ["oldmoney", "academia", "cottage"]),
-  item("sweaters", "turtleneck", "Black Turtleneck", solid("#16161a"), ["black"], ["minimal", "academia", "goth"]),
-  item("sweaters", "blouse", "Gray Crewneck", knit("#a4a4aa", "#8c8c92"), ["gray"], ["minimal", "athleisure", "clean", "everyday"]),
-  item("sweaters", "blazer", "Pink Fuzzy Cardigan", knit("#f4a8c4", "#e48cb0"), ["pink"], ["clueless", "y2k", "coquette"]),
-  item("sweaters", "vest", "Argyle Sweater Vest", plaid("#6a1e2a", "#e8d8b0", "#2a3a2a", 12), ["burgundy", "cream"], ["academia", "tennis"]),
-  item("sweaters", "blazer", "Ballet Wrap Cardigan", knit("#f8dde4", "#ecc8d2"), ["babypink"], ["ballet"]),
-  item("sweaters", "blouse", "Navy Quarter Zip", solid("#22305a"), ["navy", "white"], ["tennis", "oldmoney", "athleisure", "everyday"]),
+  item("tops", "blouse", "Cream Cable Knit", knit("#efe4cc", "#d6c6a4"), ["cream"], ["oldmoney", "academia", "cottage"]),
+  item("tops", "turtleneck", "Black Turtleneck", solid("#16161a"), ["black"], ["minimal", "academia", "goth"]),
+  item("tops", "blouse", "Gray Crewneck", knit("#a4a4aa", "#8c8c92"), ["gray"], ["minimal", "athleisure", "clean", "everyday"]),
+  item("tops", "blazer", "Pink Fuzzy Cardigan", knit("#f4a8c4", "#e48cb0"), ["pink"], ["clueless", "y2k", "coquette"]),
+  item("tops", "vest", "Argyle Sweater Vest", plaid("#6a1e2a", "#e8d8b0", "#2a3a2a", 12), ["burgundy", "cream"], ["academia", "tennis"]),
+  item("tops", "blazer", "Ballet Wrap Cardigan", knit("#f8dde4", "#ecc8d2"), ["babypink"], ["ballet"]),
+  item("tops", "blouse", "Navy Quarter Zip", solid("#22305a"), ["navy", "white"], ["tennis", "oldmoney", "athleisure", "everyday"]),
 
   // bottoms
   item("bottoms", "pants", "Ripped Black Jeans", solid("#2a2a32"), ["black"], ["grunge", "punk", "moto"]),
@@ -206,9 +206,9 @@ DEMO_SPECS.push(
   mens("jackets", "chore", "Varsity Jacket", solid("#22305a"), ["navy", "cream"], ["street", "everyday"], { band: "#efe4cc" }),
 
   // sweaters
-  mens("sweaters", "blouse", "Navy Crewneck", knit("#22305a", "#2c3c6a"), ["navy"], ["oldmoney", "academia", "everyday"]),
-  mens("sweaters", "blazer", "Charcoal Cardigan", knit("#4a4a52", "#5a5a62"), ["gray"], ["academia", "minimal"]),
-  mens("sweaters", "blouse", "Fair Isle Sweater", dots("#efe4cc", "#b0182a", 9), ["cream", "red"], ["gorpcore", "academia"]),
+  mens("tops", "blouse", "Navy Crewneck", knit("#22305a", "#2c3c6a"), ["navy"], ["oldmoney", "academia", "everyday"]),
+  mens("tops", "blazer", "Charcoal Cardigan", knit("#4a4a52", "#5a5a62"), ["gray"], ["academia", "minimal"]),
+  mens("tops", "blouse", "Fair Isle Sweater", dots("#efe4cc", "#b0182a", 9), ["cream", "red"], ["gorpcore", "academia"]),
 
   // bottoms
   mens("bottoms", "pants", "Khaki Chinos", solid("#c8b088"), ["beige"], ["oldmoney", "academia", "everyday", "workwear"]),

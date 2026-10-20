@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from "react";
 import { categoriesFor, isDress, type Category } from "../closet/categories";
-import { judgeOutfit, matchingPairs } from "../closet/match";
+import { judge, judgeOutfit, matchingPairs } from "../closet/match";
 import type { Garment, Look, Slot, Verdict } from "../closet/types";
 import { loadImage, makeCanvas } from "../pixel/raster";
 import { dressUp, jpegOf, RedrawError } from "../upload/gemini";
 import { judgeWithAi } from "../upload/tags";
 import { GarmentImage } from "../pixel/GarmentImage";
+import { PixelField } from "../pixel/PixelField";
 import { PixelLines, PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
 import { extraSpot, L, STAGE_W, type Box } from "../stage/layout";
@@ -67,7 +68,7 @@ function ExtraSticker({ garment, index = 0, of = 1, onTakeOff }: { garment: Garm
   );
 }
 
-type Popup = { kind: "closet"; category: string } | { kind: "more" } | { kind: "style" } | { kind: "looks" } | { kind: "upload" } | { kind: "body"; photo?: HTMLCanvasElement } | { kind: "hair" } | null;
+type Popup = { kind: "closet"; category: string } | { kind: "more" } | { kind: "style" } | { kind: "looks" } | { kind: "upload" } | { kind: "body"; photo?: HTMLCanvasElement } | { kind: "hair" } | { kind: "shape" } | null;
 
 // Hairstyles for the dressed-up figure (HAIR, above the head). The id is
 // what Gemini is asked for; "" keeps the user's own hair.
@@ -83,9 +84,13 @@ const HAIRSTYLES = [
   { id: "soft curtain bangs with the rest down", label: "CURTAIN BANGS" },
 ];
 const HAIR_KEY = "cher-hair";
+// MY BODY: their own words for their shape, for when the photo doesn't show it
+const SHAPE_KEY = "cher-body-shape";
 // a dress fills the whole middle: from the top window down to the bottom one
 const DRESS_PANEL = { x: L.topPanel.x, y: L.topPanel.y, w: L.topPanel.w, h: L.bottomPanel.y + L.bottomPanel.h - L.topPanel.y };
 const HAIR_BUTTON = { x: L.revealPanel.x + L.revealPanel.w - 74, y: L.revealPanel.y + 6, w: 68, h: 22 };
+const SHAPE_BUTTON = { ...HAIR_BUTTON, y: HAIR_BUTTON.y + HAIR_BUTTON.h + 4 };
+const SHAPE_W = 230;
 
 const FLY_MS = 1000;
 const FLASH_MS = 1500;
@@ -154,11 +159,23 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   const closePopup = useCallback(() => setPopup(null), []);
   const wear = useCallback(
     (g: Garment) => {
-      if (g.slot) dispatch({ type: "PICK", slot: g.slot, index: (g.slot === "top" ? tops : bottoms).indexOf(g) });
+      const b = bottoms.indexOf(g);
+      if (g.slot === "bottom" && isDress(tops[state.top % Math.max(1, tops.length)])) {
+        // a dress is on: a skirt or pants takes its place, with a top that
+        // goes with it (any top if none do), picked at random
+        const others = tops.flatMap((t, i) => (isDress(t) ? [] : [i]));
+        const going = others.filter((i) => judge(tops[i], g).match);
+        const pool = going.length ? going : others;
+        if (pool.length) {
+          dispatch({ type: "SET_OUTFIT", top: pool[Math.floor(Math.random() * pool.length)], bottom: b, extras: state.extras });
+          return setPopup(null);
+        }
+      }
+      if (g.slot) dispatch({ type: "PICK", slot: g.slot, index: g.slot === "top" ? tops.indexOf(g) : b });
       else dispatch({ type: "WEAR", category: g.category, id: g.id });
       setPopup(null);
     },
-    [dispatch, tops, bottoms],
+    [dispatch, tops, bottoms, state.top, state.extras],
   );
   // worn accessories, with the slot each is in ("jewelry:2" for layers)
   const wornSlots = useMemo(
@@ -399,6 +416,24 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       /* it lasts until reload */
     }
   }, []);
+  const [shape, setShapeState] = useState(() => {
+    try {
+      return localStorage.getItem(SHAPE_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  });
+  const [shapeDraft, setShapeDraft] = useState(shape);
+  const saveShape = useCallback(() => {
+    const s = shapeDraft.trim().slice(0, 120);
+    setShapeState(s);
+    setPopup(null);
+    try {
+      localStorage.setItem(SHAPE_KEY, s);
+    } catch {
+      /* it lasts until reload */
+    }
+  }, [shapeDraft]);
   const [note, setNote] = useState<string | null>(null);
   useEffect(() => {
     if (!note) return;
@@ -419,7 +454,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   }, [top, bottom, worn]);
   const dressKey =
     body && canRedraw && outfitPieces.length && (screen === "reveal" || screen === "dressed")
-      ? [body.src.length, body.src.slice(-48), ...outfitPieces.map((g) => g.id), hair].join("|")
+      ? [body.src.length, body.src.slice(-48), ...outfitPieces.map((g) => g.id), shape, hair].join("|")
       : null;
   useEffect(() => {
     if (!dressKey || !body) return;
@@ -433,7 +468,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
     if (cached) return done(cached);
     let cancelled = false;
     setDressed({ key: dressKey, src: null, waiting: true, under });
-    dressUp(body.src, outfitPieces.map((g) => ({ label: pieceLabel(g), image: g.image })), hair)
+    dressUp(body.src, outfitPieces.map((g) => ({ label: pieceLabel(g), image: g.image })), hair, shape)
       .then((src) => {
         dressedPhotos.current.set(dressKey, src);
         if (!cancelled) done(src);
@@ -447,7 +482,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
     return () => {
       cancelled = true;
     };
-    // dressKey covers the body, the outfit and the hair
+    // dressKey covers the body, the outfit, MY BODY and the hair
   }, [dressKey]);
 
   // UPLOAD: photos can be pasted anywhere on your own closet, not just in the pop-up
@@ -464,6 +499,12 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
   }, [source]);
+  // a pasted photo is handed over once: closing the pop-up forgets it, so
+  // opening UPLOAD again doesn't start on it all over again
+  const uploadOpen = popup?.kind === "upload";
+  useEffect(() => {
+    if (!uploadOpen) setIncoming(null);
+  }, [uploadOpen]);
   const [flying, setFlying] = useState<{ garment: Garment; from: { x: number; y: number; size: number }; to: { x: number; y: number } }[]>([]);
   const [flash, setFlash] = useState<string | null>(null);
   const filed = useCallback(
@@ -563,6 +604,36 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
               </button>
             ))}
           </div>
+        </>
+      )}
+      {fullBody && body && canRedraw && (
+        <Bevel box={SHAPE_BUTTON} tone={popup?.kind === "shape" || shape ? "blue" : "gray"} onClick={() => (setShapeDraft(shape), setPopup(popup?.kind === "shape" ? null : { kind: "shape" }))} label="Describe my body" title="Tell the AI your shape" style={{ borderWidth: 2, zIndex: 6 }}>
+          <PixelText text="BODY ~" color={popup?.kind === "shape" || shape ? C.white : C.ink} sx={1.4} sy={1.8} bold />
+        </Bevel>
+      )}
+      {popup?.kind === "shape" && (
+        <>
+          <div onClick={closePopup} style={{ ...wide({ x: 0, y: 0, w: STAGE_W, h: L.categoryBar.y }), zIndex: 20 }} />
+          <div role="dialog" aria-label="My body" style={{ position: "absolute", left: SHAPE_BUTTON.x + SHAPE_BUTTON.w - SHAPE_W, top: SHAPE_BUTTON.y + SHAPE_BUTTON.h + 4, width: SHAPE_W, height: 132, boxSizing: "border-box", background: C.invBg, border: `3px solid ${C.invEdge}`, zIndex: 21 }} />
+          <div style={{ position: "absolute", left: SHAPE_BUTTON.x + SHAPE_BUTTON.w - SHAPE_W + 9, top: SHAPE_BUTTON.y + SHAPE_BUTTON.h + 13, width: SHAPE_W - 18, zIndex: 22 }}>
+            <PixelLines text="MY BODY: DESCRIBE YOUR SHAPE SO THE AI DRAWS YOU RIGHT" maxWidth={SHAPE_W - 18} color={C.invText} sx={1.25} sy={1.6} align="left" />
+          </div>
+          <PixelField
+            box={{ x: SHAPE_BUTTON.x + SHAPE_BUTTON.w - SHAPE_W + 9, y: SHAPE_BUTTON.y + SHAPE_BUTTON.h + 50, w: SHAPE_W - 18, h: 26 }}
+            label="My body"
+            value={shapeDraft}
+            onChange={(v) => setShapeDraft(v.slice(0, 120))}
+            placeholder="E.G. CURVY, SMALL WAIST, SLIM LEGS"
+            maxLength={120}
+            autoFocus
+            onEnter={saveShape}
+            sx={1.25}
+            sy={1.6}
+            style={{ zIndex: 22 }}
+          />
+          <Bevel box={{ x: SHAPE_BUTTON.x + SHAPE_BUTTON.w - 9 - 70, y: SHAPE_BUTTON.y + SHAPE_BUTTON.h + 92, w: 70, h: 26 }} tone="blue" onClick={saveShape} label="Save my body" style={{ borderWidth: 2, zIndex: 22 }}>
+            <PixelText text="SAVE" color={C.white} sx={1.5} sy={1.9} bold shadow={C.btnBlueDark} />
+          </Bevel>
         </>
       )}
       {fullBody && dressed?.waiting && dressed.key === dressKey && (
@@ -681,7 +752,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       )}
       {popup?.kind === "more" && (
         <MoreMenu
-          categories={overflowCategories(categories)}
+          categories={overflowCategories(categories, source === "mine")}
           onPick={(id) => setPopup({ kind: "closet", category: id })}
           onSignOut={onSignOut}
           settings={[

@@ -14,11 +14,12 @@ export const BUILT_IN: Category[] = [
   // go on like an accessory instead of riding the top carousel
   { id: "jackets", label: "JACKETS", slot: null },
   { id: "shoes", label: "SHOES", slot: null },
+  { id: "bags", label: "BAGS", slot: null },
   { id: "jewelry", label: "JEWELRY", slot: null },
   { id: "scarves", label: "SCARVES", slot: null },
   { id: "pantyhose", label: "PANTYHOSE", slot: null },
   { id: "underwear", label: "UNDERWEAR", slot: null },
-  { id: "sweaters", label: "SWEATERS", slot: "top" },
+  { id: "hats", label: "HATS", slot: null },
 ];
 
 export const isDress = (g: { category: string } | undefined) => g?.category === "dresses";
@@ -40,6 +41,10 @@ export function jewelryKind(name: string): JewelryKind {
   if (/\bring\b|rings\b|signet/.test(n)) return "hand";
   return "neck";
 }
+
+// Categories folded into another: sweaters are filed under TOPS.
+const MERGED: Record<string, string> = { sweaters: "tops" };
+export const canonicalCategory = (id: string) => MERGED[id] ?? id;
 
 export function slotFor(categoryId: string): Slot | null {
   return BUILT_IN.find((c) => c.id === categoryId)?.slot ?? null;

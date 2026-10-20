@@ -15,7 +15,7 @@ const mens: Garment[] = demoSpecsFor("mens").map(toGarment);
 describe("demo closet", () => {
   it("has at least 75 pieces, with something in every built-in category", () => {
     expect(closet.length).toBeGreaterThanOrEqual(75);
-    for (const c of ["tops", "bottoms", "skirts", "shoes", "jewelry", "scarves", "pantyhose", "underwear", "sweaters"])
+    for (const c of ["tops", "bottoms", "skirts", "shoes", "jewelry", "scarves", "pantyhose", "underwear"])
       expect(closet.some((g) => g.category === c), c).toBe(true);
   });
 

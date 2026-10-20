@@ -1,4 +1,4 @@
-import { slotFor, type Category } from "../closet/categories";
+import { canonicalCategory, slotFor, type Category } from "../closet/categories";
 import type { Garment, Pattern } from "../closet/types";
 import { supabase } from "../lib/supabase";
 import { forWardrobe, LEAVES, type Wardrobe } from "../style/styles";
@@ -22,7 +22,7 @@ export type Tags = { category: string; name: string; colors: string[]; pattern: 
 
 // Categories the tagger may pick: the built-ins, BAGS and HATS (which most
 // closets need), and any the user has made up.
-export const tagCategories = (categories: Category[]) => [...new Set([...categories.map((c) => c.id), "shoes", "jewelry", "scarves", "pantyhose", "underwear", "sweaters", "jackets", "skirts", "dresses", "bags", "hats"])];
+export const tagCategories = (categories: Category[]) => [...new Set([...categories.map((c) => c.id), "shoes", "jewelry", "scarves", "pantyhose", "underwear", "jackets", "skirts", "dresses", "bags", "hats"])];
 
 const cleanName = (s: unknown) =>
   String(s ?? "")
@@ -37,7 +37,7 @@ const titleCase = (s: string) => s.toLowerCase().replace(/\b[a-z]/g, (c) => c.to
 export function normalizeTags(raw: unknown, categories: string[]): Tags | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
-  const category = String(r.category ?? "").toLowerCase();
+  const category = canonicalCategory(String(r.category ?? "").toLowerCase());
   if (!categories.includes(category)) return null;
   const colors = [...new Set((Array.isArray(r.colors) ? r.colors : []).map((c) => String(c).toLowerCase()))].filter((c) => (COLORS as readonly string[]).includes(c)).slice(0, 3);
   const pattern = PATTERNS.includes(r.pattern as Pattern) ? (r.pattern as Pattern) : "solid";
@@ -48,7 +48,7 @@ export function normalizeTags(raw: unknown, categories: string[]): Tags | null {
 
 const SINGULAR: Record<string, string> = {
   tops: "Top", bottoms: "Pants", skirts: "Skirt", shoes: "Shoes", jewelry: "Jewelry", scarves: "Scarf",
-  pantyhose: "Tights", underwear: "Underwear", sweaters: "Sweater", jackets: "Jacket", bags: "Bag", hats: "Hat", dresses: "Dress",
+  pantyhose: "Tights", underwear: "Underwear", jackets: "Jacket", bags: "Bag", hats: "Hat", dresses: "Dress",
 };
 // `aspect` is height / width of the cut-out: short, wide bottoms are shorts.
 const defaultName = (colors: string[], category: string, aspect = 2) =>

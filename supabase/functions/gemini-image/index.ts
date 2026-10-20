@@ -90,7 +90,7 @@ ${productRules(background)}${correction(note)}`;
 const SAME_PERSON = `IDENTITY IS THE MOST IMPORTANT RULE. This must be unmistakably the same real person as in the photo, as if photographed again:
 - Keep the face exactly as it is: the same face shape, jawline, cheekbones, chin, forehead, eye shape and size, eyelids, eyebrows, nose shape and width, lips, smile lines, ears, and any freckles, moles, marks or makeup.
 - Keep the same skin tone and texture, the same age and the same ethnicity. Don't beautify, retouch, slim, smooth, lighten, darken or "improve" anything.
-- Keep the same body shape, proportions and height.
+- Keep the same body shape, proportions and height: the same bust, waist, hips and curves, the same leg and arm thickness. Never make the body straighter, thicker, thinner or more "average" than it is.
 - If the face in the photo is small, blurry, turned or partly hidden, stay as close to what is visible as possible rather than inventing a different face.`;
 
 const POSE_PROMPT = `Redraw this photo as a full-body fashion model photo of the same person.
@@ -106,10 +106,13 @@ Only the pose, clothes, lighting and background change:
 
 // dress: the user's model photo, dressed in the chosen pieces (one picture
 // per piece, labelled), for the DRESS ME reveal.
-function dressPrompt(labels: string[], hair: string) {
+// what the person says about their own shape, when the photo hides it
+const bodyLine = (body: string) => (body ? `\n- Their body, in their own words: ${body}. Show that shape.` : "");
+
+function dressPrompt(labels: string[], hair: string, body: string) {
   return `The first image is a full-body photo of a person. The next images are clothing items, labelled: ${labels.join("; ")}.
 Show this same person wearing exactly these items, together, as one outfit. All ${labels.length} items must be visible in the picture; never leave one out.
-${SAME_PERSON}
+${SAME_PERSON}${bodyLine(body)}
 - Keep the exact same pose, framing, camera angle, position and size in the frame as the first image, so the two pictures line up.
 - Replace the black tank top and shorts with the outfit. If no shoes are given, they stay barefoot; if no top or bottom is given for a part of the body, keep the plain black tank or shorts there.
 - Each item must look exactly like its picture: the same colors, fabric, sheen, cut, length, fit, straps, closures, hardware, prints and details, worn naturally with real folds and fit on this body. Don't add, remove or redesign anything.
@@ -169,10 +172,11 @@ Deno.serve(async (req) => {
     .slice(0, 12);
   if (mode === "dress" && !pieces.length) return json({ error: "send the outfit's pieces" }, 400);
   const hair = clean(body.hair, 60);
+  const shape = clean(body.body, 120);
   const prompt =
     mode === "tidy" ? tidyPrompt(name, background, note)
     : mode === "extract" ? extractPrompt(name, description, background, note)
-    : mode === "dress" ? dressPrompt(pieces.map((p) => p.label), hair)
+    : mode === "dress" ? dressPrompt(pieces.map((p) => p.label), hair, shape)
     : POSE_PROMPT;
   const inputs = [{ inlineData: { mimeType, data: image } }, ...pieces.map((p) => ({ inlineData: { mimeType: "image/jpeg", data: p.image } }))];
 
