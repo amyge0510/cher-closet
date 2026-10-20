@@ -19,7 +19,9 @@ export type Option = { id: string; label: string; bg: string; target: Target };
 
 // step 2 is the result screen; `board` is the outfit shown there, which is
 // exactly the board that was picked (until NEW OUTFIT swaps it)
-export type QuizState = { step: 0 | 1 | 2; family?: string; leaf?: string; seed: number; board?: BoardItem[] };
+// `picked` is the outfit clicked on the first step: it comes along to the
+// second, as the board of the specific style it fits best
+export type QuizState = { step: 0 | 1 | 2; family?: string; leaf?: string; seed: number; board?: BoardItem[]; picked?: BoardItem[] };
 
 export const STEP_TITLES = ["PICK A VIBE", "GET MORE SPECIFIC", "YOUR STYLE"];
 export const QUESTIONS = 2;
@@ -119,7 +121,7 @@ export function options(q: QuizState, closet: Garment[], wardrobe?: Wardrobe | n
 
 // `board` is the outfit that was clicked; picking the specific style keeps it.
 export function choose(q: QuizState, id: string, board?: BoardItem[]): QuizState {
-  if (q.step === 0) return { ...q, step: 1, family: id };
+  if (q.step === 0) return { ...q, step: 1, family: id, picked: board };
   if (q.step === 1) return { ...q, step: 2, leaf: id, board };
   return q;
 }
@@ -129,7 +131,8 @@ export function choose(q: QuizState, id: string, board?: BoardItem[]): QuizState
 export function newOutfits(q: QuizState, closet: Garment[]): QuizState {
   const seed = q.seed + 1;
   const style = result(q);
-  if (q.step !== 2 || !style) return { ...q, seed };
+  // new outfits all round: the one carried over from the first step goes too
+  if (q.step !== 2 || !style) return { ...q, seed, picked: undefined };
   return { ...q, seed, board: buildBoard(closet, targetFor(style), seed * 31, new Set((q.board ?? []).map((i) => i.garment.id))) };
 }
 
@@ -142,7 +145,7 @@ export function resultBoard(q: QuizState, closet: Garment[]): BoardItem[] {
 
 export function back(q: QuizState): QuizState {
   if (q.step === 2) return { ...q, step: 1, leaf: undefined, board: undefined };
-  if (q.step === 1) return { ...q, step: 0, family: undefined };
+  if (q.step === 1) return { ...q, step: 0, family: undefined, picked: undefined };
   return q;
 }
 
@@ -323,8 +326,24 @@ function topUp(pool: Garment[], outfit: Garment[], t: Target, picked: Record<str
 
 // The boards for a step, each kept distinct from the ones before it.
 export function boardsFor(closet: Garment[], q: QuizState, wardrobe?: Wardrobe | null): { option: Option; items: BoardItem[] }[] {
-  const avoid = new Set<string>();
-  return options(q, closet, wardrobe).map((option, i) => ({ option, items: buildBoard(closet, option.target, q.seed * 97 + i * 13 + q.step, avoid) }));
+  const opts = options(q, closet, wardrobe);
+  // the outfit picked on the first step stays: it's the board of the style
+  // its pieces fit best, and the other boards keep clear of its pieces
+  const kept = q.step === 1 && q.picked?.length ? q.picked : null;
+  const home = kept ? bestFit(opts, kept) : -1;
+  const avoid = new Set<string>(kept ? kept.map((i) => i.garment.id) : []);
+  return opts.map((option, i) => ({ option, items: i === home ? kept! : buildBoard(closet, option.target, q.seed * 97 + i * 13 + q.step, avoid) }));
+}
+
+// The option a board's pieces suit best (the first, on a tie).
+function bestFit(opts: Option[], board: BoardItem[]): number {
+  let best = -1;
+  let score = 0;
+  opts.forEach((o, i) => {
+    const s = board.reduce((n, { garment }) => n + fit(garment, o.target), 0);
+    if (best < 0 || s > score) [best, score] = [i, s];
+  });
+  return best;
 }
 
 // Auto Dress with a saved style: among matching outfits, prefer the ones that

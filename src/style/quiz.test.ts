@@ -106,6 +106,20 @@ describe("quiz", () => {
     }
   });
 
+  it("keeps the outfit picked on the first step as a board on the second", () => {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const q0 = startQuiz(seed);
+      for (const { option, items } of boardsFor(womens, q0, "womens")) {
+        const q1 = choose(q0, option.id, items);
+        const next = boardsFor(womens, q1, "womens");
+        const ids = (b: { garment: Garment }[]) => b.map((i) => i.garment.id).join();
+        expect(next.some((b) => ids(b.items) === ids(items)), `${option.id}, seed ${seed}`).toBe(true);
+        // and OTHER OUTFITS lets it go
+        expect(boardsFor(womens, newOutfits(q1, womens), "womens").some((b) => ids(b.items) === ids(items))).toBe(false);
+      }
+    }
+  });
+
   it("only ever shows pieces from the closet it was given", () => {
     const small = closet.filter((_, i) => i % 3 === 0); // a smaller, different closet
     const ids = new Set(small.map((g) => g.id));
