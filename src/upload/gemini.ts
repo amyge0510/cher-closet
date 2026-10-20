@@ -154,7 +154,8 @@ async function canvasOf(src: string): Promise<HTMLCanvasElement> {
 // The user's model photo, dressed by Gemini in an outfit's pieces (DRESS
 // ME). `hair` is a hairstyle to switch to, or "" to keep theirs. Returns a
 // PNG data URL of the whole picture, background included.
-export async function dressUp(bodySrc: string, pieces: { label: string; image: string }[], hair: string): Promise<string> {
+// `shape` is what they've said about their own body (MY BODY), or "".
+export async function dressUp(bodySrc: string, pieces: { label: string; image: string }[], hair: string, shape = ""): Promise<string> {
   const body = await canvasOf(bodySrc);
   // the figure on the same lavender it's asked to come back on
   const s = Math.min(1, 1024 / Math.max(body.width, body.height));
@@ -165,6 +166,6 @@ export async function dressUp(bodySrc: string, pieces: { label: string; image: s
   fctx.drawImage(body, 0, 0, flat.width, flat.height);
   const garments = await Promise.all(pieces.map(async (p) => ({ label: p.label, image: jpegOf(await canvasOf(p.image), 512) })));
   // kept whole: clearing the background also ate light clothes on lavender
-  const out = await redraw("dress", base64(flat, "image/jpeg", 0.9), "image/jpeg", { pieces: garments, hair });
+  const out = await redraw("dress", base64(flat, "image/jpeg", 0.9), "image/jpeg", { pieces: garments, hair, body: shape });
   return out.toDataURL("image/png");
 }

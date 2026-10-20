@@ -93,6 +93,11 @@ back to Amy's). Uploading always switches to MY CLOSET, and the choice is
 remembered on this browser. Without a backend (or before the showcase is set
 up), Amy's closet shows the built-in demo clothes instead.
 
+**MY BODY.** On the dressed screen, BODY (under HAIR) lets you describe
+your shape in a few words (e.g. "curvy, small waist, slim legs"). It's sent
+with every DRESS ME, and the AI is told firmly to keep your real
+proportions. It's kept in this browser.
+
 **Loading.** While the clothes arrive, the top and bottom windows, worn
 accessories and closet slots show a pixel loading ring
 (`src/pixel/LoadingRing.tsx`). Pictures are kept in the browser between
