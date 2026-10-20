@@ -93,6 +93,14 @@ back to Amy's). Uploading always switches to MY CLOSET, and the choice is
 remembered on this browser. Without a backend (or before the showcase is set
 up), Amy's closet shows the built-in demo clothes instead.
 
+**The photo comes alive.** Once a photo is on the dressed screen (yours,
+or you dressed by the AI) it breathes, shifts its weight a little, the head
+and hair sway, and the eyes blink every few seconds, all drawn in the
+browser from the still picture (`src/closet/alive.ts`). The eyes are found
+with Google's MediaPipe face model, loaded the first time (about 4 MB
+compressed, then kept by the browser); without a face it still breathes and
+sways. Devices set to reduce motion get the still picture.
+
 **Loading.** While the clothes arrive, the top and bottom windows, worn
 accessories and closet slots show a pixel loading ring
 (`src/pixel/LoadingRing.tsx`). Pictures are kept in the browser between

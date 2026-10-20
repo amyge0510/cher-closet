@@ -3,6 +3,7 @@ import { anchorFor, LAYERS, PLACEHOLDER_ANCHORS, placeholderBody, type Anchor, t
 import type { Garment } from "../closet/types";
 import { jewelryKind } from "../closet/categories";
 import { containBox, loadImage, makeCanvas, rng } from "../pixel/raster";
+import { bringToLife, findFace, wantsStill } from "../closet/alive";
 
 type Props = {
   w: number;
@@ -98,6 +99,7 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
     let cancelled = false;
     let raf = 0;
     let holdTimer = 0;
+    let stopAlive = () => {};
     const cw = Math.round(w / RES);
     const ch = Math.round(h / RES);
     const view = ref.current!;
@@ -165,12 +167,31 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
       }
       if (cancelled) return;
 
+      // a photo (theirs, or them dressed) comes alive once it's all on: it
+      // breathes and sways, and blinks once the face model has found the eyes
+      const live = () => {
+        const src = dressedSrc ?? bodySrc;
+        if (!src || wantsStill() || cancelled) return;
+        const still = makeCanvas(cw, ch);
+        const sctx = still.getContext("2d")!;
+        sctx.drawImage(body, 0, 0);
+        sctx.drawImage(outfit, 0, 0);
+        const feet = { x: frame.x + frame.w / 2, y: frame.y + frame.h * 0.97 };
+        stopAlive = bringToLife(vctx, still, null, feet);
+        findFace(still, `${src.length}|${src.slice(-64)}|${cw}x${ch}|${extrasKey}|${top.image}|${bottom.image}`).then((face) => {
+          if (cancelled || !face) return;
+          stopAlive();
+          stopAlive = bringToLife(vctx, still, face, feet);
+        });
+      };
+
       vctx.clearRect(0, 0, cw, ch);
       vctx.drawImage(body, 0, 0);
       const fresh = waited.current;
       waited.current = false;
       if (!animate && !(dressedSrc && fresh)) {
         vctx.drawImage(outfit, 0, 0);
+        live();
         return;
       }
 
@@ -192,7 +213,10 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
           vctx.drawImage(outfit, x, y, CELL, CELL, x, y, CELL, CELL);
         }
         if (t < 1) raf = requestAnimationFrame(tick);
-        else onDone?.();
+        else {
+          onDone?.();
+          live();
+        }
       };
       holdTimer = window.setTimeout(() => (raf = requestAnimationFrame(tick)), fresh ? 0 : HOLD_MS);
     })().catch(() => onDone?.());
@@ -201,6 +225,7 @@ export function Reveal({ w, h, top, bottom, extras = [], bodySrc, figure, anchor
       cancelled = true;
       cancelAnimationFrame(raf);
       clearTimeout(holdTimer);
+      stopAlive();
     };
     // extrasKey stands in for `extras`, which is a new array every render
   }, [w, h, top.image, bottom.image, extrasKey, bodySrc, figure, anchors, animate, waiting, dressedSrc, underSrc, onDone]);
