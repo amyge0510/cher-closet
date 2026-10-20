@@ -11,6 +11,8 @@ import { useToStage } from "../stage/Stage";
 
 const DELETE_RED = "#c0183a";
 const DRAG_START_PX = 4; // stage pixels the pointer must travel before a press becomes a drag
+const TOUCH_DRAG_PX = 10; // a finger wobbles more than a mouse
+const HOLD_MS = 380; // a finger held this long on a piece shows it blown up
 const DRAG_ICON = 56;
 
 const inside = (b: Box, x: number, y: number) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h;
@@ -32,7 +34,9 @@ const bevelIn: CSSProperties = {
 
 const searchText = (g: Garment) => [g.name, ...g.colors, g.pattern, ...g.styles].join(" ").toLowerCase();
 
-type Press = { g: Garment; x0: number; y0: number; dragging: boolean };
+// `held`: a finger stayed on the piece, so it's shown blown up (and letting
+// go doesn't put it on)
+type Press = { g: Garment; x0: number; y0: number; dragging: boolean; touch: boolean; held: boolean; timer: number };
 
 // The closet pop-up: every garment in a category as a grid of inventory slots.
 // Click a piece to wear it, or drag it out: tops and bottoms onto their panel,
@@ -58,6 +62,7 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
   const [query, setQuery] = useState("");
   const [scroll, setScroll] = useState(0);
   const [hover, setHover] = useState<Garment | null>(null);
+  const [held, setHeld] = useState<Garment | null>(null);
   const [drag, setDrag] = useState<{ g: Garment; x: number; y: number; over: { box: Box; ok: boolean } | null } | null>(null);
   const press = useRef<Press | null>(null);
 
@@ -88,8 +93,10 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
       const p = press.current;
       if (!p) return;
       const { x, y } = toStage(e.clientX, e.clientY);
+      if (p.held) return;
       if (!p.dragging) {
-        if (Math.hypot(x - p.x0, y - p.y0) < DRAG_START_PX) return;
+        if (Math.hypot(x - p.x0, y - p.y0) < (p.touch ? TOUCH_DRAG_PX : DRAG_START_PX)) return;
+        clearTimeout(p.timer);
         p.dragging = true;
         onDragStart();
       }
@@ -99,13 +106,17 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
       const p = press.current;
       press.current = null;
       if (!p) return;
+      clearTimeout(p.timer);
+      if (p.held) return setHeld(null);
       if (!p.dragging) return onWear(p.g);
       const { x, y } = toStage(e.clientX, e.clientY);
       setDrag(null);
       if (dropAt(p.g, x, y)?.ok) onWear(p.g);
     };
     const cancel = () => {
+      if (press.current) clearTimeout(press.current.timer);
       press.current = null;
+      setHeld(null);
       setDrag(null);
     };
     window.addEventListener("pointermove", move);
@@ -122,15 +133,23 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
     if (!g) return;
     e.preventDefault();
     const { x, y } = toStage(e.clientX, e.clientY);
-    press.current = { g, x0: x, y0: y, dragging: false };
+    const p: Press = { g, x0: x, y0: y, dragging: false, touch: e.pointerType !== "mouse", held: false, timer: 0 };
+    if (p.touch)
+      p.timer = window.setTimeout(() => {
+        if (press.current !== p || p.dragging) return;
+        p.held = true;
+        setHeld(g);
+      }, HOLD_MS);
+    press.current = p;
   };
 
   const gridX = box.x + pad;
   const gridY = box.y + pad + invHeader + 6;
-  // the piece under the mouse, blown up just above its slot (below it if
-  // there's no room); gone the moment the mouse moves off. Only where there's
-  // a mouse: on a touch screen there's no hovering
-  const at = hover && canHover && !drag && !confirming ? visible.indexOf(hover) : -1;
+  // the piece under the mouse (or held down with a finger), blown up just
+  // above its slot (below it if there's no room); gone the moment the mouse
+  // moves off or the finger lets go
+  const shown = held ?? (canHover ? hover : null);
+  const at = shown && !drag && !confirming ? visible.indexOf(shown) : -1;
   const preview =
     at < 0
       ? null
@@ -231,6 +250,10 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
                 placeItems: "center",
                 cursor: g ? "grab" : "default",
                 touchAction: "none",
+                // a held finger shows the preview, not the phone's own menu
+                WebkitTouchCallout: "none",
+                userSelect: "none",
+                WebkitUserSelect: "none",
               }}
             >
               {g && <GarmentImage src={g.image} w={S - 6} h={S - 6} fill={0.95} spinner />}
@@ -253,7 +276,7 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
           ))}
         </div>
 
-        {preview && hover && (
+        {preview && shown && (
           <div
             aria-hidden
             style={{
@@ -274,9 +297,9 @@ export function Inventory({ category, categories, closet, onClose, onWear, onDra
             }}
           >
             <div style={{ background: C.invSlot, display: "grid", placeItems: "center", width: PREVIEW - 18, height: PREVIEW - 18 }}>
-              <GarmentImage key={hover.id} src={hover.image} w={PREVIEW - 26} h={PREVIEW - 26} fill={0.95} spinner />
+              <GarmentImage key={shown.id} src={shown.image} w={PREVIEW - 26} h={PREVIEW - 26} fill={0.95} spinner />
             </div>
-            <PixelLines text={hover.name.toUpperCase()} maxWidth={PREVIEW - 18} color={C.invText} sx={1.2} sy={1.5} />
+            <PixelLines text={shown.name.toUpperCase()} maxWidth={PREVIEW - 18} color={C.invText} sx={1.2} sy={1.5} />
           </div>
         )}
 

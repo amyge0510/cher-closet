@@ -15,15 +15,19 @@ export function isPhone(): boolean {
 }
 export const PHONE = isPhone();
 
-// a phone's screen is as wide as its shape allows (the part between the
-// browser's bars), between 400 and 520 stage pixels
-function phoneWidth(): number {
-  if (typeof window === "undefined") return 400;
+// A phone's screen takes the shape of the part between the browser's bars:
+// 780 stage pixels tall and between 400 and 520 wide, and on a phone taller
+// than that (a narrow one, or with the bars hidden) taller than 780, the
+// extra going to the outfit windows, so it fills the screen top to bottom.
+function phoneSize(): { w: number; h: number } {
+  if (typeof window === "undefined") return { w: 400, h: 780 };
   const h = Math.min(window.innerHeight, window.visualViewport?.height ?? Infinity);
-  return Math.max(400, Math.min(520, Math.floor((780 * window.innerWidth) / h)));
+  const w = Math.max(400, Math.min(520, Math.floor((780 * window.innerWidth) / h)));
+  return { w, h: Math.max(780, Math.min(1000, Math.round((w * h) / window.innerWidth))) };
 }
-export const STAGE_W = PHONE ? phoneWidth() : 640;
-export const STAGE_H = PHONE ? 780 : 480;
+const PHONE_SIZE = PHONE ? phoneSize() : { w: 640, h: 480 };
+export const STAGE_W = PHONE_SIZE.w;
+export const STAGE_H = PHONE_SIZE.h;
 
 export type Box = { x: number; y: number; w: number; h: number };
 
@@ -41,10 +45,13 @@ const DESK_SPOTS: Record<string, Box> = {
   hats: { x: 492, y: 132, w: 100, h: 118 },
 };
 // on a phone the leopard sides are columns either side of the panels
-function phoneSpots(W: number): Record<string, Box> {
+// (spread down a taller phone along with the windows)
+function phoneSpots(W: number, H: number): Record<string, Box> {
   const col = Math.round((W - (244 + Math.round((W - 400) * 0.5))) / 2) - 10;
-  const left = (y: number, h: number) => ({ x: 4, y, w: col, h });
-  const right = (y: number, h: number) => ({ x: W - 4 - col, y, w: col, h });
+  const f = 1 + Math.round((H - 780) * 0.75) / 524;
+  const at = (y: number, h: number) => ({ y: Math.round(84 + (y - 84) * f), h: Math.round(h * f) });
+  const left = (y: number, h: number) => ({ x: 4, w: col, ...at(y, h) });
+  const right = (y: number, h: number) => ({ x: W - 4 - col, w: col, ...at(y, h) });
   return {
     jewelry: left(84, 80),
     scarves: left(176, 120),
@@ -56,7 +63,7 @@ function phoneSpots(W: number): Record<string, Box> {
     hats: right(176, 120),
   };
 }
-export const EXTRA_SPOTS = PHONE ? phoneSpots(STAGE_W) : DESK_SPOTS;
+export const EXTRA_SPOTS = PHONE ? phoneSpots(STAGE_W, STAGE_H) : DESK_SPOTS;
 // any other category (one a user made up) shares the underwear spot
 export const extraSpot = (category: string): Box => EXTRA_SPOTS[category] ?? EXTRA_SPOTS.underwear;
 
@@ -149,7 +156,16 @@ type Layout = typeof DESK_L;
 // the middle with leopard columns for accessories either side; BROWSE and
 // DRESS ME sit under it, and the category bar gets a second row for UPLOAD,
 // LOOKS and MORE.
-function phoneLayout(W: number): Layout {
+function phoneLayout(W: number, H: number): Layout {
+  // a taller phone: the outfit windows get most of the extra height, the
+  // buttons and bars below move down, pop-ups stay in the middle
+  const extra = H - 780;
+  const grow = Math.round(extra * 0.75); // shared by the two windows
+  const half = Math.round(grow / 2);
+  const mid = Math.round(extra / 2);
+  // the closet pop-up spans the screen: seven slots across as big as fit
+  const invSlot = Math.floor((W - 8 - 10 * 2 - 6 - 16 - 4) / 7);
+  const invH = 10 + 26 + 6 + 3 * invSlot + 8 + 26 + 10;
   const pw = 244 + Math.round((W - 400) * 0.5); // the windows get half the extra width
   const px = Math.round((W - pw) / 2);
   const third = Math.floor((W - 20 - 12) / 3);
@@ -161,65 +177,65 @@ function phoneLayout(W: number): Layout {
     sourceToggle: { x: 8, y: 48, w: 170, h: 26 },
     showSeason: false,
 
-    leopardLeft: { x: 0, y: 40, w: W, h: 650 },
+    leopardLeft: { x: 0, y: 40, w: W, h: 650 + extra },
     leopardRight: { x: 0, y: 40, w: 0, h: 0 },
-    center: { x: px - 6, y: 82, w: pw + 12, h: 524 },
+    center: { x: px - 6, y: 82, w: pw + 12, h: 524 + grow },
 
-    topPanel: { x: px, y: 88, w: pw, h: 214 },
-    topControls: { x: px, y: 304, w: pw, h: 40 },
-    bottomPanel: { x: px, y: 348, w: pw, h: 210 },
-    bottomControls: { x: px, y: 560, w: pw, h: 40 },
+    topPanel: { x: px, y: 88, w: pw, h: 214 + half },
+    topControls: { x: px, y: 304 + half, w: pw, h: 40 },
+    bottomPanel: { x: px, y: 348 + half, w: pw, h: 210 + grow - half },
+    bottomControls: { x: px, y: 560 + grow, w: pw, h: 40 },
     controlButtons: [
       { x: 3, y: 5, w: Math.round(pw * 0.33), h: 30 },
       { x: Math.round(pw * 0.38), y: 5, w: Math.round(pw * 0.24), h: 30 },
       { x: Math.round(pw * 0.67), y: 5, w: pw - Math.round(pw * 0.67) - 3, h: 30 },
     ],
 
-    leftButton: { x: 16, y: 620, w: button, h: 52 },
-    rightButton: { x: W - 16 - button, y: 620, w: button, h: 52 },
+    leftButton: { x: 16, y: 620 + grow, w: button, h: 52 },
+    rightButton: { x: W - 16 - button, y: 620 + grow, w: button, h: 52 },
     buttonText: { sx: 2.1, sy: 2.3 },
 
-    banner: { x: 8, y: 300, w: W - 16, h: 76 },
+    banner: { x: 8, y: 300 + mid, w: W - 16, h: 76 },
     bannerText: { sx: 6.8, sy: 6 },
-    bannerReason: { x: 8, y: 378, w: W - 16, h: 26 },
+    bannerReason: { x: 8, y: 378 + mid, w: W - 16, h: 26 },
 
-    revealPanel: { x: px, y: 88, w: pw, h: 512 },
+    revealPanel: { x: px, y: 88, w: pw, h: 512 + grow },
 
-    categoryBar: { x: 0, y: 690, w: W, h: 90 },
-    categoryText: { sx: 1.6, sy: 2.1, y: 700 },
+    categoryBar: { x: 0, y: 690 + extra, w: W, h: 90 },
+    categoryText: { sx: 1.6, sy: 2.1, y: 700 + extra },
     categoryRun: { start: 10, end: W - 8, gap: 14 },
-    upload: { x: 10, y: 734, w: third, h: 34 },
-    looks: { x: 10 + third + 6, y: 734, w: third, h: 34 },
-    more: { x: W - 10 - third, y: 734, w: third, h: 34 },
+    upload: { x: 10, y: 734 + extra, w: third, h: 34 },
+    looks: { x: 10 + third + 6, y: 734 + extra, w: third, h: 34 },
+    more: { x: W - 10 - third, y: 734 + extra, w: third, h: 34 },
 
-    inventory: { x: Math.round((W - 350) / 2), y: 470, w: 350, h: 216 },
-    invSearch: { dx: 140, w: 150 },
-    invSlot: 44,
+    inventory: { x: 4, y: 690 + extra - 6 - invH, w: W - 8, h: invH },
+    invSearch: { dx: 120, w: W - 8 - 120 - 10 - 26 - 12 },
+    invSlot: invSlot,
     invCols: 7,
     moreMenu: { x: W - 194, w: 190, rowH: 28 },
 
     styleButton: { x: W - 8 - 112, y: 8, w: 112, h: 24 },
-    saveLook: { x: px + pw - 92, y: 566, w: 86, h: 28 },
-    styleQuiz: { x: Math.round((W - 368) / 2), y: 72, w: 368, h: 566 }, // leopard shows all round
-    uploadBox: { x: Math.round((W - 380) / 2), y: 110, w: 380, h: 470 },
-    quizBoard: { y: 130, w: 160, h: 188, gap: 10, cols: 2 },
+    saveLook: { x: px + pw - 92, y: 566 + grow, w: 86, h: 28 },
+    styleQuiz: { x: Math.round((W - 368) / 2), y: 72 + mid, w: 368, h: 566 }, // leopard shows all round
+    uploadBox: { x: Math.round((W - 380) / 2), y: 110 + mid, w: 380, h: 470 },
+    quizBoard: { y: 130 + mid, w: 160, h: 188, gap: 10, cols: 2 },
 
     // sign-in: one wide panel in the middle of the leopard
-    signPanel: { x: Math.round((W - 340) / 2), y: 110, w: 340, h: 470 },
-    signFrame: { x: Math.round((W - 352) / 2), y: 104, w: 352, h: 482 },
+    signPanel: { x: Math.round((W - 340) / 2), y: 110 + mid, w: 340, h: 470 },
+    signFrame: { x: Math.round((W - 352) / 2), y: 104 + mid, w: 352, h: 482 },
     wardrobeButton: { w: 260, h: 40, gap: 10 },
-    phoneErrorY: 520,
-    signTitle: { y: 132, sx: 3.4, sy: 3.8 },
-    signLabel: { y: 300, sx: 1.8, sy: 2.2 },
-    signField: { x: Math.round((W - 300) / 2), y: 326, w: 300, h: 40 },
-    signHint: { y: 384, sx: 1.5, sy: 1.9 },
-    signError: { y: 470, sx: 1.5, sy: 1.9 },
+    phoneErrorY: 520 + mid,
+    signTitle: { y: 132 + mid, sx: 3.4, sy: 3.8 },
+    signLabel: { y: 300 + mid, sx: 1.8, sy: 2.2 },
+    signField: { x: Math.round((W - 300) / 2), y: 326 + mid, w: 300, h: 40 },
+    signHint: { y: 384 + mid, sx: 1.5, sy: 1.9 },
+    signError: { y: 470 + mid, sx: 1.5, sy: 1.9 },
 
-    introTv: { x: 10, y: Math.round(250 - ((W - 20) * 9) / 16 / 2 + 112), w: W - 20, h: Math.round(((W - 20) * 9) / 16) },
-    introSkip: { x: W - 86, y: 736, w: 76, h: 30 },
-    introTitle: { y: 170, sx: 3.4, sy: 4 },
-    emptyBox: { x: Math.round((W - 320) / 2), y: 280, w: 320, h: 130 },
+    introTv: { x: 10, y: Math.round(250 - ((W - 20) * 9) / 16 / 2 + 112) + mid, w: W - 20, h: Math.round(((W - 20) * 9) / 16) },
+    introSkip: { x: W - 86, y: 736 + extra, w: 76, h: 30 },
+    introTitle: { y: 170 + mid, sx: 3.4, sy: 4 },
+    emptyBox: { x: Math.round((W - 320) / 2), y: 280 + mid, w: 320, h: 130 },
   };
 }
 
-export const L: Layout = PHONE ? phoneLayout(STAGE_W) : DESK_L;
+export const L: Layout = PHONE ? phoneLayout(STAGE_W, STAGE_H) : DESK_L;
