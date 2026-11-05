@@ -123,8 +123,8 @@ export function StyleQuiz({ closet, wardrobe, saved, onSave, onClose }: {
 
         {/* only what the closet can really make is offered; say how to get more */}
         {q.step < QUESTIONS && boards.length > 0 && boards.length < 4 && (
-          <div style={{ position: "absolute", left: box.x + pad + 2, top: PHONE ? footY - 34 : box.y + pad + 26, width: box.w - pad * 2 - 4 }}>
-            <PixelLines text="THAT'S WHAT YOUR CLOSET CAN MAKE SO FAR. UPLOAD MORE CLOTHES TO SEE MORE STYLES." maxWidth={box.w - pad * 2 - 4} color={C.invText} sx={1.2} sy={1.5} align="left" />
+          <div style={{ position: "absolute", left: box.x + pad + 2, top: PHONE ? footY - 34 : by - 13, width: box.w - pad * 2 - 4 }}>
+            <PixelLines text="THAT'S WHAT YOUR CLOSET CAN MAKE SO FAR. UPLOAD MORE CLOTHES TO SEE MORE STYLES." maxWidth={box.w - pad * 2 - 4} color={C.invText} sx={PHONE ? 1.2 : 1.1} sy={PHONE ? 1.5 : 1.3} align="left" />
           </div>
         )}
         {q.step < QUESTIONS &&

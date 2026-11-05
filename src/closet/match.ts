@@ -36,7 +36,8 @@ const short = (g: Garment) => g.name.toUpperCase();
 
 // Decides whether a top and bottom go together: one pattern at most, a shared
 // style family, no warm/cool mix, and accent colors that agree. Simple and
-// deterministic; the reason is shown under MIS-MATCH!.
+// deterministic. BROWSE, AUTO DRESS and the style quiz use it to pick
+// outfits that go.
 export function judge(top: Garment, bottom: Garment): Verdict {
   // a dress is judged on its own (passed as both top and bottom)
   if (top === bottom || top.id === bottom.id) return { match: true, reason: "one piece" };
@@ -55,7 +56,7 @@ export function judge(top: Garment, bottom: Garment): Verdict {
 
 // The whole look: top, bottom and every accessory. The top and bottom must
 // pass judge(), and black tights need an all-dark or all-white/cream outfit. Accessory problems are only "strikes", and it takes two to
-// make a MIS-MATCH! (one odd bag is a choice; an odd bag and an odd scarf is
+// make a mis-match (one odd bag is a choice; an odd bag and an odd scarf is
 // a mess). Strikes:
 // - an accessory from a different style family (plain, neutral shoes are
 //   exempt; most people own only a few pairs)

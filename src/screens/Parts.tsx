@@ -22,7 +22,6 @@ export const DIM: CSSProperties = { position: "absolute", top: 0, bottom: 0, lef
 const BEVELS = {
   gray: { bg: C.btnGray, light: C.btnGrayLight, dark: C.btnGrayDark },
   blue: { bg: C.btnBlue, light: C.btnBlueLight, dark: C.btnBlueDark },
-  banner: { bg: C.banner, light: C.bannerLight, dark: C.bannerDark },
 };
 
 export function Bevel({ box, tone, children, onClick, label, title, style }: {

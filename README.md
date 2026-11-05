@@ -1,8 +1,8 @@
 # cher-closet
 
 A recreation of Cher's computerized closet from *Clueless* (1995): flip through
-tops and bottoms, hit **Dress Me**, get a **MIS-MATCH!** or watch the outfit
-appear on a full-body photo. Desktop web first; a mobile redesign comes later.
+tops and bottoms, hit **Dress Me**, and watch the outfit appear on a
+full-body photo. Desktop web first; a mobile redesign comes later.
 
 ## Run it
 
@@ -14,7 +14,7 @@ npm run build    # production build in dist/
 ```
 
 Controls: click the on-screen buttons, or use the keyboard. ← → flip tops,
-↑ ↓ flip bottoms, Enter is Dress Me, Esc clears MIS-MATCH! early.
+↑ ↓ flip bottoms, Enter is Dress Me.
 
 As in the film, the left button is **BROWSE** while you're picking. It flicks
 through the tops and dresses on its own (the row's ▶▶ lights up), then the
@@ -183,18 +183,16 @@ TOPS and BOTTOMS. Every piece is
 tagged with styles, colors and a pattern, so the quiz and matching have
 something to work with until real uploads exist.
 
-**MIS-MATCH!** judges the whole look, accessories included, and says why
-under the banner. When the outfit has any uploaded piece and someone is
-signed in, Gemini looks at the pictures and judges it (DRESS ME shows
-"HMM..." for a moment), since rules can't see that a dressy blouse doesn't
-go with bike shorts; each verdict is remembered. The demo rack uses the rules
-below. The top and bottom must have at most one pattern, share a
+**DRESS ME** goes straight to dressing: nothing checks whether the outfit
+goes. The matching rules below are only for picking outfits: BROWSE, AUTO
+DRESS, the first outfit and the style quiz only put together looks that pass
+them. The top and bottom must have at most one pattern, share a
 style family, and not mix warm colors (brown, burgundy, red, yellow, olive,
 gold) with cool ones (navy, blue, pink, purple, green, silver). Black, white,
 gray, denim, cream and beige go with either. Black tights only go with an
 all-dark or an all-white/cream outfit; with anything else they're a
-MIS-MATCH! on their own. Other accessories only count as
-"strikes", and it takes two to make a MIS-MATCH! (one odd bag is a choice;
+mis-match on their own. Other accessories only count as
+"strikes", and it takes two to make a mis-match (one odd bag is a choice;
 an odd bag and an odd scarf is a mess). Strikes:
 
 - an accessory has to share a style family with the top or bottom (plain
@@ -208,7 +206,6 @@ an odd bag and an odd scarf is a mess). Strikes:
 Quiz boards and AUTO DRESS only ever suggest outfits with no strikes at all,
 and only add tights when the style calls for them by name (fishnets for goth,
 knee socks for Clueless), since most people don't wear tights.
-MIS-MATCH! clears itself after three seconds.
 
 **♥ SAVE** appears on the dressed screen after DRESS ME, and saves that outfit.
 **LOOKS**, beside MORE on the bottom bar, opens the saved looks as flat-lay
@@ -240,7 +237,7 @@ Each photo goes through:
    scan bar sweeping over it. When the cut-out is ready, the background
    blocks flash pink and pop away one by one.
 2. **Tagging.** It gets a category, a short name, colors, a pattern and
-   styles, all from the app's own lists, so MIS-MATCH! and the quiz can use
+   styles, all from the app's own lists, so outfit picking and the quiz can use
    them.
 3. **A quick look.** Nothing is filed until you say so: every piece waits
    on FILE IT. SKIP drops it (a bad redraw, or something you don't want),
@@ -309,9 +306,9 @@ production build.
 |---|---|
 | `src/stage/` | The fixed 640×480 stage that scales to the window, plus layout and palette |
 | `src/pixel/` | The pixel look: a hand-drawn 7-row bitmap font, nearest-neighbour image pixelation with a sticker outline, the procedural leopard tile |
-| `src/state/machine.ts` | splash → browse → mismatch / match → reveal → dressed |
+| `src/state/machine.ts` | splash → browse → reveal → dressed |
 | `src/closet/` | Garment types, match rules, a procedurally drawn demo closet, and the placeholder body with its garment anchors |
-| `src/screens/` | Splash (swinging hangers), Wardrobe (browse/mismatch/match), Reveal (body + block dissolve), Upload |
+| `src/screens/` | Splash (swinging hangers), Wardrobe (browse, dressed), Reveal (body + block dissolve), Upload |
 | `src/upload/` | Background removal, the pixel scanner animation, and tagging (Gemini or the pixel guess) |
 | `supabase/functions/` | The tag-garment and gemini-image Edge Functions (Gemini) |
 | `src/dev/` | The ghost overlay (dev only) |

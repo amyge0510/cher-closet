@@ -8,7 +8,6 @@ export const C = {
   frameDark: "#141226",
   panel: "#c3cbf3", // garment panel background (browse)
   panelLight: "#b4c4ff",
-  panelMatch: "#000000", // garment panel background once matched
   ink: "#141433", // dark lettering
   lavender: "#c8ccff", // light lettering
   btnGray: "#9a9db4",
@@ -17,9 +16,6 @@ export const C = {
   btnBlue: "#4f56f8",
   btnBlueLight: "#9aa0ff",
   btnBlueDark: "#20248a",
-  banner: "#7684fb",
-  bannerLight: "#b8c0ff",
-  bannerDark: "#262c8c",
   leopardTan: "#cbbfa6",
   leopardCream: "#eee6d6",
   leopardBrown: "#4c1d1c",
