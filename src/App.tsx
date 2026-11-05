@@ -305,7 +305,7 @@ function Closet({ title, signedIn, onSignOut, savedStyle, persistStyle, savedLoo
       )}
       {DevOverlay && (
         <Suspense fallback={null}>
-          <DevOverlay state={state} dispatch={dispatch} verdictReason={state.verdict?.reason} />
+          <DevOverlay state={state} dispatch={dispatch} />
         </Suspense>
       )}
     </>

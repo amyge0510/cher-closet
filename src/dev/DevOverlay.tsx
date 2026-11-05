@@ -12,12 +12,10 @@ const FRAME_NAMES = Object.keys(FRAMES).map((k) => k.split("/").pop()!.replace("
 const AUTO: Record<Screen, string> = {
   splash: "splash",
   browse: "browse",
-  mismatch: "mismatch",
-  match: "match",
   reveal: "reveal",
   dressed: "dressed",
 };
-const SCREENS: Screen[] = ["splash", "browse", "mismatch", "match", "reveal", "dressed"];
+const SCREENS: Screen[] = ["splash", "browse", "reveal", "dressed"];
 
 type Nudge = { x: number; y: number; s: number };
 type Prefs = { open: boolean; frame: string; opacity: number; blend: "normal" | "difference"; nudge: Record<string, Nudge> };
@@ -33,7 +31,7 @@ function load(): Prefs {
   }
 }
 
-export function DevOverlay({ state, dispatch, verdictReason }: { state: State; dispatch: Dispatch<Action>; verdictReason?: string }) {
+export function DevOverlay({ state, dispatch }: { state: State; dispatch: Dispatch<Action> }) {
   const [p, setP] = useState<Prefs>(load);
   const set = (patch: Partial<Prefs>) => setP((old) => ({ ...old, ...patch }));
 
@@ -132,7 +130,6 @@ export function DevOverlay({ state, dispatch, verdictReason }: { state: State; d
           </button>
         ))}
       </div>
-      {verdictReason && <div>verdict: {verdictReason}</div>}
     </div>
   );
 

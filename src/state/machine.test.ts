@@ -13,47 +13,39 @@ describe("reducer", () => {
     expect(reducer({ ...browse, bottom: 4 }, { type: "STEP", slot: "bottom", delta: 1, count: 5 }).bottom).toBe(0);
   });
 
-  it("shows MIS-MATCH and returns to browse", () => {
-    const s = reducer(browse, { type: "DRESS_ME", verdict: { match: false, reason: "x" } });
-    expect(s.screen).toBe("mismatch");
-    expect(reducer(s, { type: "BROWSE" }).screen).toBe("browse");
-  });
-
-  it("runs match -> reveal -> dressed, and Dress Me goes back to browse", () => {
-    let s = reducer(browse, { type: "DRESS_ME", verdict: { match: true, reason: "x" } });
-    expect(s.screen).toBe("match");
-    s = reducer(s, { type: "MATCH_SHOWN" });
+  it("Dress Me goes straight to the reveal -> dressed, and again goes back to browse", () => {
+    let s = reducer(browse, { type: "DRESS_ME" });
     expect(s.screen).toBe("reveal");
     s = reducer(s, { type: "REVEAL_DONE" });
     expect(s.screen).toBe("dressed");
-    expect(reducer(s, { type: "DRESS_ME", verdict: { match: true, reason: "x" } }).screen).toBe("browse");
+    expect(reducer(s, { type: "DRESS_ME" }).screen).toBe("browse");
   });
 
-  it("ignores the carousels while matched or revealing", () => {
+  it("ignores the carousels while revealing", () => {
     const s: State = { ...browse, screen: "reveal" };
     expect(reducer(s, { type: "STEP", slot: "top", delta: 1, count: 5 })).toBe(s);
   });
 
   it("auto dress works straight from browsing, but not mid-reveal", () => {
     const extras = {};
-    expect(reducer(browse, { type: "AUTO_DRESS", top: 1, bottom: 1, extras }).screen).toBe("match");
+    expect(reducer(browse, { type: "AUTO_DRESS", top: 1, bottom: 1, extras }).screen).toBe("reveal");
     const revealing: State = { ...browse, screen: "reveal" };
     expect(reducer(revealing, { type: "AUTO_DRESS", top: 1, bottom: 1, extras })).toBe(revealing);
   });
 
-  it("auto dress picks a new pair and re-runs the match", () => {
+  it("auto dress picks a new pair and dresses it", () => {
     const s = reducer({ ...browse, screen: "dressed", extras: { shoes: "boots" } }, { type: "AUTO_DRESS", top: 2, bottom: 3, extras: { shoes: "flats", bags: "tote" } });
-    expect(s).toMatchObject({ screen: "match", top: 2, bottom: 3, extras: { shoes: "flats", bags: "tote" } });
+    expect(s).toMatchObject({ screen: "reveal", top: 2, bottom: 3, extras: { shoes: "flats", bags: "tote" } });
   });
 
   it("picking from the closet puts the item on the rack from any screen", () => {
     const s = reducer({ ...browse, screen: "dressed" }, { type: "PICK", slot: "bottom", index: 3 });
-    expect(s).toMatchObject({ screen: "browse", bottom: 3, verdict: null });
+    expect(s).toMatchObject({ screen: "browse", bottom: 3 });
     expect(reducer(initialState, { type: "PICK", slot: "top", index: 1 })).toBe(initialState);
   });
 
   it("brings the carousels back so an item can be dropped on them", () => {
-    expect(reducer({ ...browse, screen: "match" }, { type: "SHOW_RACK" }).screen).toBe("browse");
+    expect(reducer({ ...browse, screen: "dressed" }, { type: "SHOW_RACK" }).screen).toBe("browse");
     expect(reducer(browse, { type: "SHOW_RACK" })).toBe(browse);
   });
 

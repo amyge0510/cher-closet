@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { forWardrobe, LEAVES, type Wardrobe } from "../style/styles";
 
 // Tagging a fresh cut-out: what it is (category), a short name, its colors,
-// pattern and styles. These drive the closet tabs, MIS-MATCH! and the quiz,
+// pattern and styles. These drive the closet tabs, the outfit picking and the quiz,
 // so every value has to come from the lists below.
 //
 // Tagging is done by Gemini, through a Supabase Edge Function
@@ -97,18 +97,6 @@ export async function listItems(jpeg: string, categories: string[], wardrobe: Wa
     return [{ ...tags, description: String(raw.description ?? "").slice(0, 240), partial: raw.visible === "part" }];
   });
   return { hasPerson: !!data.has_person, items: items.slice(0, 6) };
-}
-
-// The AI's verdict on a whole outfit: each piece as a labelled JPEG.
-export async function judgeWithAi(pieces: { label: string; image: string }[], wardrobe: Wardrobe): Promise<{ match: boolean; reason: string } | null> {
-  if (!supabase || !(await signedIn())) return null;
-  const { data, error } = await supabase.functions.invoke("tag-garment", { body: { task: "judge", pieces, wardrobe } });
-  if (error || typeof data?.match !== "boolean") {
-    console.warn("outfit judging failed:", error ?? data);
-    return null;
-  }
-  const reason = String(data.reason ?? "").toUpperCase().replace(/[^A-Z0-9 '.,!?:\-+()/&]/g, "").slice(0, 44);
-  return { match: data.match, reason: reason || (data.match ? "THE WHOLE LOOK GOES" : "THESE DON'T GO TOGETHER") };
 }
 
 // The tags for a cut-out, and whether they're the AI's or a guess. `hint` is

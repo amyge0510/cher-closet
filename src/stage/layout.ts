@@ -94,8 +94,6 @@ const DESK_L = {
   rightButton: { x: 453, y: 392, w: 117, h: 54 }, // DRESS ME
   buttonText: { sx: 2.4, sy: 2.6 },
 
-  banner: { x: 80, y: 190, w: 490, h: 84 }, // MIS-MATCH!
-  bannerText: { sx: 8.8, sy: 7.4 },
 
   revealPanel: { x: 206, y: 38, w: 236, h: 408 },
 
@@ -122,7 +120,7 @@ const DESK_L = {
   // MY STYLE button in the header, and the style quiz pop-up
   styleButton: { x: 512, y: 6, w: 122, h: 21 },
   saveLook: { x: 350, y: 414, w: 86, h: 26 }, // ♥ SAVE, on the dressed screen
-  bannerReason: { x: 80, y: 276, w: 490, h: 24 }, // why it's a mis-match
+  bannerReason: { x: 80, y: 276, w: 490, h: 24 }, // a short notice over the middle
   styleQuiz: { x: 8, y: 36, w: 624, h: 410 },
   // the upload pop-up, in the middle of the screen
   uploadBox: { x: 130, y: 36, w: 380, h: 410 },
@@ -195,8 +193,6 @@ function phoneLayout(W: number, H: number): Layout {
     rightButton: { x: W - 16 - button, y: 620 + grow, w: button, h: 52 },
     buttonText: { sx: 2.1, sy: 2.3 },
 
-    banner: { x: 8, y: 300 + mid, w: W - 16, h: 76 },
-    bannerText: { sx: 6.8, sy: 6 },
     bannerReason: { x: 8, y: 378 + mid, w: W - 16, h: 26 },
 
     revealPanel: { x: px, y: 88, w: pw, h: 512 + grow },

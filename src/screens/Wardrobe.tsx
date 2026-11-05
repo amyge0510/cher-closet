@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from "react";
 import { categoriesFor, isDress, type Category } from "../closet/categories";
-import { judge, judgeOutfit, matchingPairs } from "../closet/match";
-import type { Garment, Look, Slot, Verdict } from "../closet/types";
-import { loadImage, makeCanvas } from "../pixel/raster";
-import { dressUp, jpegOf, RedrawError } from "../upload/gemini";
-import { judgeWithAi } from "../upload/tags";
+import { judge, matchingPairs } from "../closet/match";
+import type { Garment, Look, Slot } from "../closet/types";
+import { dressUp, RedrawError } from "../upload/gemini";
 import { GarmentImage } from "../pixel/GarmentImage";
 import { PixelField } from "../pixel/PixelField";
 import { PixelLines, PixelText } from "../pixel/PixelText";
@@ -31,14 +29,12 @@ const pieceLabel = (g: Garment) => (g.category === "jackets" ? `jacket, worn ope
 // BROWSE and AUTO DRESS put together at least this many pieces (top and
 // bottom included), when the closet has them
 const OUTFIT_PIECES = 5;
-const MATCH_HOLD_MS = 1400; // black panels stay up this long before the reveal
-const MISMATCH_MS = 3000; // MIS-MATCH! clears itself after this long
 const SCAN_STEP_MS = 110;
 
 // `loading`: the clothes are still on their way, so a spinner shows
-function GarmentPanel({ box, garment, matched, loading = false }: { box: Box; garment?: Garment; matched: boolean; loading?: boolean }) {
+function GarmentPanel({ box, garment, loading = false }: { box: Box; garment?: Garment; loading?: boolean }) {
   return (
-    <div style={{ ...pos(box), background: matched ? C.panelMatch : C.panel, display: "grid", placeItems: "center" }}>
+    <div style={{ ...pos(box), background: C.panel, display: "grid", placeItems: "center" }}>
       {garment ? (
         <GarmentImage key={garment.id} src={garment.image} w={box.w - 16} h={box.h - 10} fill={0.92} outline={C.white} spinner />
       ) : (
@@ -330,7 +326,6 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   const browse = useCallback(() => {
     if (scanning) return stopScan();
     track("browse", { source });
-    dispatch({ type: "BROWSE" });
     const settle = () => {
       const t = tops[topIndex.current % Math.max(1, tops.length)];
       const b = isDress(t) ? t : bottoms[bottomIndex.current % Math.max(1, bottoms.length)];
@@ -342,42 +337,12 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   }, [scanning, stopScan, dispatch, scan, tops, bottoms, closet, myStyle, source]);
   useEffect(() => () => clearInterval(scanTimer.current), []);
 
-  // DRESS ME. The demo rack is judged by the rules in match.ts, instantly.
-  // Real clothes are too varied for rules (a dressy blouse with bike shorts
-  // passes every one of them), so when the outfit has any uploaded piece and
-  // someone is signed in, Gemini looks at the whole outfit and judges it.
-  // Each verdict is remembered, so the same outfit isn't asked twice.
-  const [judging, setJudging] = useState(false);
-  const verdicts = useRef(new Map<string, Verdict>());
-  const dressMe = useCallback(async () => {
-    if (!top || !bottom || judging) return;
+  // DRESS ME: straight to dressing, no checking whether it all goes
+  const dressMe = useCallback(() => {
+    if (!top || !bottom) return;
     track("dress_me", { source });
-    const rules = judgeOutfit(top, bottom, worn);
-    const pieces = wearingDress ? [top, ...worn] : [top, bottom, ...worn];
-    if (!canRedraw || pieces.every((g) => g.id.startsWith("demo-"))) return dispatch({ type: "DRESS_ME", verdict: rules });
-    const key = pieces.map((g) => g.id).sort().join("|");
-    let verdict = verdicts.current.get(key);
-    if (!verdict) {
-      setJudging(true);
-      try {
-        const images = await Promise.all(
-          pieces.map(async (g) => {
-            const img = await loadImage(g.image);
-            const c = makeCanvas(img.width, img.height);
-            c.getContext("2d")!.drawImage(img, 0, 0);
-            return { label: pieceLabel(g), image: jpegOf(c, 384) };
-          }),
-        );
-        const ai = await judgeWithAi(images, wardrobe);
-        if (ai) verdicts.current.set(key, (verdict = { match: ai.match, reason: ai.reason, strikes: 0 }));
-      } catch (e) {
-        console.warn("couldn't ask the AI, using the rules:", e);
-      } finally {
-        setJudging(false);
-      }
-    }
-    dispatch({ type: "DRESS_ME", verdict: verdict ?? rules });
-  }, [dispatch, top, bottom, worn, canRedraw, judging, wardrobe, source]);
+    dispatch({ type: "DRESS_ME" });
+  }, [dispatch, top, bottom, source]);
 
   const autoDress = useCallback(() => {
     const pairs = rankPairs(matchingPairs(tops, bottoms), tops, bottoms, myStyle);
@@ -389,18 +354,6 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
     const extras = accessoriesFor(closet, [tops[t], bottoms[b]], myStyle, Object.values(state.extras), Math.floor(Math.random() * 1e9), OUTFIT_PIECES);
     dispatch({ type: "AUTO_DRESS", top: t, bottom: b, extras });
   }, [dispatch, closet, tops, bottoms, state.top, state.bottom, state.extras, myStyle, source]);
-
-  useEffect(() => {
-    if (screen !== "match") return;
-    const t = window.setTimeout(() => dispatch({ type: "MATCH_SHOWN" }), MATCH_HOLD_MS);
-    return () => clearTimeout(t);
-  }, [screen, state.top, state.bottom, dispatch]);
-
-  useEffect(() => {
-    if (screen !== "mismatch") return;
-    const t = window.setTimeout(() => dispatch({ type: "BROWSE" }), MISMATCH_MS);
-    return () => clearTimeout(t);
-  }, [screen, dispatch]);
 
   const revealDone = useCallback(() => dispatch({ type: "REVEAL_DONE" }), [dispatch]);
 
@@ -536,7 +489,6 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
       // leave typing, and Enter/space on a focused button, to the element itself
       if (popup || e.target instanceof HTMLInputElement || e.target instanceof HTMLButtonElement) return;
       if (e.key === "Enter") dressMe();
-      else if (e.key === "Escape") dispatch({ type: "BROWSE" });
       else if (e.key === "ArrowLeft") wearingDress ? stepDress(-1) : step("top", -1);
       else if (e.key === "ArrowRight") wearingDress ? stepDress(1) : step("top", 1);
       else if (e.key === "ArrowUp" && !wearingDress) step("bottom", -1);
@@ -544,9 +496,8 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [dressMe, step, stepDress, wearingDress, dispatch, popup]);
+  }, [dressMe, step, stepDress, wearingDress, popup]);
 
-  const matched = screen === "match";
   const fullBody = screen === "reveal" || screen === "dressed";
 
   return (
@@ -569,15 +520,15 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
           {wearingDress ? (
             <>
               {/* a dress: one tall window, and the controls flip through dresses */}
-              <GarmentPanel box={DRESS_PANEL} garment={top} matched={matched} loading={!closetReady} />
-              <ControlStrip box={L.bottomControls} onPrev={() => stepDress(-1)} onNext={() => stepDress(1)} onScan={() => scan("top", undefined, () => stepDress(1))} lit={scanning === "top" ? 2 : undefined} disabled={matched} />
+              <GarmentPanel box={DRESS_PANEL} garment={top} loading={!closetReady} />
+              <ControlStrip box={L.bottomControls} onPrev={() => stepDress(-1)} onNext={() => stepDress(1)} onScan={() => scan("top", undefined, () => stepDress(1))} lit={scanning === "top" ? 2 : undefined} />
             </>
           ) : (
             <>
-              <GarmentPanel box={L.topPanel} garment={top} matched={matched} loading={!closetReady} />
-              <ControlStrip box={L.topControls} onPrev={() => step("top", -1)} onNext={() => step("top", 1)} onScan={() => scan("top")} lit={scanning === "top" ? 2 : undefined} disabled={matched} />
-              <GarmentPanel box={L.bottomPanel} garment={shownBottom} matched={matched} loading={!closetReady} />
-              <ControlStrip box={L.bottomControls} onPrev={() => step("bottom", -1)} onNext={() => step("bottom", 1)} onScan={() => scan("bottom")} lit={scanning === "bottom" ? 2 : undefined} disabled={matched} />
+              <GarmentPanel box={L.topPanel} garment={top} loading={!closetReady} />
+              <ControlStrip box={L.topControls} onPrev={() => step("top", -1)} onNext={() => step("top", 1)} onScan={() => scan("top")} lit={scanning === "top" ? 2 : undefined} />
+              <GarmentPanel box={L.bottomPanel} garment={shownBottom} loading={!closetReady} />
+              <ControlStrip box={L.bottomControls} onPrev={() => step("bottom", -1)} onNext={() => step("bottom", 1)} onScan={() => scan("bottom")} lit={scanning === "bottom" ? 2 : undefined} />
             </>
           )}
         </>
@@ -659,21 +610,8 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
           return <ExtraSticker key={key} garment={garment} index={same.findIndex((w) => w.key === key)} of={same.length} onTakeOff={() => dispatch({ type: "TAKE_OFF", category: key })} />;
         })}
 
-      {screen === "mismatch" && (
-        <Bevel box={L.banner} tone="banner" style={{ borderWidth: 4, zIndex: 5 }}>
-          <div className="blink3">
-            <PixelText text="MIS-MATCH!" color={C.ink} sx={L.bannerText.sx} sy={L.bannerText.sy} shadow={C.bannerLight} />
-          </div>
-        </Bevel>
-      )}
-      {screen === "mismatch" && state.verdict && (
-        <div role="status" style={{ ...pos(L.bannerReason), background: C.navy, display: "grid", placeItems: "center", zIndex: 5 }}>
-          <PixelText text={state.verdict.reason} color={C.lavender} sx={1.4} sy={1.8} />
-        </div>
-      )}
-
       {/* as in the film: BROWSE while browsing, AUTO DRESS once you're dressed */}
-      {screen === "browse" || screen === "mismatch" ? (
+      {screen === "browse" ? (
         <Bevel box={L.leftButton} tone="blue" onClick={browse} label="Browse" style={scanning ? { filter: "brightness(1.25)" } : undefined}>
           <ButtonLabel lines={["BROWSE"]} />
         </Bevel>
@@ -683,7 +621,7 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
         </Bevel>
       )}
       <Bevel box={L.rightButton} tone="blue" onClick={dressMe} label="Dress me">
-        <ButtonLabel lines={judging ? ["HMM..."] : ["DRESS", "ME"]} />
+        <ButtonLabel lines={["DRESS", "ME"]} />
       </Bevel>
 
       <CategoryBar
