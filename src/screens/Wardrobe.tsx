@@ -11,7 +11,7 @@ import { PixelLines, PixelText } from "../pixel/PixelText";
 import { C } from "../stage/palette";
 import { extraSpot, L, STAGE_W, type Box } from "../stage/layout";
 import type { Action, State } from "../state/machine";
-import { accessoriesFor, rankPairs, type BoardItem } from "../style/quiz";
+import { accessoriesFor, rankPairs, starterOutfit, type BoardItem } from "../style/quiz";
 import { type MyStyle, type Wardrobe as WardrobeChoice } from "../style/styles";
 import { Inventory, MoreMenu } from "./Inventory";
 import { Upload } from "./Upload";
@@ -193,19 +193,24 @@ export function Wardrobe({ state, dispatch, closet, categories, title, onSignOut
   useEffect(() => {
     if (restored.current || !closetReady || !outfitKey) return;
     restored.current = true;
+    // nothing to put back (a first visit): start dressed head to toe
+    const dressUp = () => {
+      const first = starterOutfit(closet, tops, bottoms, myStyle, Math.floor(Math.random() * 1e9));
+      if (first) dispatch({ type: "SET_OUTFIT", ...first });
+    };
     try {
       const last = JSON.parse(localStorage.getItem(outfitKey) ?? "null") as Look | null;
-      if (!last) return;
+      if (!last) return dressUp();
       const t = tops.findIndex((g) => g.id === last.top);
       const b = last.bottom === last.top ? 0 : bottoms.findIndex((g) => g.id === last.bottom);
-      if (t < 0 || b < 0) return;
+      if (t < 0 || b < 0) return dressUp();
       const ids = new Set(closet.map((g) => g.id));
       const extras = Object.fromEntries(Object.entries(last.extras).filter(([, id]) => ids.has(id)));
       dispatch({ type: "SET_OUTFIT", top: t, bottom: b, extras });
     } catch {
-      /* nothing remembered */
+      dressUp();
     }
-  }, [closetReady, outfitKey, tops, bottoms, closet, dispatch]);
+  }, [closetReady, outfitKey, tops, bottoms, closet, dispatch, myStyle]);
   const topId = tops[state.top % Math.max(1, tops.length)]?.id;
   const bottomId = bottoms[state.bottom % Math.max(1, bottoms.length)]?.id;
   useEffect(() => {

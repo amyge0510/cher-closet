@@ -1,4 +1,4 @@
-import { judge, judgeOutfit } from "../closet/match";
+import { judge, judgeOutfit, matchingPairs } from "../closet/match";
 import { rng } from "../pixel/raster";
 import type { Garment } from "../closet/types";
 import { EVERYDAY, FAMILIES, familiesOf, forWardrobe, leaf as leafOf, stylesOf, type MyStyle, type Wardrobe } from "./styles";
@@ -295,7 +295,7 @@ export function accessoriesFor(closet: Garment[], outfit: Garment[], style: MySt
 // `want`: anything that still lets the outfit pass, favoring pieces that
 // suit the style and aren't on already, with a little randomness.
 const TOP_UP_ORDER = ["shoes", "jewelry", "bags", "scarves", "jackets", "hats", "pantyhose"];
-function topUp(pool: Garment[], outfit: Garment[], t: Target, picked: Record<string, string>, wearing: Set<string>, seed: number, want: number): Record<string, string> {
+function topUp(pool: Garment[], outfit: Garment[], t: Target, picked: Record<string, string>, wearing: Set<string>, seed: number, want: number, order = TOP_UP_ORDER): Record<string, string> {
   const out = { ...picked };
   const [top, bottom] = outfit;
   const rand = rng(seed ^ 0x5eed);
@@ -315,7 +315,7 @@ function topUp(pool: Garment[], outfit: Garment[], t: Target, picked: Record<str
     out[key] = scored.reduce((a, b) => (b.s > a.s ? b : a)).g.id;
     return true;
   };
-  for (const cat of TOP_UP_ORDER) {
+  for (const cat of order) {
     if (Object.keys(out).length >= want) return out;
     if (!(cat in out)) take(cat, [cat]);
   }
@@ -355,3 +355,28 @@ export function rankPairs(pairs: [number, number][], tops: Garment[], bottoms: G
   const bestScore = Math.max(...scored.map((x) => x.s));
   return scored.filter((x) => x.s >= bestScore - 2).map((x) => x.p);
 }
+
+// The outfit someone sees the first time they open the closet: a top and
+// bottom that go together, worn with everything (a jacket, shoes, a bag and
+// jewelry, when the closet has ones that go), so the idea is clear at once.
+// Of a few matching pairs, the one that ends up with the most on wins.
+const STARTER_EXTRAS = ["jackets", "shoes", "bags", "jewelry"];
+export function starterOutfit(closet: Garment[], tops: Garment[], bottoms: Garment[], style: MyStyle | null, seed: number): { top: number; bottom: number; extras: Record<string, string> } | null {
+  const pairs = rankPairs(matchingPairs(tops, bottoms), tops, bottoms, style);
+  if (!pairs.length) return null;
+  const rand = rng(seed);
+  const tries = Array.from({ length: Math.min(8, pairs.length) }, () => pairs[Math.floor(rand() * pairs.length)]);
+  let best: { top: number; bottom: number; extras: Record<string, string> } | null = null;
+  let most = -1;
+  tries.forEach(([t, b], i) => {
+    const outfit = [tops[t], bottoms[b]];
+    const picked = accessoriesFor(closet, outfit, style, [], seed + i, OUTFIT_STARTER);
+    const styles = outfit.flatMap(stylesOf);
+    const target = style ? targetFor(style) : { leaves: styles, families: familiesOf(styles) };
+    const extras = topUp(closet.filter((g) => g.category !== "pantyhose"), outfit, target, picked, new Set(), seed + i, Object.keys(picked).length + STARTER_EXTRAS.length, STARTER_EXTRAS);
+    const score = Object.keys(extras).length + STARTER_EXTRAS.filter((c) => c in extras).length;
+    if (score > most) [best, most] = [{ top: t, bottom: b, extras }, score];
+  });
+  return best;
+}
+const OUTFIT_STARTER = 6;

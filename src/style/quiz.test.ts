@@ -4,7 +4,7 @@ import { judge, judgeOutfit } from "../closet/match";
 import { DEMO_SPECS, demoSpecsFor, type DemoSpec } from "../closet/demo";
 import { matchingPairs } from "../closet/match";
 import type { Garment } from "../closet/types";
-import { accessoriesFor, back, boardsFor, buildBoard, choose, coverage, fit, newOutfits, options, rankPairs, result, resultBoard, startQuiz } from "./quiz";
+import { accessoriesFor, starterOutfit, back, boardsFor, buildBoard, choose, coverage, fit, newOutfits, options, rankPairs, result, resultBoard, startQuiz } from "./quiz";
 import { FAMILIES, LEAVES, leaf } from "./styles";
 
 const toGarment = ({ shape, fill, band, audience, ...g }: DemoSpec): Garment => ({ ...g, slot: slotFor(g.category), image: "" });
@@ -117,6 +117,19 @@ describe("quiz", () => {
         // and OTHER OUTFITS lets it go
         expect(boardsFor(womens, newOutfits(q1, womens), "womens").some((b) => ids(b.items) === ids(items))).toBe(false);
       }
+    }
+  });
+
+  it("starts a first visit dressed head to toe: a matching pair, a jacket, shoes and more", () => {
+    const tops = womens.filter((g) => g.slot === "top");
+    const bottoms = womens.filter((g) => g.slot === "bottom");
+    for (let seed = 1; seed <= 20; seed++) {
+      const first = starterOutfit(womens, tops, bottoms, null, seed)!;
+      expect(first, `seed ${seed}`).not.toBeNull();
+      expect(judge(tops[first.top], bottoms[first.bottom]).match).toBe(true);
+      const cats = Object.keys(first.extras);
+      expect(cats, `seed ${seed}`).toEqual(expect.arrayContaining(["jackets", "shoes"]));
+      expect(cats.length, `seed ${seed}`).toBeGreaterThanOrEqual(4);
     }
   });
 
