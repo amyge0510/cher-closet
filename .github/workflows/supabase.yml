@@ -33,9 +33,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # a fixed version: 3.0 changed what these commands point at by default
+      # (a local database instead of the linked project), so "latest" can
+      # break deploys without warning
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.122.1
 
       - name: Connect to the project
         run: supabase link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
